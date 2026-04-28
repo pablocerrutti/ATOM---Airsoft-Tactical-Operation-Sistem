@@ -2,50 +2,47 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>A.T.O.M - Airsoft Tactical Oeration Maps</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATAC - Comunidad Airsoft</title>
     <style>
-        :root { --p: #00ff00; --r: #ff3333; --a: #3399ff; --f: #0a0a0a; }
-        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); overflow: hidden; }
-        #team-selector {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .btn-t { padding: 20px; margin: 10px; width: 80%; border: 2px solid; cursor: pointer; font-weight: bold; background: rgba(0,0,0,0.5); }
-        .btn-a { border-color: var(--a); color: var(--a); }
-        .btn-r { border-color: var(--r); color: var(--r); }
-        #map { height: 100vh; width: 100vw; background: #000; }
-        #hud {
-            position: fixed; bottom: 0; width: 100%; height: 70px;
-            background: rgba(0,0,0,0.8); border-top: 1px solid var(--p);
-            display: flex; justify-content: space-around; align-items: center; z-index: 1000;
-        }
-        .btn-act { background: none; border: 1px solid var(--p); color: var(--p); padding: 10px; font-size: 10px; }
+        :root { --p: #00ff00; --f: #0a0a0a; }
+        body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; padding: 20px; }
+        .header { text-align: center; border-bottom: 2px solid var(--p); padding-bottom: 20px; margin-bottom: 30px; }
+        .event-card { border: 1px solid var(--p); padding: 15px; margin-bottom: 20px; background: rgba(0,255,0,0.05); }
+        .event-card h3 { margin-top: 0; color: #fff; }
+        .btn { background: transparent; border: 1px solid var(--p); color: var(--p); padding: 10px 20px; cursor: pointer; width: 100%; text-transform: uppercase; font-weight: bold; }
+        .btn:hover { background: var(--p); color: #000; }
+        .admin-link { display: block; text-align: center; margin-top: 50px; font-size: 0.8rem; color: #444; text-decoration: none; }
+        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 10px; margin-bottom: 10px; width: calc(100% - 22px); }
     </style>
 </head>
 <body>
-
-    <div id="team-selector">
-        <h2>SISTEMA TÁCTICO A.T.O.M - Airsoft Tactical Oeration Maps</h2>
-        <p>IDENTIFIQUE SU UNIDAD:</p>
-        <button class="btn-t btn-a" onclick="join('azul')">ESCUADRÓN AZUL</button>
-        <button class="btn-t btn-r" onclick="join('rojo')">ESCUADRÓN ROJO</button>
+    <div class="header">
+        <h1>SISTEMA A.T.O.M - Airsoft Tactics Operation Maps.</h1>
+        <p>CENTRO DE OPERACIONES Y COMUNIDAD</p>
     </div>
 
-    <div id="map"></div>
-
-    <div id="hud">
-        <button class="btn-act" onclick="sendReport('enemy')">⚠️ REPORTAR ENEMIGO</button>
-        <button class="btn-act" onclick="sendReport('objective')">🎯 MARCAR OBJETIVO</button>
+    <div id="auth-section">
+        <h3>REGISTRO DE COMBATIENTE</h3>
+        <input type="text" id="reg-callsign" placeholder="CALLSIGN (Nombre en juego)">
+        <input type="email" id="reg-email" placeholder="CORREO ELECTRÓNICO">
+        <input type="password" id="reg-pass" placeholder="CONTRASEÑA">
+        <button class="btn" onclick="registrar()">DARSE DE ALTA</button>
     </div>
+
+    <hr style="border: 0.5px solid #222; margin: 30px 0;">
+
+    <h2>PRÓXIMAS OPERACIONES</h2>
+    <div id="calendar">
+        <p>Buscando transmisiones enemigas...</p>
+    </div>
+
+    <a href="admin.html" class="admin-link">ACCESO COMANDANCIA [ADMIN]</a>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <script>
-        // Configuración que me pasaste
         const firebaseConfig = {
             apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
             authDomain: "atom--airsoft.firebaseapp.com",
@@ -55,117 +52,40 @@
             messagingSenderId: "310010107781",
             appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        
-        let myTeam = null;
-        let myId = "player_" + Math.floor(Math.random() * 100000);
-        let map, markers = {};
+        const auth = firebase.auth();
 
-        function join(team) {
-            myTeam = team;
-            document.getElementById('team-selector').style.display = 'none';
-            initApp();
-        }
+        function registrar() {
+            const email = document.getElementById('reg-email').value;
+            const pass = document.getElementById('reg-pass').value;
+            const callsign = document.getElementById('reg-callsign').value;
 
-        function initApp() {
-            map = L.map('map', { zoomControl: false }).setView([-34.60, -58.38], 16);
-            
-            // Capa satelital
-            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
-
-            // 1. Rastrear mi GPS y subirlo a Firebase
-            map.locate({watch: true, enableHighAccuracy: true});
-            map.on('locationfound', (e) => {
-                db.ref('players/' + myId).set({
-                    lat: e.latlng.lat,
-                    lng: e.latlng.lng,
-                    team: myTeam,
-                    time: Date.now()
-                });
-            });
-
-            // 2. Escuchar a otros jugadores
-            db.ref('players').on('value', (snapshot) => {
-                const data = snapshot.val();
-                renderPlayers(data);
-            });
-
-            // 3. Escuchar reportes (enemigos/objetivos)
-            db.ref('reports').on('value', (snapshot) => {
-                const data = snapshot.val();
-                renderReports(data);
-            });
-        }
-
-        function renderPlayers(players) {
-            for (let id in players) {
-                const p = players[id];
-                // LÓGICA: Solo dibujar si es de mi mismo equipo y no soy yo
-                if (p.team === myTeam && id !== myId) {
-                    if (markers[id]) map.removeLayer(markers[id]);
-                    const color = (p.team === 'azul') ? '#3399ff' : '#ff3333';
-                    markers[id] = L.circleMarker([p.lat, p.lng], {
-                        radius: 7, color: color, fillOpacity: 1
-                    }).addTo(map).bindTooltip("ALIADO");
-                }
-            }
-        }
-
-        function sendReport(type) {
-            const loc = map.getCenter();
-            db.ref('reports').push({
-                lat: loc.lat,
-                lng: loc.lng,
-                type: type,
-                team: myTeam, // Quien lo reportó
-                time: Date.now()
-            });
-        }
-
-        function renderReports(reports) {
-            for (let id in reports) {
-                const r = reports[id];
-                if (markers[id]) continue; // Evitar duplicados simples
-
-                let iconHtml = r.type === 'enemy' ? '⚠️' : '🎯';
-                let label = r.type === 'enemy' ? 'ENEMIGO' : 'OBJETIVO';
-                
-                markers[id] = L.marker([r.lat, r.lng], {
-                    icon: L.divIcon({ html: `<div style="font-size:24px">${iconHtml}</div>` })
-                }).addTo(map).bindPopup(label);
-
-                function registrarUsuario(email, password, callsign, teamName) {
-        firebase.auth().createUserWithEmailAndPassword(email, password)
-            .then((userCredential) => {
-                // Guardar perfil en la base de datos
-                const user = userCredential.user;
-                db.ref('users/' + user.uid).set({
+            auth.createUserWithEmailAndPassword(email, pass).then((userCredential) => {
+                db.ref('users/' + userCredential.user.uid).set({
                     callsign: callsign,
-                    team: teamName, // Si es independiente o de un Team fijo
-                    role: 'jugador' // Por defecto
+                    role: 'jugador',
+                    team: 'pendiente'
                 });
-                alert("Registro completado, Soldado.");
-            })
-            .catch((error) => alert(error.message));
-    }
-
-    // Función para que el Admin cree una "Zona de Operación"
-    function crearZonaGuerra(coordsArray, nombreOp) {
-        // Esto dibuja un polígono que delimita el campo
-        const zona = L.polygon(coordsArray, {
-            color: 'lime',
-            fillColor: '#00ff00',
-            fillOpacity: 0.1
-        }).addTo(map);
-        
-        db.ref('operaciones/actual').set({
-            nombre: nombreOp,
-            limites: coordsArray
-        });
-            }
+                alert("Soldado registrado correctamente.");
+            }).catch(e => alert(e.message));
         }
+
+        // Cargar eventos del calendario
+        db.ref('operaciones').on('value', (snap) => {
+            const ops = snap.val();
+            const container = document.getElementById('calendar');
+            container.innerHTML = "";
+            for (let id in ops) {
+                container.innerHTML += `
+                    <div class="event-card">
+                        <h3>${ops[id].nombre}</h3>
+                        <p>📍 Ubicación: Florida, Uruguay</p>
+                        <button class="btn" onclick="window.location.href='mapa.html?op=${id}'">DESPLEGARSE</button>
+                    </div>
+                `;
+            }
+        });
     </script>
 </body>
 </html>

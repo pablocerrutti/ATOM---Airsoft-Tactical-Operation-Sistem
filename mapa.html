@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>A.T.O.M. - MAPA TACTICO DE OPERACIONES</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root { --p: #00ff00; --a: #3399ff; --r: #ff3333; }
+        body { margin: 0; background: #000; font-family: monospace; overflow: hidden; }
+        #map { height: 100vh; width: 100vw; z-index: 1; }
+        #hud { position: fixed; top: 10px; left: 10px; z-index: 1000; background: rgba(0,0,0,0.8); color: var(--p); padding: 10px; border: 1px solid var(--p); font-size: 11px; }
+        #alert { display: none; position: fixed; top: 30%; left: 50%; transform: translateX(-50%); z-index: 5000; background: red; color: white; padding: 20px; border: 4px solid white; font-weight: bold; text-align: center; }
+        #radio { position: fixed; bottom: 0; width: 100%; z-index: 2000; background: rgba(0,10,0,0.9); border-top: 2px solid var(--p); height: 180px; display: flex; flex-direction: column; }
+        #chat { flex-grow: 1; overflow-y: auto; padding: 10px; color: var(--p); font-size: 12px; }
+        .btn-med { background: var(--r); color: white; border: none; padding: 12px; font-weight: bold; width: 100%; }
+        .btn-med.down { background: #444; }
+        .input-area { display: flex; border-top: 1px solid #333; }
+        input { background: #000; border: none; color: var(--p); padding: 12px; flex-grow: 1; outline: none; }
+    </style>
+<body>
+    <div id="alert">⚠️ FUERA DE LÍMITES ⚠️</div>
+    <div id="hud">ATAC SYS<br>BANDO: <span id="t-txt">--</span> | ST: <span id="s-txt">OK</span></div>
+    <div id="map"></div>
+    <div id="radio">
+        <button id="m-btn" class="btn-med" onclick="toggleStatus()">⚠️ NOTIFICAR ELIMINACIÓN</button>
+        <div id="chat"></div>
+        <div class="input-bar">
+            <input type="text" id="m-in" placeholder="RADIO..." autocomplete="off">
+            <button onclick="sendMsg()" style="background:var(--p); border:none; padding:0 20px;">></button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            authDomain: "atom--airsoft.firebaseapp.com",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft",
+            storageBucket: "atom--airsoft.firebasestorage.app",
+            messagingSenderId: "310010107781",
+            appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database(), auth = firebase.auth(), opId = new URLSearchParams(window.location.search).get('op');
+        let map, myTeam, myCallsign, isDown = false, markers = {}, zones = {};
+
+        auth.onAuthStateChanged(u => {
+            if (u) db.ref('users/'+u.uid).once('value', snap => {
+                myTeam = snap.val().team; myCallsign = snap.val().callsign;
+                document.getElementById('t-txt').innerText = myTeam.toUpperCase();
+                document.getElementById('t-txt').style.color = (myTeam==='azul'?'var(--a)':'var(--r)');
+                initMap(u.uid); listenRadio();
+            }); else window.location.href="index.html";
+        });
+
+        function initMap(uid) {
+            map = L.map('map', {zoomControl: false}).setView([-34.10, -56.21], 16);
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+
+            db.ref('operaciones/'+opId).on('value', snap => {
+                const op = snap.val(); if(!op) return;
+                if(op.limites) zones.poly = L.polygon(op.limites, {color:'lime', fillOpacity:0.05}).addTo(map);
+                if(op.safezone) zones.safe = L.polygon(op.safezone, {color:'white', fillOpacity:0.1, dashArray:'5,5'}).addTo(map);
+                if(op.resA) zones.resA = L.polygon(op.resA, {color:'#3399ff', fillOpacity:0.15}).addTo(map);
+                if(op.resR) zones.resR = L.polygon(op.resR, {color:'#ff3333', fillOpacity:0.15}).addTo(map);
+                if(op.objetivos) op.objetivos.forEach(o => L.circleMarker([o.lat, o.lng], {radius:12, color:'yellow'}).addTo(map));
+            });
+
+            map.locate({watch:true, enableHighAccuracy:true});
+            map.on('locationfound', e => {
+                checkZones(e.latlng);
+                db.ref('positions/'+uid).set({lat:e.latlng.lat, lng:e.latlng.lng, team:myTeam, callsign:myCallsign, status:isDown?'DOWN':'OK'});
+            });
+
+            db.ref('positions').on('value', snap => {
+                const p = snap.val();
+                for(let id in p) {
+                    if(p[id].team === myTeam && id !== uid) {
+                        if(markers[id]) map.removeLayer(markers[id]);
+                        let c = p[id].status==='DOWN'?'#fff':(myTeam==='azul'?'#3399ff':'#ff3333');
+                        markers[id] = L.circleMarker([p[id].lat, p[id].lng], {radius:p[id].status==='DOWN'?10:7, color:c, fillOpacity:1}).addTo(map).bindTooltip((p[id].status==='DOWN'?'💀 ':'')+p[id].callsign, {permanent:true});
+                    }
+                }
+            });
+        }
+
+        function checkZones(ll) {
+            const pt = turf.point([ll.lng, ll.lat]);
+            if(zones.poly) {
+                const poly = turf.polygon([zones.poly.getLatLngs()[0].map(p=>[p.lng, p.lat]).concat([[zones.poly.getLatLngs()[0][0].lng, zones.poly.getLatLngs()[0][0].lat]])]);
+                document.getElementById('alert').style.display = turf.booleanPointInPolygon(pt, poly) ? 'none' : 'block';
+            }
+            let res = (myTeam==='azul')?zones.resA:zones.resR;
+            if(res && isDown) {
+                const poly = turf.polygon([res.getLatLngs()[0].map(p=>[p.lng, p.lat]).concat([[res.getLatLngs()[0][0].lng, res.getLatLngs()[0][0].lat]])]);
+                if(turf.booleanPointInPolygon(pt, poly)) toggleStatus();
+            }
+        }
+
+        function toggleStatus() {
+            isDown = !isDown;
+            document.getElementById('m-btn').innerText = isDown ? "REGENERATE (HAY MÉDICO)" : "⚠️ NOTIFICAR ELIMINACIÓN";
+            document.getElementById('m-btn').className = isDown ? "btn-med down" : "btn-med";
+            document.getElementById('s-txt').innerText = isDown ? "DOWN" : "OK";
+            if(isDown) sendMsg("!!! ME ELIMINARON !!!");
+        }
+
+        function sendMsg() {
+            const i = document.getElementById('m-in'); if(!i.value) return;
+            db.ref('radio/'+opId).push({user:myCallsign, msg:i.value, team:myTeam, time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+            i.value = "";
+        }
+
+        function listenRadio() {
+            db.ref('radio/'+opId).limitToLast(10).on('child_added', snap => {
+                const m = snap.val(); if(m.team === myTeam) {
+                    const b = document.getElementById('chat'); b.innerHTML += `<div><b>${m.user}:</b> ${m.msg}</div>`; b.scrollTop = b.scrollHeight;
+                }
+            });
+        }
+    </script>
+</body>
+</html>

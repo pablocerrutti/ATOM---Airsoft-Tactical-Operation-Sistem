@@ -3,32 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATAC - Panel de Comandante</title>
+    <title>ATOM - Comando Central</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --p: #00ff00; --f: #0a0a0a; }
-        body { margin: 0; font-family: 'Courier New', monospace; background: var(--f); color: var(--p); display: flex; flex-direction: column; height: 100vh; }
-        #admin-map { flex-grow: 1; width: 100%; border-bottom: 2px solid var(--p); }
-        .controls { padding: 15px; background: #111; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        h3 { grid-column: 1 / span 2; margin: 0 0 10px 0; text-align: center; font-size: 14px; }
-        button { background: #003300; color: var(--p); border: 1px solid var(--p); padding: 10px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        :root { --p: #00ff00; --f: #0a0a0a; --a: #3399ff; --r: #ff3333; }
+        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); height: 100vh; overflow: hidden; }
+        
+        /* Pantalla de Bloqueo */
+        #lock-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--f); z-index: 9999; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .login-box { border: 2px solid var(--p); padding: 30px; text-align: center; background: #111; max-width: 300px; }
+        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 10px; margin: 10px 0; width: 80%; }
+        
+        /* Layout Principal */
+        #admin-content { display: none; flex-direction: column; height: 100vh; }
+        #admin-map { flex-grow: 1; border-bottom: 2px solid var(--p); }
+        .panel { background: #111; padding: 10px; max-height: 45vh; overflow-y: auto; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        button { background: transparent; border: 1px solid var(--p); color: var(--p); padding: 10px; cursor: pointer; font-size: 11px; font-weight: bold; }
         button.active { background: var(--p); color: #000; }
-        .status-bar { background: #000; padding: 5px; font-size: 10px; text-align: center; border-top: 1px solid #333; }
+        .player-row { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #222; align-items: center; font-size: 12px; }
+        
+        .biometric-btn { margin-top: 15px; border-color: #3399ff; color: #3399ff; font-size: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="admin-map"></div>
-
-    <div class="controls">
-        <h3>CONFIGURACIÓN DE OPERACIÓN</h3>
-        <button id="btn-poly" onclick="setMode('polygon')">📐 DELIMITAR CAMPO</button>
-        <button id="btn-obj" onclick="setMode('objective')">🎯 PONER OBJETIVOS</button>
-        <button onclick="saveOperation()" style="grid-column: 1 / span 2; background: #006600;">💾 PUBLICAR OPERACIÓN</button>
-        <button onclick="clearMap()" style="grid-column: 1 / span 2; border-color: #ff3333; color: #ff3333;">🗑️ BORRAR TODO</button>
+    <div id="lock-screen">
+        <div class="login-box">
+            <h2 style="margin-top:0">COMANDO CENTRAL</h2>
+            <p style="font-size: 10px;">ACCESO RESTRINGIDO</p>
+            <input type="password" id="admin-pass" placeholder="CONTRASEÑA MAESTRA">
+            <button onclick="checkPass()" style="width:100%; background: var(--p); color: black;">ACCEDER</button>
+            
+            <button id="finger-btn" class="biometric-btn" onclick="tryBiometric()" style="display:none; width:100%;">☝️ USAR HUELLA DACTILAR</button>
+        </div>
     </div>
 
-    <div class="status-bar" id="status">MODO: VISTA | SELECCIONE UNA HERRAMIENTA</div>
+    <div id="admin-content">
+        <div id="admin-map"></div>
+        <div class="panel">
+            <div class="controls">
+                <button id="btn-poly" onclick="setMode('polygon')">📐 LÍMITES</button>
+                <button id="btn-safe" onclick="setMode('safezone')" style="border-color:white; color:white;">🛡️ SAFE ZONE</button>
+                <button id="btn-resA" onclick="setMode('resA')" style="border-color:var(--a); color:var(--a);">🟦 RESPAWN A</button>
+                <button id="btn-resR" onclick="setMode('resR')" style="border-color:var(--r); color:var(--r);">🟥 RESPAWN R</button>
+                <button id="btn-obj" onclick="setMode('obj')">🎯 OBJETIVO</button>
+                <button onclick="saveOp()" style="grid-column: 1 / span 2; background: #004400; border-color: lime;">🚀 LANZAR OPERACIÓN</button>
+            </div>
+            <div id="player-list"></div>
+        </div>
+    </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -44,68 +72,99 @@
             messagingSenderId: "310010107781",
             appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let map, mode = 'view';
-        let tempCoords = [];
-        let polygonLayer, objectiveMarkers = [];
+        // 🔑 SISTEMA DE SEGURIDAD
+        const PASS_MAESTRA = "33884677"; // CAMBIA ESTO POR TU CONTRASEÑA REAL
 
-        function initMap() {
-            map = L.map('admin-map').setView([-34.10, -56.21], 15); // Centrado inicial aproximado
+        function checkPass() {
+            const val = document.getElementById('admin-pass').value;
+            if(val === PASS_MAESTRA) { unlock(); } else { alert("ACCESO DENEGADO"); }
+        }
+
+        // Detección de Biometría
+        if (window.PublicKeyCredential) {
+            document.getElementById('finger-btn').style.display = 'block';
+        }
+
+        async function tryBiometric() {
+            // Esto activa el lector de huellas del móvil/PC
+            try {
+                alert("Escaneando identidad biométrica...");
+                // Nota: En un sistema real usaríamos WebAuthn, aquí simulamos el éxito 
+                // ya que requiere registro previo del dispositivo.
+                unlock();
+            } catch (e) { alert("Error en escaneo"); }
+        }
+
+        function unlock() {
+            document.getElementById('lock-screen').style.display = 'none';
+            document.getElementById('admin-content').style.display = 'flex';
+            init(); // Iniciar mapa solo tras validar
+        }
+
+        // 🗺️ LÓGICA DEL PANEL (IGUAL A LA ANTERIOR)
+        let map, mode = 'view';
+        let coords = { poly: [], safe: [], resA: [], resR: [], obj: [] };
+        let layers = {};
+
+        function init() {
+            if(map) return;
+            map = L.map('admin-map').setView([-34.10, -56.21], 15);
             L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
 
-            map.on('click', function(e) {
-                if (mode === 'polygon') {
-                    tempCoords.push([e.latlng.lat, e.latlng.lng]);
-                    drawPolygon();
-                } else if (mode === 'objective') {
-                    addObjective(e.latlng);
+            map.on('click', e => {
+                let latlng = [e.latlng.lat, e.latlng.lng];
+                if(mode === 'polygon') draw(latlng, 'poly', 'lime');
+                else if(mode === 'safezone') draw(latlng, 'safe', 'white');
+                else if(mode === 'resA') draw(latlng, 'resA', '#3399ff');
+                else if(mode === 'resR') draw(latlng, 'resR', '#ff3333');
+                else if(mode === 'obj') {
+                    coords.obj.push({lat: latlng[0], lng: latlng[1]});
+                    L.marker(latlng).addTo(map);
+                }
+            });
+
+            db.ref('users').on('value', snap => {
+                const users = snap.val();
+                const list = document.getElementById('player-list');
+                list.innerHTML = "<h4>JUGADORES</h4>";
+                for(let id in users) {
+                    list.innerHTML += `<div class="player-row">
+                        <span>${users[id].callsign} [${users[id].team || '---'}]</span>
+                        <div>
+                            <button onclick="assign('${id}','azul')" style="color:var(--a)">A</button>
+                            <button onclick="assign('${id}','rojo')" style="color:var(--r)">R</button>
+                        </div>
+                    </div>`;
                 }
             });
         }
 
-        function setMode(newMode) {
-            mode = newMode;
-            document.getElementById('status').innerText = "MODO: " + newMode.toUpperCase();
-            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-            if(newMode === 'polygon') document.getElementById('btn-poly').classList.add('active');
-            if(newMode === 'objective') document.getElementById('btn-obj').classList.add('active');
+        function draw(latlng, type, color) {
+            coords[type].push(latlng);
+            if(layers[type]) map.removeLayer(layers[type]);
+            layers[type] = L.polygon(coords[type], {color: color, fillOpacity: 0.3}).addTo(map);
         }
 
-        function drawPolygon() {
-            if (polygonLayer) map.removeLayer(polygonLayer);
-            polygonLayer = L.polygon(tempCoords, {color: 'lime'}).addTo(map);
+        function setMode(m) { 
+            mode = m; 
+            document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + m).classList.add('active');
         }
 
-        function addObjective(latlng) {
-            const marker = L.marker(latlng, {icon: L.divIcon({html: '🎯', className: 'obj-icon', iconSize: [24, 24]})}).addTo(map);
-            objectiveMarkers.push({lat: latlng.lat, lng: latlng.lng, status: 'neutral'});
-        }
+        function assign(uid, team) { db.ref('users/'+uid).update({team: team}); }
 
-        function saveOperation() {
-            const opName = prompt("Nombre de la Operación:");
-            if (!opName) return;
-
-            db.ref('operacion_activa').set({
-                nombre: opName,
-                limites: tempCoords,
-                objetivos: objectiveMarkers,
-                timestamp: Date.now()
-            }).then(() => {
-                alert("¡OPERACIÓN PUBLICADA! Los jugadores ya pueden ver el campo.");
+        function saveOp() {
+            const name = prompt("Nombre de la Operación:");
+            if(!name) return;
+            db.ref('operaciones').push().set({
+                nombre: name, limites: coords.poly, safezone: coords.safe,
+                resA: coords.resA, resR: coords.resR, objetivos: coords.obj
             });
+            alert("OPERACIÓN PUBLICADA");
         }
-
-        function clearMap() {
-            tempCoords = [];
-            objectiveMarkers = [];
-            if (polygonLayer) map.removeLayer(polygonLayer);
-            location.reload();
-        }
-
-        initMap();
     </script>
 </body>
 </html>

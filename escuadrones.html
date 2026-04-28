@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SISTEMA A.T.O.M - Escuadrones Operativos</title>
+    <style>
+        :root { --p: #00ff00; --f: #0a0a0a; }
+        body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; padding: 20px; }
+        .header { border-bottom: 2px solid var(--p); padding-bottom: 10px; margin-bottom: 20px; }
+        .team-card { border: 1px solid var(--p); background: rgba(0,255,0,0.05); padding: 15px; margin-bottom: 20px; }
+        .team-header { display: flex; align-items: center; gap: 15px; }
+        .team-logo { width: 60px; height: 60px; border: 1px solid var(--p); object-fit: cover; }
+        .photo-gallery { display: flex; gap: 10px; margin-top: 10px; overflow-x: auto; }
+        .photo-gallery img { width: 120px; height: 80px; border: 1px solid #333; object-fit: cover; }
+        .form-section { border: 1px dashed #555; padding: 15px; margin-bottom: 30px; }
+        input, button { background: #000; border: 1px solid var(--p); color: var(--p); padding: 10px; width: 100%; margin-top: 5px; box-sizing: border-box; }
+        button { cursor: pointer; background: #003300; font-weight: bold; }
+        .nav { margin-bottom: 20px; }
+        .nav a { color: var(--p); text-decoration: none; border: 1px solid var(--p); padding: 5px 10px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="nav-btn">⬅ REGRESAR</a>
+    
+    <div class="header">
+        <h1>REGISTRO DE UNIDADES</h1>
+    </div>
+
+    <div class="form-section">
+        <div class="input-group">
+            <label>Nombre del Escuadrón</label>
+            <input type="text" id="t-name" placeholder="Ej: Lobos del Sur">
+        </div>
+        <div class="input-group">
+            <label>Adjuntar Escudo (Logo)</label>
+            <input type="file" id="t-logo-file" accept="image/*">
+        </div>
+        <div class="input-group">
+            <label>Adjuntar Foto del Equipo</label>
+            <input type="file" id="t-photo-file" accept="image/*">
+        </div>
+        <button id="upload-btn" onclick="procesarYSubir()">SUBIR DOSSIER</button>
+    </div>
+
+    <div id="teams-list"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            authDomain: "atom--airsoft.firebaseapp.com",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft",
+            storageBucket: "atom--airsoft.firebasestorage.app",
+            messagingSenderId: "310010107781",
+            appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Función para comprimir y redimensionar imágenes (Base64)
+        async function compressImage(file, maxSize) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+                        } else {
+                            if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.7)); // Calidad 70%
+                    };
+                };
+            });
+        }
+
+        async function procesarYSubir() {
+            const name = document.getElementById('t-name').value;
+            const logoInput = document.getElementById('t-logo-file').files[0];
+            const photoInput = document.getElementById('t-photo-file').files[0];
+            const btn = document.getElementById('upload-btn');
+
+            if (!name) return alert("Indique el nombre.");
+            
+            btn.innerText = "PROCESANDO IMÁGENES...";
+            btn.disabled = true;
+
+            let logoB64 = "";
+            let photoB64 = "";
+
+            if (logoInput) logoB64 = await compressImage(logoInput, 150); // Logo pequeño
+            if (photoInput) photoB64 = await compressImage(photoInput, 600); // Foto de equipo
+
+            db.ref('escuadrones').push({
+                nombre: name,
+                logo: logoB64,
+                foto: photoB64,
+                timestamp: Date.now()
+            }).then(() => {
+                alert("Unidad registrada.");
+                location.reload();
+            });
+        }
+
+        // Cargar y mostrar escuadrones
+        db.ref('escuadrones').on('value', snap => {
+            const container = document.getElementById('teams-list');
+            container.innerHTML = "";
+            const teams = snap.val();
+            for (let id in teams) {
+                const t = teams[id];
+                container.innerHTML += `
+                    <div class="team-card">
+                        <div class="team-header">
+                            ${t.logo ? `<img src="${t.logo}" class="team-logo">` : ''}
+                            <h2 style="margin:0">${t.nombre}</h2>
+                        </div>
+                        ${t.foto ? `<img src="${t.foto}" class="team-photo">` : ''}
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
