@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>ATAC - Airsoft Tactical Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root { --p: #00ff00; --r: #ff3333; --a: #3399ff; --f: #0a0a0a; }
+        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); overflow: hidden; }
+        #team-selector {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .btn-t { padding: 20px; margin: 10px; width: 80%; border: 2px solid; cursor: pointer; font-weight: bold; background: rgba(0,0,0,0.5); }
+        .btn-a { border-color: var(--a); color: var(--a); }
+        .btn-r { border-color: var(--r); color: var(--r); }
+        #map { height: 100vh; width: 100vw; background: #000; }
+        #hud {
+            position: fixed; bottom: 0; width: 100%; height: 70px;
+            background: rgba(0,0,0,0.8); border-top: 1px solid var(--p);
+            display: flex; justify-content: space-around; align-items: center; z-index: 1000;
+        }
+        .btn-act { background: none; border: 1px solid var(--p); color: var(--p); padding: 10px; font-size: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="team-selector">
+        <h2>SISTEMA TÁCTICO ATAC</h2>
+        <p>IDENTIFIQUE SU UNIDAD:</p>
+        <button class="btn-t btn-a" onclick="join('azul')">ESCUADRÓN AZUL</button>
+        <button class="btn-t btn-r" onclick="join('rojo')">ESCUADRÓN ROJO</button>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="hud">
+        <button class="btn-act" onclick="sendReport('enemy')">⚠️ REPORTAR ENEMIGO</button>
+        <button class="btn-act" onclick="sendReport('objective')">🎯 MARCAR OBJETIVO</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Configuración que me pasaste
+        const firebaseConfig = {
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            authDomain: "atom--airsoft.firebaseapp.com",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft",
+            storageBucket: "atom--airsoft.firebasestorage.app",
+            messagingSenderId: "310010107781",
+            appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        let myTeam = null;
+        let myId = "player_" + Math.floor(Math.random() * 100000);
+        let map, markers = {};
+
+        function join(team) {
+            myTeam = team;
+            document.getElementById('team-selector').style.display = 'none';
+            initApp();
+        }
+
+        function initApp() {
+            map = L.map('map', { zoomControl: false }).setView([-34.60, -58.38], 16);
+            
+            // Capa satelital
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+
+            // 1. Rastrear mi GPS y subirlo a Firebase
+            map.locate({watch: true, enableHighAccuracy: true});
+            map.on('locationfound', (e) => {
+                db.ref('players/' + myId).set({
+                    lat: e.latlng.lat,
+                    lng: e.latlng.lng,
+                    team: myTeam,
+                    time: Date.now()
+                });
+            });
+
+            // 2. Escuchar a otros jugadores
+            db.ref('players').on('value', (snapshot) => {
+                const data = snapshot.val();
+                renderPlayers(data);
+            });
+
+            // 3. Escuchar reportes (enemigos/objetivos)
+            db.ref('reports').on('value', (snapshot) => {
+                const data = snapshot.val();
+                renderReports(data);
+            });
+        }
+
+        function renderPlayers(players) {
+            for (let id in players) {
+                const p = players[id];
+                // LÓGICA: Solo dibujar si es de mi mismo equipo y no soy yo
+                if (p.team === myTeam && id !== myId) {
+                    if (markers[id]) map.removeLayer(markers[id]);
+                    const color = (p.team === 'azul') ? '#3399ff' : '#ff3333';
+                    markers[id] = L.circleMarker([p.lat, p.lng], {
+                        radius: 7, color: color, fillOpacity: 1
+                    }).addTo(map).bindTooltip("ALIADO");
+                }
+            }
+        }
+
+        function sendReport(type) {
+            const loc = map.getCenter();
+            db.ref('reports').push({
+                lat: loc.lat,
+                lng: loc.lng,
+                type: type,
+                team: myTeam, // Quien lo reportó
+                time: Date.now()
+            });
+        }
+
+        function renderReports(reports) {
+            for (let id in reports) {
+                const r = reports[id];
+                if (markers[id]) continue; // Evitar duplicados simples
+
+                let iconHtml = r.type === 'enemy' ? '⚠️' : '🎯';
+                let label = r.type === 'enemy' ? 'ENEMIGO' : 'OBJETIVO';
+                
+                markers[id] = L.marker([r.lat, r.lng], {
+                    icon: L.divIcon({ html: `<div style="font-size:24px">${iconHtml}</div>` })
+                }).addTo(map).bindPopup(label);
+            }
+        }
+    </script>
+</body>
+</html>
