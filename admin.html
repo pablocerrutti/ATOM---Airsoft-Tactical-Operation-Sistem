@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATAC - Panel de Comandante</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root { --p: #00ff00; --f: #0a0a0a; }
+        body { margin: 0; font-family: 'Courier New', monospace; background: var(--f); color: var(--p); display: flex; flex-direction: column; height: 100vh; }
+        #admin-map { flex-grow: 1; width: 100%; border-bottom: 2px solid var(--p); }
+        .controls { padding: 15px; background: #111; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        h3 { grid-column: 1 / span 2; margin: 0 0 10px 0; text-align: center; font-size: 14px; }
+        button { background: #003300; color: var(--p); border: 1px solid var(--p); padding: 10px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        button.active { background: var(--p); color: #000; }
+        .status-bar { background: #000; padding: 5px; font-size: 10px; text-align: center; border-top: 1px solid #333; }
+    </style>
+</head>
+<body>
+
+    <div id="admin-map"></div>
+
+    <div class="controls">
+        <h3>CONFIGURACIÓN DE OPERACIÓN</h3>
+        <button id="btn-poly" onclick="setMode('polygon')">📐 DELIMITAR CAMPO</button>
+        <button id="btn-obj" onclick="setMode('objective')">🎯 PONER OBJETIVOS</button>
+        <button onclick="saveOperation()" style="grid-column: 1 / span 2; background: #006600;">💾 PUBLICAR OPERACIÓN</button>
+        <button onclick="clearMap()" style="grid-column: 1 / span 2; border-color: #ff3333; color: #ff3333;">🗑️ BORRAR TODO</button>
+    </div>
+
+    <div class="status-bar" id="status">MODO: VISTA | SELECCIONE UNA HERRAMIENTA</div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            authDomain: "atom--airsoft.firebaseapp.com",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft",
+            storageBucket: "atom--airsoft.firebasestorage.app",
+            messagingSenderId: "310010107781",
+            appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let map, mode = 'view';
+        let tempCoords = [];
+        let polygonLayer, objectiveMarkers = [];
+
+        function initMap() {
+            map = L.map('admin-map').setView([-34.10, -56.21], 15); // Centrado inicial aproximado
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+
+            map.on('click', function(e) {
+                if (mode === 'polygon') {
+                    tempCoords.push([e.latlng.lat, e.latlng.lng]);
+                    drawPolygon();
+                } else if (mode === 'objective') {
+                    addObjective(e.latlng);
+                }
+            });
+        }
+
+        function setMode(newMode) {
+            mode = newMode;
+            document.getElementById('status').innerText = "MODO: " + newMode.toUpperCase();
+            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            if(newMode === 'polygon') document.getElementById('btn-poly').classList.add('active');
+            if(newMode === 'objective') document.getElementById('btn-obj').classList.add('active');
+        }
+
+        function drawPolygon() {
+            if (polygonLayer) map.removeLayer(polygonLayer);
+            polygonLayer = L.polygon(tempCoords, {color: 'lime'}).addTo(map);
+        }
+
+        function addObjective(latlng) {
+            const marker = L.marker(latlng, {icon: L.divIcon({html: '🎯', className: 'obj-icon', iconSize: [24, 24]})}).addTo(map);
+            objectiveMarkers.push({lat: latlng.lat, lng: latlng.lng, status: 'neutral'});
+        }
+
+        function saveOperation() {
+            const opName = prompt("Nombre de la Operación:");
+            if (!opName) return;
+
+            db.ref('operacion_activa').set({
+                nombre: opName,
+                limites: tempCoords,
+                objetivos: objectiveMarkers,
+                timestamp: Date.now()
+            }).then(() => {
+                alert("¡OPERACIÓN PUBLICADA! Los jugadores ya pueden ver el campo.");
+            });
+        }
+
+        function clearMap() {
+            tempCoords = [];
+            objectiveMarkers = [];
+            if (polygonLayer) map.removeLayer(polygonLayer);
+            location.reload();
+        }
+
+        initMap();
+    </script>
+</body>
+</html>
