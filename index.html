@@ -135,6 +135,35 @@
                 markers[id] = L.marker([r.lat, r.lng], {
                     icon: L.divIcon({ html: `<div style="font-size:24px">${iconHtml}</div>` })
                 }).addTo(map).bindPopup(label);
+
+                function registrarUsuario(email, password, callsign, teamName) {
+        firebase.auth().createUserWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+                // Guardar perfil en la base de datos
+                const user = userCredential.user;
+                db.ref('users/' + user.uid).set({
+                    callsign: callsign,
+                    team: teamName, // Si es independiente o de un Team fijo
+                    role: 'jugador' // Por defecto
+                });
+                alert("Registro completado, Soldado.");
+            })
+            .catch((error) => alert(error.message));
+    }
+
+    // Función para que el Admin cree una "Zona de Operación"
+    function crearZonaGuerra(coordsArray, nombreOp) {
+        // Esto dibuja un polígono que delimita el campo
+        const zona = L.polygon(coordsArray, {
+            color: 'lime',
+            fillColor: '#00ff00',
+            fillOpacity: 0.1
+        }).addTo(map);
+        
+        db.ref('operaciones/actual').set({
+            nombre: nombreOp,
+            limites: coordsArray
+        });
             }
         }
     </script>
