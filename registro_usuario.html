@@ -3,50 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATAC - Registro</title>
+    <title> Sistema A.T.O.M. - Uruguay </title>
     <style>
         :root { --p: #00ff00; --f: #050505; }
-        body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; text-align: center; }
-        .banner { background: #111; padding: 15px; border-bottom: 2px solid var(--p); font-weight: bold; font-size: 1.2rem; }
-        .box { border: 1px solid var(--p); padding: 20px; margin: 20px auto; width: 85%; max-width: 350px; background: rgba(0,20,0,0.5); }
-        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; }
-        button { background: var(--p); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; }
-        .btn-home { display: inline-block; margin-top: 20px; color: var(--p); text-decoration: none; border: 1px solid var(--p); padding: 8px 15px; font-size: 11px; }
+        body { background: var(--f); color: var(--p); font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .form-box { border: 2px solid var(--p); padding: 25px; width: 85%; max-width: 350px; background: rgba(0,20,0,0.3); }
+        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; outline: none; }
+        button { background: var(--p); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <div class="banner">A.T.O.M. - AIRSOFT TACTICS OPERATION MAPS</div>
-    
-    <div class="box">
-        <h3>ENROLAMIENTO DE OPERADOR</h3>
-        <input type="text" id="reg-callsign" placeholder="CALLSIGN (APODO)">
-        <input type="password" id="reg-pass" placeholder="ESTABLECER CONTRASEÑA">
-        <button onclick="registrar()">REGISTRAR IDENTIDAD</button>
-        <p style="font-size: 10px; opacity: 0.6; margin-top: 15px;">Sus estadísticas de bajas y misiones se vincularán a esta cuenta.</p>
+    <div class="form-box">
+        <h2 style="text-align: center; margin-top: 0;">ENROLAMIENTO</h2>
+        <input type="text" id="callsign" placeholder="CALLSIGN (APODO)">
+        <input type="password" id="pass" placeholder="PASSWORD DE ACCESO">
+        <button onclick="registrar()">REGISTRAR OPERADOR</button>
+        <button onclick="window.location.href='index.html'" style="background: transparent; color: #666; border: 1px solid #444; font-size: 10px;">VOLVER</button>
     </div>
-
-    <a href="index.html" class="btn-home">⬅ VOLVER AL INICIO</a>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script>
-        const firebaseConfig = { /* TU CONFIG */ };
+        const firebaseConfig = {
+  apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+  authDomain: "atom--airsoft.firebaseapp.com",
+  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+  projectId: "atom--airsoft",
+  storageBucket: "atom--airsoft.firebasestorage.app",
+  messagingSenderId: "310010107781",
+  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
+  measurementId: "G-3X2C87MPPV"
+;};
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
         function registrar() {
-            const call = document.getElementById('reg-callsign').value.toUpperCase().trim();
-            const pass = document.getElementById('reg-pass').value.trim();
-            if(!call || !pass) return alert("DATOS INCOMPLETOS");
+            const nick = document.getElementById('callsign').value.trim().toUpperCase();
+            const pw = document.getElementById('pass').value;
 
-            db.ref('users/' + call).set({
-                callsign: call,
-                password: pass,
-                team: 'pendiente',
-                stats: { misiones: 0, bajas: 0, heridas: 0 }
-            }).then(() => {
-                alert("REGISTRO EXITOSO. BIENVENIDO OPERADOR.");
-                window.location.href = "index.html";
+            if(!nick || !pw) return alert("COMPLETE LOS CAMPOS");
+
+            // VALIDACIÓN DE DUPLICADOS
+            db.ref('users').orderByChild('callsign').equalTo(nick).once('value', snap => {
+                if(snap.exists()) {
+                    alert("Usuario Existente");
+                } else {
+                    db.ref('users').push({
+                        callsign: nick,
+                        pass: pw,
+                        team: "sin asignar",
+                        status: "ALFA"
+                    }).then(() => {
+                        alert("Registro Exitoso. Bienvenido al sistema A.T.O.M.");
+                        window.location.href = 'index.html';
+                    });
+                }
             });
         }
     </script>
