@@ -8,21 +8,20 @@
         :root { --p: #00ff00; --f: #0b0b0b; }
         body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; height: 100vh; overflow: hidden; }
         
-        /* Barra Lateral de Herramientas */
-        #side-panel { width: 300px; border-right: 2px solid var(--p); padding: 20px; display: flex; flex-direction: column; gap: 15px; background: #000; overflow-y: auto; }
-        #map { flex-grow: 1; height: 100%; }
+        #side-panel { width: 300px; border-right: 2px solid var(--p); padding: 20px; display: flex; flex-direction: column; gap: 15px; background: #000; overflow-y: auto; flex-shrink: 0; }
+        /* Aseguramos que el mapa ocupe todo el espacio restante */
+        #map { flex-grow: 1; height: 100%; background: #111; }
 
         .control-group { border: 1px solid #333; padding: 10px; border-radius: 4px; }
         h3 { margin-top: 0; color: var(--p); font-size: 0.9rem; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; }
         
-        select, input, button { width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 8px; margin-bottom: 10px; font-family: monospace; }
+        select, input, button { width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 8px; margin-bottom: 10px; font-family: monospace; box-sizing: border-box; }
         button { background: var(--p); color: #000; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         button:hover { background: #00cc00; }
         
-        .zone-item { font-size: 0.8rem; border-bottom: 1px solid #222; padding: 5px 0; display: flex; justify-content: space-between; }
-        .btn-delete { width: auto; padding: 2px 5px; background: #f00; color: #fff; border: none; font-size: 9px; }
+        .zone-item { font-size: 0.8rem; border-bottom: 1px solid #222; padding: 5px 0; display: flex; justify-content: space-between; align-items: center; }
+        .btn-delete { width: auto; padding: 2px 5px; background: #f00; color: #fff; border: none; font-size: 9px; cursor: pointer; }
 
-        /* Pantalla de Bloqueo */
         #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
     </style>
 </head>
@@ -43,12 +42,11 @@
         
         <div class="control-group">
             <h3>Zonas y Escuadrones</h3>
-            <label style="font-size: 10px;">Asignar a Zona Seleccionada:</label>
             <select id="select-equipo">
                 <option value="SIN ASIGNAR">-- Seleccionar Equipo --</option>
             </select>
             <button onclick="asignarEquipoAZona()">Vincular Equipo</button>
-            <button onclick="autoAsignar()" style="background: #555; color: #fff;">Auto-Repartir Grupos</button>
+            <button onclick="autoAsignar()" style="background: #333; color: #fff;">Auto-Repartir</button>
         </div>
 
         <div class="control-group">
@@ -78,28 +76,33 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let map;
-        let drawingManager;
-        let selectedShape;
-        let allShapes = []; // Aquí guardamos polígonos y marcadores
+        let map, drawingManager, selectedShape;
+        let allShapes = [];
         let equiposDisponibles = [];
 
         function checkAuth() {
-            if(document.getElementById('master-key').value === "1234") {
+            if(document.getElementById('master-key').value === "Ik3rc3rru771") {
                 document.getElementById('lock-screen').style.display = 'none';
-                initMap();
-                cargarEquipos();
+                // Forzamos la inicialización del mapa al desbloquear
+                if (typeof google !== 'undefined') {
+                    initMap();
+                    cargarEquipos();
+                } else {
+                    alert("Error: Google Maps no ha cargado. Verifica tu conexión.");
+                }
             } else {
                 alert("ACCESO DENEGADO");
             }
         }
 
         function initMap() {
-            map = new google.maps.Map(document.getElementById("map"), {
-                center: { lat: -34.095, lng: -56.214 }, // Florida, Uruguay
+            // Referencia al div del mapa
+            const mapDiv = document.getElementById("map");
+            
+            map = new google.maps.Map(mapDiv, {
+                center: { lat: -34.095, lng: -56.214 }, 
                 zoom: 15,
-                mapTypeId: 'satellite',
-                styles: [{ "stylers": [{ "hue": "#00ff00" }, { "saturation": -50 }] }]
+                mapTypeId: 'satellite'
             });
 
             drawingManager = new google.maps.visualization.drawing.DrawingManager({
@@ -117,27 +120,21 @@
             });
             drawingManager.setMap(map);
 
-            // Evento cuando se termina de dibujar algo
             google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
                 let newShape = event.overlay;
                 newShape.type = event.type;
                 newShape.id = Date.now();
                 newShape.asignado = "SIN ASIGNAR";
-                
                 allShapes.push(newShape);
                 actualizarListaZonas();
-
-                google.maps.event.addListener(newShape, 'click', function() {
-                    setSelection(newShape);
-                });
+                google.maps.event.addListener(newShape, 'click', () => setSelection(newShape));
             });
         }
 
         function setSelection(shape) {
             selectedShape = shape;
-            // Resaltar visualmente
-            allShapes.forEach(s => s.setOptions({ strokeWeight: 2 }));
-            shape.setOptions({ strokeWeight: 5 });
+            allShapes.forEach(s => s.setOptions({ strokeWeight: 2, strokeColor: '#00ff00' }));
+            shape.setOptions({ strokeWeight: 5, strokeColor: '#ffffff' });
         }
 
         function cargarEquipos() {
@@ -154,23 +151,18 @@
         }
 
         function asignarEquipoAZona() {
-            if(!selectedShape) return alert("Primero toca una zona en el mapa");
+            if(!selectedShape) return alert("Selecciona una zona en el mapa primero.");
             const equipo = document.getElementById('select-equipo').value;
             selectedShape.asignado = equipo;
             actualizarListaZonas();
-            alert(`Zona vinculada a: ${equipo}`);
         }
 
         function autoAsignar() {
-            if(allShapes.length === 0 || equiposDisponibles.length === 0) return alert("No hay zonas o equipos suficientes");
-            
-            allShapes.forEach((shape, index) => {
-                // Reparto circular de equipos en las zonas
-                const eqIndex = index % equiposDisponibles.length;
-                shape.asignado = equiposDisponibles[eqIndex];
+            if(allShapes.length === 0 || equiposDisponibles.length === 0) return alert("Sin zonas o equipos.");
+            allShapes.forEach((shape, i) => {
+                shape.asignado = equiposDisponibles[i % equiposDisponibles.length];
             });
             actualizarListaZonas();
-            alert("Autoasignación completada en base a zonas dibujadas");
         }
 
         function actualizarListaZonas() {
@@ -181,44 +173,37 @@
                     <div class="zone-item">
                         <span>ZONA ${i+1}: <b>${s.asignado}</b></span>
                         <button class="btn-delete" onclick="borrarZona(${s.id})">X</button>
-                    </div>
-                `;
+                    </div>`;
             });
         }
 
         function borrarZona(id) {
-            const index = allShapes.findIndex(s => s.id === id);
-            if(index > -1) {
-                allShapes[index].setMap(null);
-                allShapes.splice(index, 1);
+            const idx = allShapes.findIndex(s => s.id === id);
+            if(idx > -1) {
+                allShapes[idx].setMap(null);
+                allShapes.splice(idx, 1);
                 actualizarListaZonas();
             }
         }
 
         function guardarMisionCompleta() {
             const nombreMision = document.getElementById('op-name').value;
-            if(!nombreMision) return alert("Nombre de misión obligatorio");
-
+            if(!nombreMision) return alert("Ponle un nombre a la misión.");
             const datosZonas = allShapes.map(s => {
+                let obj = { type: s.type, asignado: s.asignado };
                 if(s.type === 'polygon') {
-                    const coords = s.getPath().getArray().map(p => ({ lat: p.lat(), lng: p.lng() }));
-                    return { type: 'polygon', path: coords, asignado: s.asignado };
-                } else if(s.type === 'marker') {
-                    return { type: 'marker', lat: s.getPosition().lat(), lng: s.getPosition().lng(), asignado: s.asignado };
+                    obj.path = s.getPath().getArray().map(p => ({ lat: p.lat(), lng: p.lng() }));
+                } else {
+                    obj.lat = s.getPosition().lat();
+                    obj.lng = s.getPosition().lng();
                 }
+                return obj;
             });
-
-            db.ref('operaciones').push({
-                nombre: nombreMision,
-                zonas: datosZonas,
-                fecha: new Date().toISOString()
-            }).then(() => {
-                alert("Misión publicada exitosamente en el Sistema A.T.O.M.");
-                window.location.reload();
-            });
+            db.ref('operaciones').push({ nombre: nombreMision, zonas: datosZonas, fecha: new Date().toISOString() })
+              .then(() => { alert("Publicado."); window.location.reload(); });
         }
     </script>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58Y&libraries=drawing&callback=initMap" async defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58Y&libraries=drawing" async defer></script>
 </body>
 </html>
