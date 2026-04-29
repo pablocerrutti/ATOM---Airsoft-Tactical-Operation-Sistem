@@ -9,15 +9,44 @@
         body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; text-align: center; }
         .login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
         .box { border: 1px solid var(--p); padding: 30px; background: #111; width: 80%; max-width: 300px; }
-        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; text-align: center; }
-        button { background: var(--p); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; }
+        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; text-align: center; outline: none; }
+        button { background: var(--p); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        
         #misiones-lista { display: none; padding: 20px; }
+        
+        /* Animación de Flash Lento */
+        @keyframes flashLento {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        .no-misiones {
+            border: 2px solid var(--p);
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 400px;
+            font-weight: bold;
+            animation: flashLento 3s infinite; /* 3 segundos para que sea lento */
+            text-transform: uppercase;
+        }
+
+        .btn-volver {
+            background: transparent;
+            color: #666;
+            border: 1px solid #333;
+            margin-top: 20px;
+            font-size: 12px;
+            width: auto;
+            padding: 10px 20px;
+        }
+        .btn-volver:hover { border-color: var(--p); color: var(--p); }
     </style>
 </head>
 <body>
     <div id="login-section" class="login-container">
         <div class="box">
-            <h3>ACCESO OPERATIVO</h3>
+            <h3 style="margin-top: 0;">ACCESO OPERATIVO</h3>
             <input type="text" id="user" placeholder="CALLSIGN">
             <input type="password" id="pass" placeholder="PASSWORD">
             <button onclick="login()">INGRESAR</button>
@@ -26,21 +55,24 @@
     </div>
 
     <div id="misiones-lista">
-        <h2>MISIONES DISPONIBLES</h2>
+        <h2>ESTADO DE OPERACIONES</h2>
         <div id="lista"></div>
+        <button class="btn-volver" onclick="window.location.href='index.html'">SALIR AL INICIO</button>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-  authDomain: "atom--airsoft.firebaseapp.com",
-  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-  projectId: "atom--airsoft",
-  storageBucket: "atom--airsoft.firebasestorage.app",
-  messagingSenderId: "310010107781",
-  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
-  measurementId: "G-3X2C87MPPV" };
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            authDomain: "atom--airsoft.firebaseapp.com",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft",
+            storageBucket: "atom--airsoft.firebasestorage.app",
+            messagingSenderId: "310010107781",
+            appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
+            measurementId: "G-3X2C87MPPV" 
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
@@ -48,12 +80,13 @@
             const u = document.getElementById('user').value.trim().toUpperCase();
             const p = document.getElementById('pass').value;
 
+            if(!u || !p) return alert("INGRESE CREDENCIALES");
+
             db.ref('users').orderByChild('callsign').equalTo(u).once('value', snap => {
                 let found = false;
                 snap.forEach(child => {
                     if(child.val().pass === p) {
                         found = true;
-                        alert("Bienvenido nuevamente " + u);
                         document.getElementById('login-section').style.display = 'none';
                         document.getElementById('misiones-lista').style.display = 'block';
                         cargarMisiones();
@@ -67,9 +100,24 @@
             db.ref('operaciones').on('value', snap => {
                 const lista = document.getElementById('lista');
                 lista.innerHTML = "";
+
+                // Verificar si hay datos
+                if (!snap.exists()) {
+                    lista.innerHTML = `
+                        <div class="no-misiones">
+                            NO HAY MISIONES DISPONIBLES EN ESTE MOMENTO
+                        </div>`;
+                    return;
+                }
+
+                // Si hay datos, listarlos
                 snap.forEach(op => {
-                    lista.innerHTML += `<div style="border:1px solid #00ff00; margin:10px; padding:15px; cursor:pointer" onclick="location.href='mapa.html?id=${op.key}'">
-                        ${op.val().nombre} - [DESPLEGAR]
+                    lista.innerHTML += `
+                    <div style="border:1px solid #00ff00; margin:10px auto; padding:15px; cursor:pointer; max-width:500px; background:rgba(0,255,0,0.05);" 
+                         onclick="location.href='mapa.html?id=${op.key}'">
+                        <span style="letter-spacing:2px; font-weight:bold;">OP: ${op.val().nombre}</span> 
+                        <br>
+                        <small style="color:#666;">[ CLICK PARA DESPLEGAR MAPA TÁCTICO ]</small>
                     </div>`;
                 });
             });
