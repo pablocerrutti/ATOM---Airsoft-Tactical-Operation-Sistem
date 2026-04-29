@@ -3,79 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> A.T.O.M. - HQ Mando y Despliegue </title>
+    <title> A.T.O.M. - HQ Mando Central </title>
     <style>
-        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --warn: #ffd700; }
-        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --safe: #00ffff; --warn: #ffd700; }
+        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; height: 100vh; overflow: hidden; }
         
-        #header { height: 60px; background: #000; border-bottom: 2px solid var(--p); display: flex; align-items: center; padding: 0 10px; justify-content: space-between; z-index: 10; }
-        #map { flex-grow: 1; background: #111; }
+        #side-panel { width: 380px; border-right: 2px solid var(--p); padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #000; overflow-y: auto; flex-shrink: 0; z-index: 10; }
+        #map { flex-grow: 1; height: 100%; background: #111; }
 
-        /* Panel Lateral de Administración */
-        #admin-sidebar { 
-            position: absolute; right: 0; top: 62px; bottom: 0; width: 280px; 
-            background: rgba(0,0,0,0.9); border-left: 2px solid var(--p); 
-            padding: 15px; z-index: 100; overflow-y: auto; display: none;
-        }
-
-        .user-card { 
-            background: #111; border: 1px solid #333; padding: 8px; margin-bottom: 8px; font-size: 11px;
-        }
-        .user-card select { 
-            width: 100%; background: #000; color: var(--p); border: 1px solid var(--p); margin-top: 5px; font-size: 10px;
-        }
-
-        #setup-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
-        .setup-content { border: 2px solid var(--p); padding: 30px; background: #050505; width: 85%; max-width: 400px; }
-        .btn-main { background: var(--p); color: #000; font-weight: bold; border: none; padding: 12px; width: 100%; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        .control-group { border: 1px solid #333; padding: 10px; border-radius: 4px; background: #050505; margin-bottom: 5px; }
+        h3 { margin: 0 0 10px 0; color: var(--p); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; }
         
-        .team-tag { padding: 2px 5px; border-radius: 3px; font-weight: bold; }
-        .tag-rojo { background: var(--red); color: #fff; }
-        .tag-azul { background: var(--blue); color: #fff; }
+        button, input, select { width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 8px; margin-bottom: 5px; font-family: monospace; font-size: 11px; cursor: pointer; text-transform: uppercase; }
+        button:hover { background: var(--p); color: #000; }
+        
+        .player-row { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 5px; margin-bottom: 3px; font-size: 10px; border-left: 3px solid #444; }
+
+        #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        #auth-error { color: var(--red); font-size: 10px; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
 
-    <div id="setup-screen">
-        <div class="setup-content">
-            <h2 style="text-align: center; letter-spacing: 4px;">A.T.O.M. HQ</h2>
-            <p style="font-size: 10px; color: #666;">SELECCIONE MISIÓN ACTIVA:</p>
-            <select id="select-mision" style="width:100%; padding:10px; background:#111; color:var(--p); border:1px solid var(--p);">
-                <option value="OPERACION_EUCALIPTUS">OPERACIÓN EUCALIPTUS</option>
-                <option value="OPERACION_MENDOZA">OPERACIÓN MENDOZA</option>
-            </select>
-            <button class="btn-main" onclick="conectarSistema()">CONECTAR A BASE DE DATOS</button>
+    <div id="lock-screen">
+        <div style="border: 2px solid var(--p); padding: 40px; text-align: center; background: #050505; width: 300px;">
+            <h1 style="letter-spacing: 8px;">A.T.O.M.</h1>
+            <p style="font-size: 10px; color: #444;">RESTRICTED AREA - HQ ACCESS</p>
+            <input type="password" id="master-key" placeholder="MASTER KEY" autofocus style="margin: 20px 0;">
+            <button onclick="checkAuth()">AUTORIZAR ACCESO</button>
+            <div id="auth-error">DENIEGO: CLAVE INCORRECTA</div>
         </div>
     </div>
 
-    <div id="header">
-        <div>
-            <span id="op-active-name" style="font-weight: bold;">---</span>
+    <div id="side-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h2 style="margin:0; font-size: 1rem; color: #fff;">HQ ESTRATÉGICO</h2>
+            <button onclick="location.reload()" style="width: auto; padding: 4px 8px; font-size: 9px;">LOGOUT</button>
         </div>
-        <button onclick="toggleAdmin()" style="background:transparent; border:1px solid gold; color:gold; padding:5px 10px; cursor:pointer;">ADMIN TROPAS</button>
-    </div>
+        
+        <div class="control-group">
+            <h3>Operadores Activos (Desde DB)</h3>
+            <div id="lista-usuarios-db" style="max-height: 200px; overflow-y: auto;"></div>
+        </div>
 
-    <div id="admin-sidebar">
-        <h3 style="font-size: 12px; border-bottom: 1px solid var(--p);">OPERADORES INSCRITOS</h3>
-        <div id="lista-operadores">Cargando...</div>
+        <div class="control-group">
+            <h3>Escuadrones Registrados</h3>
+            <div id="lista-escuadrones-db"></div>
+        </div>
     </div>
 
     <div id="map"></div>
 
     <script>
-        // URL DE TU GOOGLE SHEET PUBLICADO COMO CSV (Pestaña Usuarios/Inscritos)
-        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6l7G-9G7_G_p1FpYvL_n_xNfS_lD3XlQYnK6z6W8yS8y/pub?gid=0&single=true&output=csv"; 
+        // CONFIGURACIÓN DE TU GOOGLE SHEET (Copiado de BASE DE DATOS ATOM SISTEM )
+        // Debes ir a Archivo > Compartir > Publicar en la Web > Valores separados por comas (.csv)
+        const URL_USUARIOS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6l...TU_URL_AQUI.../pub?gid=0&single=true&output=csv";
+        const URL_ESCUADRONES_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6l...TU_URL_AQUI.../pub?gid=12345&single=true&output=csv";
 
-        let map;
-        let operacionActual = "";
+        let map, usuariosCache = [];
 
-        async function conectarSistema() {
-            operacionActual = document.getElementById('select-mision').value;
-            document.getElementById('op-active-name').innerText = operacionActual;
-            document.getElementById('setup-screen').style.display = 'none';
-            
-            initMap();
-            await cargarYFiltrarUsuarios();
+        async function checkAuth() {
+            const inputKey = document.getElementById('master-key').value;
+            const errorMsg = document.getElementById('auth-error');
+
+            try {
+                // Obtenemos los usuarios directamente de la hoja de Google 
+                const response = await fetch(URL_USUARIOS_CSV);
+                const data = await response.text();
+                const filas = data.split("\n").slice(1); // Omitir encabezado
+
+                let autorizado = false;
+                filas.forEach(fila => {
+                    const [nombre, password, status] = fila.split(",");
+                    if (password && password.trim() === inputKey) {
+                        autorizado = true;
+                        usuariosCache.push({nombre, status});
+                    }
+                });
+
+                if (autorizado) {
+                    document.getElementById('lock-screen').style.display = 'none';
+                    initMap();
+                    renderizarDatos();
+                } else {
+                    throw new Error("Invalid Key");
+                }
+            } catch (e) {
+                errorMsg.style.display = 'block';
+                setTimeout(() => { errorMsg.style.display = 'none'; }, 3000);
+            }
         }
 
         function initMap() {
@@ -85,58 +101,15 @@
             });
         }
 
-        async function cargarYFiltrarUsuarios() {
-            try {
-                const response = await fetch(SHEET_CSV_URL);
-                const data = await response.text();
-                const filas = data.split("\n").slice(1); // Quitamos cabecera
-
-                const container = document.getElementById('lista-operadores');
-                container.innerHTML = "";
-
-                filas.forEach(fila => {
-                    // Estructura asumida: Callsign, Password, Status, Mision, Equipo
-                    const columnas = fila.split(",");
-                    const callsign = columnas[0]?.trim();
-                    const misionAsignada = columnas[3]?.trim(); // Columna de la Misión
-                    const equipoActual = columnas[4]?.trim(); // Columna del Equipo
-
-                    // FILTRO: Solo mostramos si el usuario está anotado en la misión seleccionada
-                    if (misionAsignada === operacionActual) {
-                        const card = document.createElement('div');
-                        card.className = 'user-card';
-                        card.innerHTML = `
-                            <strong>${callsign}</strong>
-                            <div style="margin-top:5px;">
-                                <select onchange="asignarBando('${callsign}', this.value)">
-                                    <option value="">SIN BANDO</option>
-                                    <option value="ROJO" ${equipoActual === 'ROJO' ? 'selected' : ''}>EQUIPO ROJO</option>
-                                    <option value="AZUL" ${equipoActual === 'AZUL' ? 'selected' : ''}>EQUIPO AZUL</option>
-                                </select>
-                            </div>
-                        `;
-                        container.appendChild(card);
-                    }
-                });
-
-                if(container.innerHTML === "") {
-                    container.innerHTML = "<p style='color:red; font-size:10px;'>NO HAY OPERADORES PARA ESTA MISIÓN</p>";
-                }
-
-            } catch (e) {
-                console.error("Error cargando DB:", e);
-            }
-        }
-
-        function asignarBando(callsign, bando) {
-            console.log(`Asignando a ${callsign} al bando ${bando}`);
-            // Aquí iría tu fetch al Google Apps Script para actualizar la celda en la planilla
-            alert(`Sincronizando: ${callsign} -> ${bando}`);
-        }
-
-        function toggleAdmin() {
-            const side = document.getElementById('admin-sidebar');
-            side.style.display = side.style.display === 'block' ? 'none' : 'block';
+        function renderizarDatos() {
+            const userList = document.getElementById('lista-usuarios-db');
+            usuariosCache.forEach(u => {
+                const div = document.createElement('div');
+                div.className = 'player-row';
+                div.innerHTML = `<span>👤 ${u.nombre}</span> <small style="color:gold">${u.status}</small>`;
+                userList.appendChild(div);
+            });
+            // Aquí podrías añadir lógica similar para cargar la pestaña de escuadrones 
         }
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58" defer></script>
