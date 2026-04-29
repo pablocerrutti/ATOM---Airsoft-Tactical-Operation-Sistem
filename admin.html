@@ -3,98 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> A.T.O.M. - Mando Central Administrativo </title>
+    <title> A.T.O.M. - HQ Mando Central </title>
     <style>
         :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --safe: #00ffff; }
         body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; height: 100vh; overflow: hidden; }
         
-        #side-panel { width: 340px; border-right: 2px solid var(--p); padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #000; overflow-y: auto; flex-shrink: 0; z-index: 10; }
+        #side-panel { width: 380px; border-right: 2px solid var(--p); padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #000; overflow-y: auto; flex-shrink: 0; z-index: 10; }
         #map { flex-grow: 1; height: 100%; background: #111; }
 
-        .control-group { border: 1px solid #333; padding: 10px; border-radius: 4px; margin-bottom: 5px; background: #050505; }
-        h3 { margin: 0 0 10px 0; color: var(--p); font-size: 0.85rem; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .control-group { border: 1px solid #333; padding: 10px; border-radius: 4px; background: #050505; margin-bottom: 5px; }
+        h3 { margin: 0 0 10px 0; color: var(--p); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; display: flex; justify-content: space-between; }
         
-        select, input, button { width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 10px; margin-bottom: 8px; font-family: monospace; font-size: 11px; box-sizing: border-box; }
-        button { background: var(--p); color: #000; font-weight: bold; cursor: pointer; text-transform: uppercase; border: none; }
-        button:hover { background: #00cc00; }
+        button, input, select { width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 8px; margin-bottom: 5px; font-family: monospace; font-size: 11px; cursor: pointer; }
+        button:hover { background: var(--p); color: #000; }
         
-        .btn-red { border: 1px solid var(--red); color: var(--red); background: transparent; }
-        .btn-blue { border: 1px solid var(--blue); color: var(--blue); background: transparent; }
-        .btn-safe { border: 1px solid var(--safe); color: var(--safe); background: transparent; }
-        .btn-obj { border: 1px solid #ffd700; color: #ffd700; background: transparent; }
-        .btn-outline { border: 1px solid #444; color: #444; background: transparent; font-size: 10px; }
+        .btn-red { border-color: var(--red); color: var(--red); }
+        .btn-blue { border-color: var(--blue); color: var(--blue); }
+        .btn-update { background: #fff; color: #000; font-weight: bold; }
 
-        /* Estilo para los elementos de las listas */
-        .item-list { font-size: 10px; display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #222; }
-        .mision-entry { cursor: pointer; flex-grow: 1; transition: 0.3s; }
-        .mision-entry:hover { color: #fff; background: #111; }
-        .delete-x { color: red; cursor: pointer; font-weight: bold; padding: 0 5px; border: 1px solid red; margin-left: 5px; font-size: 9px; }
+        /* Lista de Jugadores para asignar */
+        .player-row { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 5px; margin-bottom: 3px; font-size: 10px; border-left: 3px solid #666; }
+        .player-row.assigned-red { border-left-color: var(--red); }
+        .player-row.assigned-blue { border-left-color: var(--blue); }
+        .btn-small { width: auto; padding: 2px 6px; margin: 0 2px; font-size: 9px; }
 
         #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        #lock-box { border: 2px solid var(--p); padding: 40px; text-align: center; background: #050505; width: 300px; }
-
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: #000; }
-        ::-webkit-scrollbar-thumb { background: var(--p); }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
     <div id="lock-screen">
-        <div id="lock-box">
-            <h1 style="letter-spacing: 8px; margin: 0;">A.T.O.M.</h1>
-            <p style="color: #666; font-size: 10px; margin-bottom: 20px;">ADMINISTRATIVE TERMINAL</p>
-            <input type="password" id="master-key" placeholder="MASTER KEY" autofocus>
+        <div style="border: 2px solid var(--p); padding: 40px; text-align: center; background: #050505; width: 300px;">
+            <h1 style="letter-spacing: 8px;">A.T.O.M.</h1>
+            <input type="password" id="master-key" placeholder="MASTER KEY" autofocus style="margin: 20px 0;">
             <button onclick="checkAuth()">AUTORIZAR ACCESO</button>
-            <button class="btn-outline" onclick="window.location.href='index.html'">VOLVER AL INICIO</button>
-            <p id="intentos-msg" style="font-size: 9px; margin-top: 10px; color: #444;"></p>
         </div>
     </div>
 
     <div id="side-panel">
-        <h2 style="margin:0; font-size: 1.2rem;">OPERACIONES</h2>
-        <input type="text" id="op-name" placeholder="NOMBRE DE LA NUEVA MISIÓN">
-
-        <div class="control-group">
-            <h3>Diseño de Campo</h3>
-            <button onclick="setMode('polygon', 'zona_juego')">DIBUJAR LÍMITE DE CAMPO</button>
-            <button class="btn-safe" onclick="setMode('polygon', 'zona_segura')">DIBUJAR ZONA SEGURA</button>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-                <button class="btn-red" onclick="setMode('marker', 'respawn_rojo')">SPAWN ROJO</button>
-                <button class="btn-blue" onclick="setMode('marker', 'respawn_azul')">SPAWN AZUL</button>
-            </div>
-            <button class="btn-obj" onclick="setMode('marker', 'objetivo_conquista')">PUNTO DE CONQUISTA</button>
-        </div>
-
-        <div class="control-group">
-            <h3>Entidades del Borrador</h3>
-            <div id="lista-entidades" style="max-height: 100px; overflow-y: auto;"></div>
-        </div>
-
-        <div class="control-group">
-            <h3>Misiones Activas (Click para Ver)</h3>
-            <div id="lista-misiones-db" style="max-height: 120px; overflow-y: auto; color: #00ffff;">
-                Cargando misiones...
-            </div>
-        </div>
-
-        <div class="control-group" style="background: #1a0000; border-color: #400;">
-            <h3>Monitor Táctico</h3>
-            <div id="monitor-jugadores" style="font-size: 10px; color: #aaa;">Conexiones: 0</div>
-        </div>
-
-        <button onclick="publicarMision()" style="height: 45px; background: #fff; color: #000;">PUBLICAR OPERACIÓN</button>
-        <button class="btn-outline" onclick="location.reload()">LIMPIAR BORRADOR</button>
+        <h2 style="margin:0; font-size: 1rem; color: #fff;">HQ ESTRATÉGICO</h2>
         
-        <button class="btn-outline" onclick="window.location.href='index.html'" style="border-color: var(--red); color: var(--red); margin-top: 10px;">✖ SALIR AL INICIO</button>
+        <div class="control-group">
+            <h3>Misiones en Sistema</h3>
+            <div id="lista-misiones-db" style="max-height: 100px; overflow-y: auto;"></div>
+        </div>
+
+        <div class="control-group">
+            <h3>Editor de Operación <span id="edit-mode-label" style="color:var(--safe)">[NUEVO]</span></h3>
+            <input type="text" id="op-name" placeholder="NOMBRE DE LA MISIÓN">
+            <button onclick="setMode('polygon', 'zona_juego')">LÍMITE CAMPO</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                <button class="btn-red" onclick="setMode('marker', 'respawn_rojo')">SPAWN R</button>
+                <button class="btn-blue" onclick="setMode('marker', 'respawn_azul')">SPAWN A</button>
+            </div>
+            <button class="btn-obj" style="border-color:gold; color:gold" onclick="setMode('marker', 'objetivo_conquista')">PUNTO CONQUISTA</button>
+            
+            <button id="btn-save" onclick="publicarMision()" style="margin-top:10px;">GUARDAR COMO NUEVA</button>
+            <button id="btn-update" class="btn-update hidden" onclick="actualizarMision()">ACTUALIZAR EXISTENTE</button>
+        </div>
+
+        <div class="control-group">
+            <h3>Draft de Operadores <button class="btn-small" onclick="autoBalancear()">AUTO-BALANCE</button></h3>
+            <div id="lista-espera" style="max-height: 200px; overflow-y: auto;">
+                Seleccione una misión para ver aspirantes...
+            </div>
+        </div>
+
+        <button class="btn-outline" style="border-color: #444; color: #444;" onclick="location.reload()">RESETEAR TERMINAL</button>
     </div>
 
     <div id="map"></div>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    
     <script>
+        // Configuración idéntica a la anterior
         const firebaseConfig = {
             apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
             authDomain: "atom--airsoft.firebaseapp.com",
@@ -104,165 +88,203 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let map, drawingManager;
+        let map, drawingManager, miMisionEdicionId = null;
         let allShapes = [];
-        let previewShapes = [];
         let playerMarkers = {};
         let currentRole = 'zona_juego';
-        let intentos = 0;
 
         function checkAuth() {
-            const pass = document.getElementById('master-key').value;
-            if(pass === "Ik3rc3rru771") {
-                document.getElementById('lock-screen').style.display = 'none';
+            if(document.getElementById('master-key').value === "Ik3rc3rru771") {
+                document.getElementById('lock-screen').classList.add('hidden');
                 initMap();
-                monitorJugadores();
                 cargarMisionesDB();
-            } else {
-                intentos++;
-                if(intentos >= 3) window.location.href = 'index.html';
-                document.getElementById('intentos-msg').innerText = `FALLO ${intentos}/3`;
             }
         }
 
         function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
                 center: { lat: -34.095, lng: -56.214 },
-                zoom: 16,
-                mapTypeId: 'satellite'
+                zoom: 16, mapTypeId: 'satellite', disableDefaultUI: true
             });
 
             drawingManager = new google.maps.drawing.DrawingManager({
                 drawingControl: true,
                 drawingControlOptions: { position: google.maps.ControlPosition.TOP_CENTER, drawingModes: ['marker', 'polygon'] },
-                polygonOptions: { fillColor: '#00ff00', strokeColor: '#00ff00', strokeWeight: 2, editable: true }
+                polygonOptions: { fillOpacity: 0.2, strokeWeight: 2, editable: true }
             });
             drawingManager.setMap(map);
 
-            google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
+            google.maps.event.addListener(drawingManager, 'overlaycomplete', (event) => {
                 let shape = event.overlay;
                 shape.type = event.type;
                 shape.role = currentRole;
-                shape.id = Date.now();
                 aplicarEstilo(shape, currentRole);
                 allShapes.push(shape);
-                actualizarListaBorrador();
             });
-        }
-
-        function aplicarEstilo(shape, role) {
-            const estilos = {
-                'respawn_rojo': {icon: {path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: 'red', fillOpacity: 1, strokeColor: 'white'}},
-                'respawn_azul': {icon: {path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: 'blue', fillOpacity: 1, strokeColor: 'white'}},
-                'objetivo_conquista': {icon: {path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 6, fillColor: 'gold', fillOpacity: 1}},
-                'zona_segura': {fillColor: '#00ffff', strokeColor: '#00ffff', fillOpacity: 0.2},
-                'zona_juego': {fillColor: '#00ff00', strokeColor: '#00ff00', fillOpacity: 0.1}
-            };
-            if (estilos[role]) shape.setOptions(estilos[role]);
-        }
-
-        function verMisionEnMapa(mision) {
-            previewShapes.forEach(s => s.setMap(null));
-            previewShapes = [];
-            const bounds = new google.maps.LatLngBounds();
-
-            mision.zonas.forEach(z => {
-                let shape;
-                if(z.type === 'polygon') {
-                    shape = new google.maps.Polygon({ paths: z.path, map: map, clickable: false });
-                    z.path.forEach(p => bounds.extend(p));
-                } else {
-                    shape = new google.maps.Marker({ position: {lat: z.lat, lng: z.lng}, map: map, clickable: false });
-                    bounds.extend({lat: z.lat, lng: z.lng});
-                }
-                aplicarEstilo(shape, z.role);
-                previewShapes.push(shape);
-            });
-            if(!bounds.isEmpty()) map.fitBounds(bounds);
         }
 
         function cargarMisionesDB() {
             db.ref('operaciones').on('value', snap => {
                 const list = document.getElementById('lista-misiones-db');
                 list.innerHTML = "";
-                snap.forEach(misionSnap => {
-                    const mision = misionSnap.val();
-                    const item = document.createElement('div');
-                    item.className = 'item-list';
-                    item.style.borderColor = '#004444';
-                    item.innerHTML = `
-                        <span class="mision-entry">▶ ${mision.nombre}</span>
-                        <span class="delete-x" onclick="event.stopPropagation(); eliminarMisionDB('${misionSnap.key}')">BORRAR</span>
+                snap.forEach(child => {
+                    const m = child.val();
+                    const div = document.createElement('div');
+                    div.className = 'player-row';
+                    div.innerHTML = `
+                        <span onclick="cargarParaEditar('${child.key}')" style="cursor:pointer">📂 ${m.nombre}</span>
+                        <span style="color:red; cursor:pointer" onclick="eliminarMision('${child.key}')">✖</span>
                     `;
-                    item.onclick = () => verMisionEnMapa(mision);
-                    list.appendChild(item);
+                    list.appendChild(div);
                 });
             });
+        }
+
+        // CARGAR MISIÓN PARA EDITAR
+        function cargarParaEditar(id) {
+            miMisionEdicionId = id;
+            limpiarMapa();
+            
+            db.ref(`operaciones/${id}`).once('value', snap => {
+                const m = snap.val();
+                document.getElementById('op-name').value = m.nombre;
+                document.getElementById('edit-mode-label').innerText = "[EDITANDO]";
+                document.getElementById('btn-save').classList.add('hidden');
+                document.getElementById('btn-update').classList.remove('hidden');
+
+                m.zonas.forEach(z => {
+                    let shape;
+                    if(z.type === 'polygon') {
+                        shape = new google.maps.Polygon({ paths: z.path, map: map, editable: true });
+                    } else {
+                        shape = new google.maps.Marker({ position: {lat: z.lat, lng: z.lng}, map: map, draggable: true });
+                    }
+                    shape.type = z.type;
+                    shape.role = z.role;
+                    aplicarEstilo(shape, z.role);
+                    allShapes.push(shape);
+                });
+                escucharInscritos(id);
+                monitorearMapaEnTiempoReal(id);
+            });
+        }
+
+        // ESCUCHAR JUGADORES QUE ELIGIERON ESTA MISIÓN
+        function escucharInscritos(misionId) {
+            db.ref('inscripciones').orderByChild('mision').equalTo(misionId).on('value', snap => {
+                const list = document.getElementById('lista-espera');
+                list.innerHTML = "";
+                if(!snap.exists()) list.innerText = "Sin operadores en espera.";
+
+                snap.forEach(pSnap => {
+                    const p = pSnap.val();
+                    const row = document.createElement('div');
+                    row.className = `player-row ${p.equipo === 'EQUIPO_ROJO' ? 'assigned-red' : (p.equipo === 'EQUIPO_AZUL' ? 'assigned-blue' : '')}`;
+                    row.innerHTML = `
+                        <b>${p.callsign}</b>
+                        <div>
+                            <button class="btn-small btn-red" onclick="asignarEquipo('${p.callsign}', 'EQUIPO_ROJO')">R</button>
+                            <button class="btn-small btn-blue" onclick="asignarEquipo('${p.callsign}', 'EQUIPO_AZUL')">A</button>
+                        </div>
+                    `;
+                    list.appendChild(row);
+                });
+            });
+        }
+
+        function asignarEquipo(callsign, equipo) {
+            db.ref(`inscripciones/${callsign}`).update({ equipo: equipo });
+        }
+
+        function autoBalancear() {
+            db.ref('inscripciones').orderByChild('mision').equalTo(miMisionEdicionId).once('value', snap => {
+                let players = [];
+                snap.forEach(p => players.push(p.key));
+                
+                // Mezcla aleatoria básica
+                players.sort(() => Math.random() - 0.5);
+                
+                players.forEach((id, index) => {
+                    let eq = (index % 2 === 0) ? 'EQUIPO_ROJO' : 'EQUIPO_AZUL';
+                    asignarEquipo(id, eq);
+                });
+            });
+        }
+
+        function monitorearMapaEnTiempoReal(misionId) {
+            // Limpiar marcadores viejos
+            Object.values(playerMarkers).forEach(m => m.setMap(null));
+            playerMarkers = {};
+
+            // Ver posiciones de ambos equipos en el mapa del admin
+            ['EQUIPO_ROJO', 'EQUIPO_AZUL'].forEach(eq => {
+                db.ref(`posiciones/${eq}`).on('value', snap => {
+                    snap.forEach(pPos => {
+                        const callsign = pPos.key;
+                        const pos = pPos.val();
+                        if(!playerMarkers[callsign]) {
+                            playerMarkers[callsign] = new google.maps.Marker({
+                                map: map, label: {text: callsign, color: 'white', fontSize: '10px'},
+                                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: eq === 'EQUIPO_ROJO' ? 'red' : 'blue', fillOpacity: 1, strokeColor: 'white' }
+                            });
+                        }
+                        playerMarkers[callsign].setPosition(pos);
+                    });
+                });
+            });
+        }
+
+        function actualizarMision() {
+            if(!miMisionEdicionId) return;
+            const zonasData = procesarZonas();
+            db.ref(`operaciones/${miMisionEdicionId}`).update({
+                nombre: document.getElementById('op-name').value,
+                zonas: zonasData
+            }).then(() => alert("OPERACIÓN ACTUALIZADA EN TIEMPO REAL"));
+        }
+
+        function publicarMision() {
+            const name = document.getElementById('op-name').value;
+            if(!name) return alert("Nombre requerido");
+            db.ref('operaciones').push({ nombre: name, zonas: procesarZonas() })
+            .then(() => location.reload());
+        }
+
+        function procesarZonas() {
+            return allShapes.map(s => {
+                let d = { type: s.type, role: s.role };
+                if(s.type === 'polygon') {
+                    d.path = s.getPath().getArray().map(p => ({lat: p.lat(), lng: p.lng()}));
+                } else {
+                    d.lat = s.getPosition().lat();
+                    d.lng = s.getPosition().lng();
+                }
+                return d;
+            });
+        }
+
+        function aplicarEstilo(shape, role) {
+            const config = {
+                'respawn_rojo': {icon: {path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: 'red', fillOpacity: 1, strokeColor: '#fff'}},
+                'respawn_azul': {icon: {path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: 'blue', fillOpacity: 1, strokeColor: '#fff'}},
+                'objetivo_conquista': {icon: {path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 7, fillColor: 'gold', fillOpacity: 1, strokeColor: '#000'}},
+                'zona_juego': {fillColor: '#00ff00', strokeColor: '#00ff00'}
+            };
+            if(config[role]) shape.setOptions(config[role]);
+        }
+
+        function limpiarMapa() {
+            allShapes.forEach(s => s.setMap(null));
+            allShapes = [];
         }
 
         function setMode(mode, role) {
             currentRole = role;
             drawingManager.setDrawingMode(mode === 'marker' ? google.maps.drawing.OverlayType.MARKER : google.maps.drawing.OverlayType.POLYGON);
         }
-
-        function eliminarMisionDB(key) {
-            if(confirm("¿Confirmar eliminación definitiva?")) {
-                db.ref(`operaciones/${key}`).remove();
-                previewShapes.forEach(s => s.setMap(null));
-            }
-        }
-
-        function publicarMision() {
-            const name = document.getElementById('op-name').value;
-            if(!name) return alert("Falta nombre de misión");
-            const zonasData = allShapes.map(s => {
-                let data = { type: s.type, role: s.role };
-                if(s.type === 'polygon') {
-                    data.path = s.getPath().getArray().map(p => ({ lat: p.lat(), lng: p.lng() }));
-                } else {
-                    data.lat = s.getPosition().lat();
-                    data.lng = s.getPosition().lng();
-                }
-                return data;
-            });
-
-            db.ref('operaciones').push({ nombre: name, zonas: zonasData, timestamp: Date.now() })
-            .then(() => {
-                alert("OPERACIÓN ACTIVA");
-                location.reload();
-            });
-        }
-
-        function actualizarListaBorrador() {
-            const list = document.getElementById('lista-entidades');
-            list.innerHTML = "";
-            allShapes.forEach(s => {
-                list.innerHTML += `<div class="item-list"><span>${s.role.toUpperCase()}</span><span class="delete-x" onclick="borrarEntidadBorrador(${s.id})">X</span></div>`;
-            });
-        }
-
-        function borrarEntidadBorrador(id) {
-            const idx = allShapes.findIndex(s => s.id === id);
-            if(idx > -1) { allShapes[idx].setMap(null); allShapes.splice(idx, 1); actualizarListaBorrador(); }
-        }
-
-        function monitorJugadores() {
-            ['EQUIPO_ROJO', 'EQUIPO_AZUL'].forEach(equipo => {
-                db.ref(`posiciones/${equipo}`).on('value', snap => {
-                    snap.forEach(playerSnap => {
-                        const name = playerSnap.key;
-                        if(!playerMarkers[name]) {
-                            playerMarkers[name] = new google.maps.Marker({
-                                map: map,
-                                label: { text: name, color: 'white', fontSize: '9px' },
-                                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 4, fillColor: equipo === 'EQUIPO_ROJO' ? 'red' : 'blue', fillOpacity: 1, strokeColor: 'white' }
-                            });
-                        }
-                        playerMarkers[name].setPosition(playerSnap.val());
-                    });
-                    document.getElementById('monitor-jugadores').innerText = `CONEXIONES ACTIVAS: ${Object.keys(playerMarkers).length}`;
-                });
-            });
+        
+        function eliminarMision(id) {
+            if(confirm("¿Eliminar misión y datos asociados?")) db.ref(`operaciones/${id}`).remove();
         }
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing,geometry" defer></script>
