@@ -8,18 +8,26 @@
         :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --warn: #ffd700; }
         body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
         
+        /* Contenedores Principales */
         #map { flex: 1; width: 100%; border-bottom: 2px solid var(--p); filter: brightness(0.8) contrast(1.2); }
         #status-bar { height: 40vh; padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #000; overflow-y: auto; }
         
+        /* Pantalla de Acceso */
         .overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        select, input { width: 90%; padding: 15px; margin: 10px 0; background: #111; border: 1px solid var(--p); color: var(--p); font-family: monospace; }
+        select, input { width: 90%; padding: 15px; margin: 10px 0; background: #111; border: 1px solid var(--p); color: var(--p); font-family: monospace; text-align: center; }
         
-        .btn-tactic { background: #111; border: 1px solid var(--p); color: var(--p); padding: 12px; font-weight: bold; text-transform: uppercase; cursor: pointer; }
+        /* Botones y Alertas */
+        .btn-tactic { background: #111; border: 1px solid var(--p); color: var(--p); padding: 12px; font-weight: bold; text-transform: uppercase; cursor: pointer; transition: 0.3s; }
+        .btn-tactic:active { background: var(--p); color: #000; }
         .full-width { grid-column: span 2; }
         .btn-danger { border-color: var(--red); color: var(--red); }
-        
-        #chat-messages { height: 80px; overflow-y: auto; background: #050505; border: 1px solid #222; padding: 5px; font-size: 10px; grid-column: span 2; }
+        .hidden { display: none !important; }
+
+        #chat-messages { height: 80px; overflow-y: auto; background: #050505; border: 1px solid #222; padding: 5px; font-size: 10px; grid-column: span 2; border-left: 3px solid var(--p); }
         .alert-out { position: fixed; top: 0; width: 100%; background: red; color: white; text-align: center; padding: 10px; display: none; z-index: 10000; animation: blink 0.5s infinite; }
+        
+        .fade-alert { animation: fadeInOut 2s infinite; color: var(--red); margin: 10px; font-size: 0.8rem; }
+        @keyframes fadeInOut { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
         @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
@@ -27,41 +35,38 @@
 
     <div id="alerta-fuera" class="alert-out">¡FUERA DE LÍMITE TÁCTICO!</div>
 
-    <div id="screen-setup" class="overlay">
-        <h1 style="letter-spacing: 5px;">DESPLIEGUE A.T.O.M.</h1>
-        <div id="misiones-container" style="width: 100%; text-align: center;">
-            <select id="select-mision">
-                <option value="">Buscando operaciones activas...</option>
-            </select>
-            <div id="no-misiones-msg" class="fade-alert hidden">NO HAY OPERACIONES DISPONIBLES EN EL SECTOR</div>
+    <div id="screen-login" class="overlay">
+        <h1 style="letter-spacing: 5px; margin-bottom: 5px;">A.T.O.M. ACCESS</h1>
+        <p style="font-size: 0.7rem; color: #666; margin-bottom: 20px;">FLORIDA, URUGUAY - OPS TERMINAL</p>
+        
+        <input type="text" id="login-alias" placeholder="ALIAS / CALLSIGN">
+        <input type="password" id="login-pass" placeholder="CONTRASEÑA">
+        
+        <div id="misiones-wrapper" style="width: 100%; text-align: center;">
+            <select id="select-mision" class="hidden"></select>
+            <div id="no-misiones-msg" class="fade-alert">BUSCANDO OPERACIONES ACTIVAS EN EL SECTOR...</div>
         </div>
-        <input type="text" id="player-callsign" placeholder="INGRESE SU CALLSIGN">
-        <button class="btn-tactic" style="width: 90%; background: var(--p); color: #000;" onclick="iniciarDespliegue()">INICIAR DESPLIEGUE</button>
-        <button class="btn-tactic" style="margin-top:20px; border:none; font-size:10px;" onclick="window.location.href='index.html'">ABORTAR</button>
-    </div>
 
-    <div id="screen-wait" class="overlay hidden">
-        <div class="fade-alert" style="font-size: 1.5rem;">ESPERANDO ASIGNACIÓN</div>
-        <p>El Comandante Central debe asignarte un equipo (Rojo/Azul)</p>
-        <p id="wait-callsign" style="color: #fff;"></p>
-        <button class="btn-tactic btn-danger" onclick="location.reload()">CANCELAR</button>
+        <button class="btn-tactic" style="width: 90%; margin-top: 15px;" onclick="autenticarYEntrar()">INGRESAR AL MAPA</button>
+        <button class="btn-tactic" style="margin-top:20px; border:none; font-size:10px; opacity: 0.5;" onclick="window.location.href='index.html'">SALIR</button>
     </div>
 
     <div id="game-ui" class="hidden" style="height: 100vh; flex-direction: column;">
         <div id="map"></div>
         <div id="status-bar">
-            <div id="info-equipo" class="full-width" style="text-align: center; font-size: 12px; border-bottom: 1px solid #333; padding-bottom: 5px;">CONECTADO</div>
+            <div id="info-status" class="full-width" style="text-align: center; font-size: 11px; color: var(--warn);">ESPERANDO ASIGNACIÓN DE ESCUADRA...</div>
             
-            <button class="btn-tactic btn-danger" onclick="cambiarEstado('BAJA')">💀 BAJA</button>
-            <button class="btn-tactic" style="border-color: var(--warn); color: var(--warn);" onclick="cambiarEstado('MEDICO')">💉 MÉDICO</button>
+            <button id="btn-baja" class="btn-tactic btn-danger hidden" onclick="cambiarEstado('BAJA')">💀 BAJA</button>
+            <button id="btn-medico" class="btn-tactic hidden" style="border-color: var(--warn); color: var(--warn);" onclick="cambiarEstado('MEDICO')">💉 MÉDICO</button>
             
-            <button class="btn-tactic full-width" style="border-color: orange; color: orange;" onclick="marcarContacto()">⚠️ CONTACTO ENEMIGO (VIBRA)</button>
+            <button id="btn-contacto" class="btn-tactic full-width hidden" style="border-color: orange; color: orange;" onclick="marcarContacto()">⚠️ MARCAR CONTACTO ENEMIGO</button>
 
-            <div id="chat-messages"></div>
-            <input type="text" id="chat-input" placeholder="MENSAJE A EQUIPO..." style="grid-column: 1 / 2; margin: 0; height: 35px;">
-            <button class="btn-tactic" onclick="enviarMensaje()" style="grid-column: 2 / 3;">ENVIAR</button>
+            <div id="chat-messages" class="hidden"></div>
+            <input type="text" id="chat-input" class="hidden" placeholder="MENSAJE A EQUIPO..." style="grid-column: 1 / 2; margin: 0; height: 35px;">
+            <button id="btn-send" class="btn-tactic hidden" onclick="enviarMensaje()" style="grid-column: 2 / 3;">OK</button>
 
-            <button class="btn-tactic full-width" style="background: #fff; color: #000;" onclick="cambiarEstado('OPERATIVO')">RE-INGRESAR (RESPAWN)</button>
+            <button class="btn-tactic full-width" style="background: #fff; color: #000; margin-top: 5px;" onclick="cambiarEstado('OPERATIVO')">ACTUALIZAR ESTADO / RESPAWN</button>
+            <button class="btn-tactic full-width" style="border:none; font-size: 9px; margin-top: 5px;" onclick="location.reload()">CERRAR SESIÓN</button>
         </div>
     </div>
 
@@ -69,7 +74,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
     <script>
-        // CONFIGURACIÓN FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
             authDomain: "atom--airsoft.firebaseapp.com",
@@ -82,67 +86,66 @@
         let map, miMarker, miCallsign, miMisionId, miEquipo;
         let zonaJuegoPoligono;
 
-        // 1. CARGAR MISIONES CON EFECTO FADE
+        // 1. CARGA DINÁMICA DE MISIONES
         db.ref('operaciones').on('value', snap => {
             const select = document.getElementById('select-mision');
             const msg = document.getElementById('no-misiones-msg');
-            select.innerHTML = "";
-            
-            if (!snap.exists()) {
-                select.classList.add('hidden');
-                msg.classList.remove('hidden'); // Activa el fade si no hay nada
-            } else {
-                select.classList.remove('hidden');
-                msg.classList.add('hidden');
+            if (snap.exists()) {
+                select.innerHTML = '<option value="">--- SELECCIONE MISIÓN ---</option>';
                 snap.forEach(op => {
                     let opt = document.createElement('option');
                     opt.value = op.key; opt.innerText = op.val().nombre;
                     select.appendChild(opt);
                 });
+                select.classList.remove('hidden');
+                msg.classList.add('hidden');
+            } else {
+                msg.innerText = "NO HAY OPERACIONES DISPONIBLES";
             }
         });
 
-        // 2. LÓGICA DE DESPLIEGUE (SIN REPETIR DATOS)
-        function iniciarDespliegue() {
-            miCallsign = document.getElementById('player-callsign').value.trim().toUpperCase();
+        // 2. AUTENTICACIÓN Y ENTRADA DIRECTA
+        function autenticarYEntrar() {
+            miCallsign = document.getElementById('login-alias').value.trim().toUpperCase();
+            const pass = document.getElementById('login-pass').value;
             miMisionId = document.getElementById('select-mision').value;
 
-            if(!miCallsign || !miMisionId) return alert("Callsign y Misión requeridos");
+            if(!miCallsign || !pass || !miMisionId) return alert("Complete todos los campos de acceso");
 
-            // Registrar en la DB (Aparece al administrador inmediatamente)
-            db.ref(`inscripciones/${miCallsign}`).set({
-                callsign: miCallsign,
-                mision: miMisionId,
-                equipo: 'PENDIENTE',
-                estado: 'OPERATIVO',
-                lat: 0, lng: 0
-            });
-
-            document.getElementById('screen-setup').classList.add('hidden');
-            document.getElementById('screen-wait').classList.remove('hidden');
-            document.getElementById('wait-callsign').innerText = `OPERADOR: ${miCallsign}`;
-
-            // Escuchar cuando el administrador asigne equipo
-            db.ref(`inscripciones/${miCallsign}/equipo`).on('value', snap => {
-                if(snap.val() === 'EQUIPO_ROJO' || snap.val() === 'EQUIPO_AZUL') {
-                    miEquipo = snap.val();
-                    lanzarInterfazTactica();
+            // Validar contra nodo 'usuarios'
+            db.ref(`usuarios/${miCallsign}`).once('value', snap => {
+                const user = snap.val();
+                if(user && user.password === pass) {
+                    // Logueo exitoso: Registrar participación en la misión
+                    db.ref(`inscripciones/${miCallsign}`).set({
+                        callsign: miCallsign,
+                        mision: miMisionId,
+                        equipo: 'PENDIENTE',
+                        estado: 'OPERATIVO'
+                    });
+                    
+                    document.getElementById('screen-login').classList.add('hidden');
+                    lanzarMapaEstatico();
+                } else {
+                    alert("ALIAS O CONTRASEÑA INCORRECTA");
                 }
             });
         }
 
-        // 3. INTERFAZ TÁCTICA REAL
-        function lanzarInterfazTactica() {
-            document.getElementById('screen-wait').classList.add('hidden');
+        // 3. MAPA Y LÓGICA DE JUEGO
+        function lanzarMapaEstatico() {
             document.getElementById('game-ui').classList.remove('hidden');
             document.getElementById('game-ui').style.display = 'flex';
             
             initMap();
-            conectarChat();
-            escucharObjetivos();
-            
-            // Vibrar al entrar (Feedback táctico)
-            if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+            // Escuchar asignación de equipo para activar funciones extra
+            db.ref(`inscripciones/${miCallsign}/equipo`).on('value', snap => {
+                if(snap.val() !== 'PENDIENTE') {
+                    miEquipo = snap.val();
+                    activarFuncionesEscuadra();
+                }
+            });
         }
 
         function initMap() {
@@ -153,37 +156,28 @@
 
             miMarker = new google.maps.Marker({
                 map: map,
-                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#fff", fillOpacity: 1, strokeColor: "#000" },
-                label: { text: miCallsign, color: 'white', fontSize: '10px' }
+                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#fff", fillOpacity: 1, strokeColor: "#000" }
             });
 
-            cargarMapaMision();
+            cargarCapasMision();
             rastrearGPS();
-            escucharAliados();
         }
 
-        function cargarMapaMision() {
+        function cargarCapasMision() {
             db.ref(`operaciones/${miMisionId}`).once('value', snap => {
                 const op = snap.val();
                 op.zonas.forEach(z => {
                     if(z.role === 'zona_juego') {
-                        zonaJuegoPoligono = new google.maps.Polygon({ paths: z.path, map: map, fillOpacity: 0.1, strokeColor: '#00ff00' });
+                        zonaJuegoPoligono = new google.maps.Polygon({ paths: z.path, map: map, fillOpacity: 0.1, strokeColor: '#00ff00', strokeWeight: 1 });
                     }
                     if(z.role === 'objetivo_conquista') {
-                        // Círculos de objetivo que cambian de color
-                        let objCircle = new google.maps.Circle({ 
-                            map: map, center: {lat: z.lat, lng: z.lng}, radius: 15, 
-                            fillColor: '#888', fillOpacity: 0.5, strokeColor: '#fff' 
-                        });
-                        
-                        // Escuchar quién domina el objetivo
                         const objId = z.lat.toString().replace('.','_');
+                        let circle = new google.maps.Circle({ map: map, center: {lat: z.lat, lng: z.lng}, radius: 15, fillColor: '#888', fillOpacity: 0.5, strokeColor: '#fff' });
+                        
                         db.ref(`conquistas/${objId}`).on('value', s => {
                             if(s.exists()) {
-                                let color = (s.val().dueno === 'EQUIPO_ROJO') ? 'red' : 'blue';
-                                objCircle.setOptions({fillColor: color, strokeColor: color});
-                                // Vibración si el enemigo toma un punto
-                                if(s.val().dueno !== miEquipo && navigator.vibrate) navigator.vibrate(500);
+                                let color = (s.val().dueno === 'EQUIPO_ROJO') ? '#ff3333' : '#33aaff';
+                                circle.setOptions({fillColor: color, strokeColor: color});
                             }
                         });
                     }
@@ -191,13 +185,28 @@
             });
         }
 
+        function activarFuncionesEscuadra() {
+            document.getElementById('info-status').innerText = `ESCUADRA: ${miEquipo.replace('_', ' ')}`;
+            document.getElementById('info-status').style.color = (miEquipo === 'EQUIPO_ROJO') ? 'var(--red)' : 'var(--blue)';
+            
+            // Mostrar botones de acción
+            document.getElementById('btn-baja').classList.remove('hidden');
+            document.getElementById('btn-medico').classList.remove('hidden');
+            document.getElementById('btn-contacto').classList.remove('hidden');
+            document.getElementById('chat-messages').classList.remove('hidden');
+            document.getElementById('chat-input').classList.remove('hidden');
+            document.getElementById('btn-send').classList.remove('hidden');
+
+            // Iniciar chat de equipo
+            conectarChat();
+        }
+
         function rastrearGPS() {
             navigator.geolocation.watchPosition(pos => {
                 const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                 miMarker.setPosition(p);
-                db.ref(`posiciones/${miEquipo}/${miCallsign}`).set(p);
+                if(miEquipo) db.ref(`posiciones/${miEquipo}/${miCallsign}`).set(p);
 
-                // Alerta fuera de zona
                 if(zonaJuegoPoligono && !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(p), zonaJuegoPoligono)) {
                     document.getElementById('alerta-fuera').style.display = 'block';
                     if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
@@ -207,12 +216,33 @@
             }, null, { enableHighAccuracy: true });
         }
 
-        function marcarContacto() {
-            db.ref(`alertas_contacto/${miEquipo}`).set({ pos: miMarker.getPosition().toJSON(), time: Date.now() });
-            alert("CONTACTO INFORMADO A ESCUADRA");
+        function cambiarEstado(nuevo) {
+            db.ref(`inscripciones/${miCallsign}`).update({ estado: nuevo });
+            if(navigator.vibrate) navigator.vibrate(100);
         }
 
-        // ... (Lógica de chat y estado similar a la anterior pero optimizada)
+        function marcarContacto() {
+            if(miEquipo) {
+                db.ref(`alertas_contacto/${miEquipo}`).set({ pos: miMarker.getPosition().toJSON(), time: Date.now() });
+                if(navigator.vibrate) navigator.vibrate([50, 50, 50]);
+            }
+        }
+
+        function conectarChat() {
+            db.ref(`chats/${miMisionId}/${miEquipo}`).limitToLast(15).on('child_added', snap => {
+                const m = snap.val();
+                const box = document.getElementById('chat-messages');
+                box.innerHTML += `<div><b style="color:white">[${m.user}]</b> ${m.text}</div>`;
+                box.scrollTop = box.scrollHeight;
+            });
+        }
+
+        function enviarMensaje() {
+            const txt = document.getElementById('chat-input');
+            if(!txt.value.trim() || !miEquipo) return;
+            db.ref(`chats/${miMisionId}/${miEquipo}`).push({ user: miCallsign, text: txt.value });
+            txt.value = "";
+        }
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=TU_API_KEY&libraries=geometry" defer></script>
 </body>
