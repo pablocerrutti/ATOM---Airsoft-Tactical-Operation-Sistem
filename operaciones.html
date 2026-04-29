@@ -13,12 +13,13 @@
         #status-bar { height: 40vh; padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #000; overflow-y: auto; }
         
         /* Pantalla de Acceso */
-        .overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        select, input { width: 90%; padding: 15px; margin: 10px 0; background: #111; border: 1px solid var(--p); color: var(--p); font-family: monospace; text-align: center; }
+        .overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+        select, input { width: 90%; padding: 15px; margin: 10px 0; background: #111; border: 1px solid var(--p); color: var(--p); font-family: monospace; text-align: center; font-size: 1rem; }
         
         /* Botones y Alertas */
         .btn-tactic { background: #111; border: 1px solid var(--p); color: var(--p); padding: 12px; font-weight: bold; text-transform: uppercase; cursor: pointer; transition: 0.3s; }
         .btn-tactic:active { background: var(--p); color: #000; }
+        .btn-tactic:disabled { opacity: 0.5; cursor: not-allowed; }
         .full-width { grid-column: span 2; }
         .btn-danger { border-color: var(--red); color: var(--red); }
         .hidden { display: none !important; }
@@ -44,11 +45,11 @@
         
         <div id="misiones-wrapper" style="width: 100%; text-align: center;">
             <select id="select-mision" class="hidden"></select>
-            <div id="no-misiones-msg" class="fade-alert">BUSCANDO OPERACIONES ACTIVAS EN EL SECTOR...</div>
+            <div id="no-misiones-msg" class="fade-alert">CONECTANDO CON EL CENTRO de MANDO...</div>
         </div>
 
-        <button class="btn-tactic" style="width: 90%; margin-top: 15px;" onclick="autenticarYEntrar()">INGRESAR AL MAPA</button>
-        <button class="btn-tactic" style="margin-top:20px; border:none; font-size:10px; opacity: 0.5;" onclick="window.location.href='index.html'">SALIR</button>
+        <button id="btn-entrar" class="btn-tactic" style="width: 90%; margin-top: 15px;" onclick="autenticarYEntrar()">INGRESAR AL MAPA</button>
+        <button class="btn-tactic" style="margin-top:20px; border:none; font-size:10px; opacity: 0.5;" onclick="window.location.href='index.html'">VOLVER AL INICIO</button>
     </div>
 
     <div id="game-ui" class="hidden" style="height: 100vh; flex-direction: column;">
@@ -83,10 +84,11 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        const sheetId = '1ibyfOH6EcNWDPbZ_JJd4I_e21UGr24qfmbNbBNmaFM4';
         let map, miMarker, miCallsign, miMisionId, miEquipo;
         let zonaJuegoPoligono;
 
-        // 1. CARGA DINÁMICA DE MISIONES
+        // 1. CARGA DE MISIONES DESDE FIREBASE
         db.ref('operaciones').on('value', snap => {
             const select = document.getElementById('select-mision');
             const msg = document.getElementById('no-misiones-msg');
@@ -100,48 +102,86 @@
                 select.classList.remove('hidden');
                 msg.classList.add('hidden');
             } else {
-                msg.innerText = "NO HAY OPERACIONES DISPONIBLES";
+                msg.innerText = "NO HAY OPERACIONES ACTIVAS EN EL SECTOR";
             }
         });
 
-        // 2. AUTENTICACIÓN Y ENTRADA DIRECTA
-        function autenticarYEntrar() {
+        // 2. AUTENTICACIÓN MEDIANTE GOOGLE SHEETS
+        async function autenticarYEntrar() {
             miCallsign = document.getElementById('login-alias').value.trim().toUpperCase();
             const pass = document.getElementById('login-pass').value;
             miMisionId = document.getElementById('select-mision').value;
 
-            if(!miCallsign || !pass || !miMisionId) return alert("Complete todos los campos de acceso");
+            if(!miCallsign || !pass || !miMisionId) return alert("Complete todos los campos para el despliegue");
 
-            // Validar contra nodo 'usuarios'
-            db.ref(`usuarios/${miCallsign}`).once('value', snap => {
-                const user = snap.val();
-                if(user && user.password === pass) {
-                    // Logueo exitoso: Registrar participación en la misión
-                    db.ref(`inscripciones/${miCallsign}`).set({
-                        callsign: miCallsign,
-                        mision: miMisionId,
-                        equipo: 'PENDIENTE',
-                        estado: 'OPERATIVO'
-                    });
-                    
-                    document.getElementById('screen-login').classList.add('hidden');
-                    lanzarMapaEstatico();
-                } else {
-                    alert("ALIAS O CONTRASEÑA INCORRECTA");
+            const btn = document.getElementById('btn-entrar');
+            btn.innerText = "VERIFICANDO CREDENCIALES...";
+            btn.disabled = true;
+
+            try {
+                const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=usuarios`;
+                const response = await fetch(url);
+                const text = await response.text();
+                const data = JSON.parse(text.substr(47).slice(0, -2));
+                
+                let validado = false;
+                let usuarioExiste = false;
+
+                data.table.rows.forEach(row => {
+                    const sheetUser = row.c[0] ? row.c[0].v.toString().toUpperCase() : "";
+                    const sheetPass = row.c[1] ? row.c[1].v.toString() : "";
+
+                    if (sheetUser === miCallsign) {
+                        usuarioExiste = true;
+                        if (sheetPass === pass) {
+                            validado = true;
+                        }
+                    }
+                });
+
+                if (!usuarioExiste) {
+                    alert(`ERROR: El operador [${miCallsign}] no figura en la base de datos oficial. Registrese en el inicio.`);
+                    btn.innerText = "INGRESAR AL MAPA";
+                    btn.disabled = false;
+                    return;
                 }
-            });
+
+                if (!validado) {
+                    alert("CLAVE DE ACCESO INCORRECTA");
+                    btn.innerText = "INGRESAR AL MAPA";
+                    btn.disabled = false;
+                    return;
+                }
+
+                // Si es válido, procedemos
+                db.ref(`inscripciones/${miCallsign}`).set({
+                    callsign: miCallsign,
+                    mision: miMisionId,
+                    equipo: 'PENDIENTE',
+                    estado: 'OPERATIVO',
+                    timestamp: Date.now()
+                });
+                
+                document.getElementById('screen-login').classList.add('hidden');
+                lanzarMapaEstatico();
+
+            } catch (error) {
+                console.error(error);
+                alert("ERROR DE RED: No se pudo contactar con el servidor de la planilla.");
+                btn.innerText = "INGRESAR AL MAPA";
+                btn.disabled = false;
+            }
         }
 
-        // 3. MAPA Y LÓGICA DE JUEGO
+        // 3. INICIO DE MAPA Y LÓGICA TÁCTICA
         function lanzarMapaEstatico() {
             document.getElementById('game-ui').classList.remove('hidden');
             document.getElementById('game-ui').style.display = 'flex';
             
             initMap();
 
-            // Escuchar asignación de equipo para activar funciones extra
             db.ref(`inscripciones/${miCallsign}/equipo`).on('value', snap => {
-                if(snap.val() !== 'PENDIENTE') {
+                if(snap.exists() && snap.val() !== 'PENDIENTE') {
                     miEquipo = snap.val();
                     activarFuncionesEscuadra();
                 }
@@ -156,7 +196,8 @@
 
             miMarker = new google.maps.Marker({
                 map: map,
-                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#fff", fillOpacity: 1, strokeColor: "#000" }
+                title: miCallsign,
+                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#fff", fillOpacity: 1, strokeColor: "#000", strokeWeight: 2 }
             });
 
             cargarCapasMision();
@@ -166,9 +207,10 @@
         function cargarCapasMision() {
             db.ref(`operaciones/${miMisionId}`).once('value', snap => {
                 const op = snap.val();
+                if(!op.zonas) return;
                 op.zonas.forEach(z => {
                     if(z.role === 'zona_juego') {
-                        zonaJuegoPoligono = new google.maps.Polygon({ paths: z.path, map: map, fillOpacity: 0.1, strokeColor: '#00ff00', strokeWeight: 1 });
+                        zonaJuegoPoligono = new google.maps.Polygon({ paths: z.path, map: map, fillOpacity: 0.1, strokeColor: '#00ff00', strokeWeight: 1, clickable: false });
                     }
                     if(z.role === 'objetivo_conquista') {
                         const objId = z.lat.toString().replace('.','_');
@@ -186,34 +228,31 @@
         }
 
         function activarFuncionesEscuadra() {
-            document.getElementById('info-status').innerText = `ESCUADRA: ${miEquipo.replace('_', ' ')}`;
-            document.getElementById('info-status').style.color = (miEquipo === 'EQUIPO_ROJO') ? 'var(--red)' : 'var(--blue)';
+            const statusLabel = document.getElementById('info-status');
+            statusLabel.innerText = `ESCUADRA: ${miEquipo.replace('_', ' ')}`;
+            statusLabel.style.color = (miEquipo === 'EQUIPO_ROJO') ? 'var(--red)' : 'var(--blue)';
             
-            // Mostrar botones de acción
-            document.getElementById('btn-baja').classList.remove('hidden');
-            document.getElementById('btn-medico').classList.remove('hidden');
-            document.getElementById('btn-contacto').classList.remove('hidden');
-            document.getElementById('chat-messages').classList.remove('hidden');
-            document.getElementById('chat-input').classList.remove('hidden');
-            document.getElementById('btn-send').classList.remove('hidden');
-
-            // Iniciar chat de equipo
+            document.querySelectorAll('.hidden').forEach(el => el.classList.remove('hidden'));
             conectarChat();
         }
 
         function rastrearGPS() {
+            if (!navigator.geolocation) return alert("El GPS no es compatible con este dispositivo.");
+
             navigator.geolocation.watchPosition(pos => {
                 const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                 miMarker.setPosition(p);
-                if(miEquipo) db.ref(`posiciones/${miEquipo}/${miCallsign}`).set(p);
+                
+                if(miEquipo) {
+                    db.ref(`posiciones/${miEquipo}/${miCallsign}`).set(p);
+                }
 
                 if(zonaJuegoPoligono && !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(p), zonaJuegoPoligono)) {
                     document.getElementById('alerta-fuera').style.display = 'block';
-                    if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
                 } else {
                     document.getElementById('alerta-fuera').style.display = 'none';
                 }
-            }, null, { enableHighAccuracy: true });
+            }, err => console.warn(err), { enableHighAccuracy: true });
         }
 
         function cambiarEstado(nuevo) {
@@ -223,8 +262,8 @@
 
         function marcarContacto() {
             if(miEquipo) {
-                db.ref(`alertas_contacto/${miEquipo}`).set({ pos: miMarker.getPosition().toJSON(), time: Date.now() });
-                if(navigator.vibrate) navigator.vibrate([50, 50, 50]);
+                db.ref(`alertas_contacto/${miEquipo}`).set({ pos: miMarker.getPosition().toJSON(), time: Date.now(), por: miCallsign });
+                alert("¡CONTACTO ENEMIGO MARCADO!");
             }
         }
 
@@ -232,7 +271,7 @@
             db.ref(`chats/${miMisionId}/${miEquipo}`).limitToLast(15).on('child_added', snap => {
                 const m = snap.val();
                 const box = document.getElementById('chat-messages');
-                box.innerHTML += `<div><b style="color:white">[${m.user}]</b> ${m.text}</div>`;
+                box.innerHTML += `<div><b style="color:var(--p)">[${m.user}]</b> ${m.text}</div>`;
                 box.scrollTop = box.scrollHeight;
             });
         }
