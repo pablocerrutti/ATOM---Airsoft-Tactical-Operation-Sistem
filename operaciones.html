@@ -8,11 +8,9 @@
         :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --warn: #ffd700; }
         body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Encabezado */
         #header { height: 60px; background: #000; border-bottom: 2px solid var(--p); display: flex; align-items: center; padding: 0 10px; justify-content: space-between; z-index: 10; }
         #map { flex-grow: 1; background: #111; }
 
-        /* Panel de Acciones Tácticas */
         .tactical-panel { 
             position: absolute; bottom: 20px; left: 10px; right: 10px; 
             display: grid; grid-template-columns: 1fr 1fr; gap: 8px; 
@@ -26,12 +24,10 @@
         .btn-danger { border-color: var(--red) !important; color: var(--red) !important; }
         .btn-active { background: var(--p) !important; color: #000 !important; }
 
-        /* Indicadores de Equipo */
         .team-indicator { padding: 4px 8px; font-size: 11px; border: 1px solid #444; }
         .team-rojo { border-color: var(--red); color: var(--red); }
         .team-azul { border-color: var(--blue); color: var(--blue); }
         
-        /* Pantalla de Identificación */
         #setup-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
         .setup-content { border: 2px solid var(--p); padding: 30px; background: #050505; width: 85%; max-width: 400px; }
         .setup-content h2 { letter-spacing: 4px; text-align: center; margin-top: 0; }
@@ -96,7 +92,6 @@
             'zona_segura': 'ZONA SEGURA'
         };
 
-        // Cargar misiones existentes
         db.ref('operaciones').once('value', snap => {
             const sel = document.getElementById('select-mision');
             sel.innerHTML = "";
@@ -151,23 +146,41 @@
                 m.zonas.forEach(z => {
                     let labelPos;
                     if(z.type === 'polygon') {
-                        new google.maps.Polygon({ paths: z.path, map: map, clickable: false, fillColor: '#00ff00', fillOpacity: 0.05, strokeColor: '#00ff00', strokeWeight: 2 });
+                        // Dibujar Área de Juego o Zona Segura
+                        const polyColor = z.role === 'zona_segura' ? '#00ffff' : '#00ff00';
+                        new google.maps.Polygon({ 
+                            paths: z.path, map: map, clickable: false, 
+                            fillColor: polyColor, fillOpacity: 0.08, 
+                            strokeColor: polyColor, strokeWeight: 2 
+                        });
+                        // Extender límites para enfoque
                         z.path.forEach(p => bounds.extend(p));
                         labelPos = z.path[0]; 
                     } else {
+                        // Marcadores de Spawn u Objetivos
                         const shape = new google.maps.Marker({ position: {lat: z.lat, lng: z.lng}, map: map });
                         bounds.extend({lat: z.lat, lng: z.lng});
                         labelPos = {lat: z.lat, lng: z.lng};
                         aplicarEstiloTatico(shape, z.role);
                     }
                     
+                    // Etiquetas de texto sobre los puntos
                     new google.maps.Marker({
                         position: labelPos, map: map,
-                        label: { text: NOMBRES_ROLES[z.role] || 'PUNTO', color: 'white', fontSize: '9px' },
+                        label: { text: NOMBRES_ROLES[z.role] || 'PUNTO', color: 'white', fontSize: '10px', fontWeight: 'bold' },
                         icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
                     });
                 });
-                if(!bounds.isEmpty()) map.fitBounds(bounds);
+
+                // ENFOQUE AUTOMÁTICO A LA MISIÓN
+                if(!bounds.isEmpty()) {
+                    map.fitBounds(bounds);
+                    // Margen opcional para que no quede pegado a los bordes
+                    const listener = google.maps.event.addListener(map, "idle", function() {
+                        if (map.getZoom() > 18) map.setZoom(18); 
+                        google.maps.event.removeListener(listener);
+                    });
+                }
             });
         }
 
@@ -195,7 +208,8 @@
                 navigator.geolocation.watchPosition(pos => {
                     const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     db.ref(`posiciones/${myTeam}/${myCallsign}`).set(loc);
-                    map.panTo(loc);
+                    // Centrar solo si el usuario no está interactuando (opcional)
+                    // map.panTo(loc); 
                 }, null, { enableHighAccuracy: true });
             }
         }
@@ -222,7 +236,8 @@
             const styles = {
                 'respawn_rojo': { icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: 'red', fillOpacity: 0.8, strokeColor: '#fff' } },
                 'respawn_azul': { icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: 'blue', fillOpacity: 0.8, strokeColor: '#fff' } },
-                'objetivo': { icon: { path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 8, fillColor: 'gold', fillOpacity: 1, strokeColor: '#000' } }
+                'objetivo': { icon: { path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 8, fillColor: 'gold', fillOpacity: 1, strokeColor: '#000' } },
+                'zona_segura': { icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: 'cyan', fillOpacity: 0.5, strokeColor: 'white' } }
             };
             if(styles[role]) shape.setOptions(styles[role]);
         }
