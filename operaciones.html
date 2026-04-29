@@ -8,61 +8,62 @@
         :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --warn: #ffd700; --safe: #00ffff; }
         body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
         
-        /* Mapa y UI */
         #map { flex: 1; width: 100%; border-bottom: 2px solid var(--p); background: #000; }
-        #status-bar { height: 40vh; padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #000; overflow-y: auto; }
+        #status-bar { height: 42vh; padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #000; overflow-y: auto; }
         
-        /* Acceso */
+        /* Cronómetro Superior */
+        #timer-display { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid var(--p); padding: 5px 15px; font-size: 1.2rem; font-weight: bold; z-index: 1000; display: none; color: var(--p); text-shadow: 0 0 5px var(--p); }
+
         .overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
-        select, input { width: 90%; padding: 15px; margin: 10px 0; background: #111; border: 1px solid var(--p); color: var(--p); font-family: monospace; text-align: center; font-size: 1rem; }
+        select, input { width: 90%; padding: 12px; margin: 8px 0; background: #111; border: 1px solid var(--p); color: var(--p); font-family: monospace; text-align: center; font-size: 1rem; }
         
-        /* Botonera Táctica */
-        .btn-tactic { background: #111; border: 1px solid var(--p); color: var(--p); padding: 12px; font-weight: bold; text-transform: uppercase; cursor: pointer; transition: 0.3s; font-size: 11px; }
+        .btn-tactic { background: #111; border: 1px solid var(--p); color: var(--p); padding: 12px; font-weight: bold; text-transform: uppercase; cursor: pointer; font-size: 11px; }
         .btn-tactic:active { background: var(--p); color: #000; }
-        .btn-tactic:disabled { opacity: 0.3; }
         .full-width { grid-column: span 2; }
         .btn-danger { border-color: var(--red); color: var(--red); }
         .hidden { display: none !important; }
 
-        #chat-messages { height: 80px; overflow-y: auto; background: #050505; border: 1px solid #222; padding: 5px; font-size: 10px; grid-column: span 2; border-left: 3px solid var(--p); color: #ccc; }
-        .alert-out { position: fixed; top: 0; width: 100%; background: red; color: white; text-align: center; padding: 10px; display: none; z-index: 10000; animation: blink 0.5s infinite; font-weight: bold; }
+        #chat-messages { height: 70px; overflow-y: auto; background: #050505; border: 1px solid #222; padding: 5px; font-size: 10px; grid-column: span 2; border-left: 3px solid var(--p); }
+        .alert-out { position: fixed; top: 0; width: 100%; background: red; color: white; text-align: center; padding: 10px; display: none; z-index: 10001; animation: blink 0.5s infinite; font-weight: bold; }
         
         @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
 
+    <div id="timer-display">00:00:00</div>
     <div id="alerta-fuera" class="alert-out">¡FUERA DE LÍMITE TÁCTICO!</div>
 
     <div id="screen-login" class="overlay">
-        <h1 style="letter-spacing: 5px; margin-bottom: 5px;">A.T.O.M. ACCESS</h1>
-        <p style="font-size: 0.7rem; color: #666; margin-bottom: 20px;">FLORIDA, URUGUAY - OPERADOR DE CAMPO</p>
+        <h1 style="letter-spacing: 5px; margin-bottom: 5px;">A.T.O.M.</h1>
+        <p style="font-size: 0.7rem; color: #666; margin-bottom: 20px;">FLORIDA, URUGUAY - TERMINAL DE CAMPO</p>
         
         <input type="text" id="login-alias" placeholder="ALIAS / CALLSIGN">
         <input type="password" id="login-pass" placeholder="CONTRASEÑA">
         
         <select id="select-mision" class="hidden"></select>
-        <div id="no-misiones-msg" style="color: var(--red); font-size: 10px;">CONECTANDO CON MANDO CENTRAL...</div>
+        <div id="no-misiones-msg" style="color: var(--warn); font-size: 10px;">ESTABLECIENDO CONEXIÓN...</div>
 
         <button id="btn-entrar" class="btn-tactic" style="width: 90%; margin-top: 15px;" onclick="autenticarYEntrar()">SINCRONIZAR TERMINAL</button>
+        <button class="btn-tactic" style="width: 90%; margin-top: 10px; border-color: #444; color: #666;" onclick="window.location.href='index.html'">VOLVER AL INICIO</button>
     </div>
 
     <div id="game-ui" class="hidden" style="height: 100vh; flex-direction: column;">
         <div id="map"></div>
         <div id="status-bar">
-            <div id="info-status" class="full-width" style="text-align: center; font-size: 11px; color: var(--warn); border: 1px solid #222; padding: 5px;">ESPERANDO ASIGNACIÓN DE ESCUADRA...</div>
+            <div id="info-status" class="full-width" style="text-align: center; font-size: 11px; color: var(--warn); border: 1px solid #222; padding: 5px;">ESPERANDO INICIO DE MISIÓN...</div>
             
-            <button id="btn-baja" class="btn-tactic btn-danger hidden" onclick="cambiarEstado('BAJA')">💀 INFORMAR BAJA</button>
-            <button id="btn-medico" class="btn-tactic hidden" style="border-color: var(--warn); color: var(--warn);" onclick="cambiarEstado('MEDICO')">💉 SOLICITAR MÉDICO</button>
+            <button id="btn-baja" class="btn-tactic btn-danger op-btn hidden" onclick="cambiarEstado('BAJA')">💀 INFORMAR BAJA</button>
+            <button id="btn-medico" class="btn-tactic op-btn hidden" style="border-color: var(--warn); color: var(--warn);" onclick="cambiarEstado('MEDICO')">💉 MÉDICO</button>
             
-            <button id="btn-contacto" class="btn-tactic full-width hidden" style="border-color: orange; color: orange;" onclick="marcarContacto()">⚠️ CONTACTO ENEMIGO</button>
+            <button id="btn-contacto" class="btn-tactic full-width op-btn hidden" style="border-color: orange; color: orange;" onclick="marcarContacto()">⚠️ CONTACTO ENEMIGO</button>
 
-            <div id="chat-messages" class="hidden"></div>
-            <input type="text" id="chat-input" class="hidden" placeholder="MENSAJE A ESCUADRA..." style="grid-column: 1 / 2; margin: 0; height: 40px; font-size: 12px;">
-            <button id="btn-send" class="btn-tactic hidden" onclick="enviarMensaje()" style="grid-column: 2 / 3;">ENVIAR</button>
+            <div id="chat-messages" class="op-btn hidden"></div>
+            <input type="text" id="chat-input" class="op-btn hidden" placeholder="MENSAJE..." style="grid-column: 1 / 2; margin: 0; height: 40px;">
+            <button id="btn-send" class="btn-tactic op-btn hidden" onclick="enviarMensaje()" style="grid-column: 2 / 3;">ENVIAR</button>
 
             <button class="btn-tactic full-width" style="background: #fff; color: #000; margin-top: 5px;" onclick="cambiarEstado('OPERATIVO')">RE-SINCRONIZAR / RESPAWN</button>
-            <button class="btn-tactic full-width" style="border:none; font-size: 9px; opacity: 0.5;" onclick="location.reload()">DESCONECTAR</button>
+            <button class="btn-tactic full-width" style="border:none; font-size: 9px; opacity: 0.5;" onclick="location.reload()">DESCONECTAR TERMINAL</button>
         </div>
     </div>
 
@@ -70,7 +71,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
     <script>
-        // CONFIGURACIÓN
         const firebaseConfig = {
             apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
             authDomain: "atom--airsoft.firebaseapp.com",
@@ -82,8 +82,7 @@
 
         const sheetId = '1ibyfOH6EcNWDPbZ_JJd4I_e21UGr24qfmbNbBNmaFM4';
         let map, miMarker, miCallsign, miMisionId, miEquipo;
-        let zonaJuegoPoligono;
-        let allShapes = [];
+        let timerInterval;
 
         // 1. LISTAR MISIONES
         db.ref('operaciones').on('value', snap => {
@@ -101,13 +100,12 @@
             }
         });
 
-        // 2. LOGIN (Planilla + Firebase)
         async function autenticarYEntrar() {
             miCallsign = document.getElementById('login-alias').value.trim().toUpperCase();
             const pass = document.getElementById('login-pass').value.trim();
             miMisionId = document.getElementById('select-mision').value;
 
-            if(!miCallsign || !pass || !miMisionId) return alert("Credenciales incompletas.");
+            if(!miCallsign || !pass || !miMisionId) return alert("Complete los datos de acceso.");
 
             const btn = document.getElementById('btn-entrar');
             btn.innerText = "VERIFICANDO...";
@@ -119,122 +117,87 @@
                 const text = await response.text();
                 const data = JSON.parse(text.substr(47).slice(0, -2));
                 
-                let usuarioValido = false;
+                let valido = false;
                 data.table.rows.forEach(row => {
-                    const u = row.c[0] ? row.c[0].v.toString().toUpperCase() : "";
-                    const p = row.c[1] ? row.c[1].v.toString() : "";
-                    if (u === miCallsign && p === pass) usuarioValido = true;
+                    if (row.c[0]?.v.toString().toUpperCase() === miCallsign && row.c[1]?.v.toString() === pass) valido = true;
                 });
 
-                if (!usuarioValido) {
-                    alert("Acceso Denegado: Usuario o Clave incorrectos.");
+                if (!valido) {
+                    alert("Credenciales incorrectas.");
                     btn.disabled = false; btn.innerText = "SINCRONIZAR TERMINAL";
                     return;
                 }
 
-                // Registro en Firebase
                 db.ref(`inscripciones/${miCallsign}`).set({
-                    callsign: miCallsign,
-                    mision: miMisionId,
-                    equipo: 'PENDIENTE',
-                    estado: 'OPERATIVO',
-                    timestamp: Date.now()
+                    callsign: miCallsign, mision: miMisionId, equipo: 'PENDIENTE', estado: 'OPERATIVO', timestamp: Date.now()
                 });
                 
                 document.getElementById('screen-login').classList.add('hidden');
                 iniciarTerminal();
 
-            } catch (e) {
-                alert("Error de comunicación con el servidor.");
-                btn.disabled = false;
-            }
+            } catch (e) { alert("Error de red."); btn.disabled = false; }
         }
 
-        // 3. INICIO DE MAPA DINÁMICO
         function iniciarTerminal() {
             document.getElementById('game-ui').style.display = 'flex';
             document.getElementById('game-ui').classList.remove('hidden');
             
             map = new google.maps.Map(document.getElementById("map"), {
-                mapTypeId: 'satellite',
-                disableDefaultUI: true,
-                zoom: 15,
-                center: { lat: -34.095, lng: -56.214 }
+                mapTypeId: 'satellite', disableDefaultUI: true, zoom: 17, center: { lat: -34.095, lng: -56.214 }
             });
 
             miMarker = new google.maps.Marker({
-                map: map,
-                title: miCallsign,
-                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: "#fff", fillOpacity: 1, strokeColor: "#000", strokeWeight: 2 }
+                map: map, title: miCallsign,
+                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#00ff00", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 }
             });
 
-            cargarZonasMision();
-            rastrearGPS();
+            // Escuchar el Timer y el Estado de la Misión desde Firebase
+            db.ref(`operaciones/${miMisionId}/control`).on('value', snap => {
+                const ctrl = snap.val();
+                if (ctrl && ctrl.activo) {
+                    document.getElementById('timer-display').style.display = 'block';
+                    iniciarContadorLocal(ctrl.startTime);
+                } else {
+                    document.getElementById('timer-display').style.display = 'none';
+                    clearInterval(timerInterval);
+                }
+            });
 
-            // Escuchar asignación de equipo
             db.ref(`inscripciones/${miCallsign}/equipo`).on('value', snap => {
                 if(snap.exists() && snap.val() !== 'PENDIENTE') {
                     miEquipo = snap.val();
                     activarInterfazEquipo();
                 }
             });
+
+            rastrearGPS();
         }
 
-        function cargarZonasMision() {
-            db.ref(`operaciones/${miMisionId}`).once('value', snap => {
-                const m = snap.val();
-                if(!m || !m.zonas) return;
-
-                const bounds = new google.maps.LatLngBounds();
-
-                m.zonas.forEach(z => {
-                    let shape;
-                    if(z.type === 'polygon') {
-                        shape = new google.maps.Polygon({
-                            paths: z.path, 
-                            map: map, 
-                            clickable: false,
-                            fillOpacity: z.role === 'zona_juego' ? 0.1 : 0.3,
-                            fillColor: z.role === 'zona_juego' ? '#00ff00' : '#00ffff',
-                            strokeColor: z.role === 'zona_juego' ? '#00ff00' : '#00ffff',
-                            strokeWeight: 1
-                        });
-                        z.path.forEach(p => bounds.extend(p));
-                        if(z.role === 'zona_juego') zonaJuegoPoligono = shape;
-                    } else {
-                        // Iconos para marcadores
-                        let iconCfg = { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillOpacity: 1, strokeColor: '#fff' };
-                        if(z.role === 'respawn_rojo') iconCfg.fillColor = 'red';
-                        else if(z.role === 'respawn_azul') iconCfg.fillColor = 'blue';
-                        else if(z.role === 'objetivo_conquista') {
-                             iconCfg.path = google.maps.SymbolPath.BACKWARD_CLOSED_ARROW;
-                             iconCfg.fillColor = 'gold';
-                        }
-
-                        shape = new google.maps.Marker({ position: {lat: z.lat, lng: z.lng}, map: map, icon: iconCfg });
-                        bounds.extend({lat: z.lat, lng: z.lng});
-                    }
-                });
-
-                // El "Dinamismo" del Admin: Ajustar cámara a la misión
-                if(!bounds.isEmpty()) map.fitBounds(bounds);
-            });
+        function iniciarContadorLocal(startTime) {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const ahora = Date.now();
+                const diff = ahora - startTime;
+                const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+                const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                document.getElementById('timer-display').innerText = `${h}:${m}:${s}`;
+            }, 1000);
         }
 
         function activarInterfazEquipo() {
             const status = document.getElementById('info-status');
-            status.innerText = `ACTIVO EN: ${miEquipo.replace('_', ' ')}`;
+            status.innerText = `ASIGNADO A: ${miEquipo.replace('_', ' ')}`;
             status.style.color = (miEquipo === 'EQUIPO_ROJO') ? 'var(--red)' : 'var(--blue)';
-            status.style.borderColor = status.style.color;
             
-            // Mostrar botones y chat
-            document.querySelectorAll('.hidden').forEach(el => el.classList.remove('hidden'));
-            
-            // Conectar Chat
-            db.ref(`chats/${miMisionId}/${miEquipo}`).limitToLast(15).on('child_added', snap => {
+            // Habilitar todos los botones tácticos
+            document.querySelectorAll('.op-btn').forEach(el => el.classList.remove('hidden'));
+
+            // Conectar Chat de Equipo
+            db.ref(`chats/${miMisionId}/${miEquipo}`).limitToLast(10).on('child_added', snap => {
                 const m = snap.val();
                 const box = document.getElementById('chat-messages');
-                box.innerHTML += `<div><b style="color:var(--p)">[${m.user}]</b> ${m.text}</div>`;
+                box.innerHTML += `<div><b>[${m.user}]</b>: ${m.text}</div>`;
                 box.scrollTop = box.scrollHeight;
             });
         }
@@ -244,31 +207,13 @@
             navigator.geolocation.watchPosition(pos => {
                 const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                 miMarker.setPosition(p);
-                
                 if(miEquipo) db.ref(`posiciones/${miEquipo}/${miCallsign}`).set(p);
-
-                // Validar Geofencing
-                if(zonaJuegoPoligono && !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(p), zonaJuegoPoligono)) {
-                    document.getElementById('alerta-fuera').style.display = 'block';
-                } else {
-                    document.getElementById('alerta-fuera').style.display = 'none';
-                }
             }, null, { enableHighAccuracy: true });
         }
 
         function cambiarEstado(nuevo) {
             db.ref(`inscripciones/${miCallsign}`).update({ estado: nuevo });
-            if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        }
-
-        function marcarContacto() {
-            if(!miEquipo) return;
-            db.ref(`alertas_contacto/${miEquipo}`).set({ 
-                pos: miMarker.getPosition().toJSON(), 
-                time: Date.now(), 
-                por: miCallsign 
-            });
-            alert("ALERTA DE CONTACTO ENVIADA A ESCUADRA");
+            if(navigator.vibrate) navigator.vibrate(200);
         }
 
         function enviarMensaje() {
