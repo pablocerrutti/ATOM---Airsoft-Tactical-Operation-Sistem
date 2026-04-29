@@ -3,33 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema A.T.O.M. Uruguay</title>
+    <title> Sistema A.T.O.M. - Uruguay </title>
     <style>
-        :root { --p: #00ff00; --f: #050505; --a: #3399ff; --r: #ff3333; }
-        body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; }
+        :root { --p: #00ff00; --f: #050505; }
         
-        /* Animación de Inicio */
-        .glitch-wrapper { text-align: center; margin: 40px 0; }
-        .main-title { font-size: 2.5rem; font-weight: bold; animation: glitch 500ms infinite; letter-spacing: 3px; }
-        .sub-title { font-size: 0.9rem; opacity: 0.8; border-right: 2px solid var(--p); white-space: nowrap; overflow: hidden; animation: typing 2s steps(40, end), blink .75s step-end infinite; margin: 10px auto; width: fit-content; }
-        .credits { font-size: 0.6rem; opacity: 0.5; margin-top: 5px; }
+        body { 
+            background: var(--f); 
+            color: var(--p); 
+            font-family: monospace; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            overflow-x: hidden;
+        }
 
-        /* Módulos (Recuadros) */
-        .grid-container { display: grid; grid-template-columns: 1fr; gap: 20px; width: 90%; max-width: 400px; padding: 20px; }
-        .module-card { border: 2px solid var(--p); background: rgba(0, 40, 0, 0.1); padding: 20px; text-align: center; cursor: pointer; transition: 0.3s; position: relative; overflow: hidden; }
-        .module-card:hover { background: var(--p); color: black; box-shadow: 0 0 15px var(--p); }
-        .module-card h3 { margin: 0 0 10px 0; font-size: 1.2rem; }
-        .module-card p { margin: 0; font-size: 0.7rem; opacity: 0.7; }
+        /* ANIMACIÓN DE TÍTULO (GLITCH) */
+        .glitch-wrapper { text-align: center; margin-bottom: 30px; }
+        .main-title { 
+            font-size: 2.5rem; 
+            font-weight: bold; 
+            animation: glitch 500ms infinite; 
+            text-shadow: 2px 0 0 rgba(255,0,0,0.5), -2px 0 0 rgba(0,0,255,0.5);
+            letter-spacing: 3px;
+        }
+        .sub-title { 
+            font-size: 0.9rem; 
+            opacity: 0.8; 
+            border-right: 2px solid var(--p); 
+            white-space: nowrap; 
+            overflow: hidden; 
+            animation: typing 2s steps(40, end), blink .75s step-end infinite;
+            margin: 10px auto;
+            width: fit-content;
+        }
+        .credits { font-size: 0.6rem; opacity: 0.6; margin-top: 5px; }
 
-        @keyframes glitch { 0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 80% { transform: translate(2px, -2px); } 100% { transform: translate(0); } }
+        /* CONTENEDOR DE MÓDULOS CON INVERSIÓN */
+        .grid-container { 
+            display: grid; 
+            grid-template-columns: 1fr; 
+            gap: 15px; 
+            width: 90%; 
+            max-width: 380px; 
+            padding-bottom: 50px; 
+        }
+        
+        .module-card { 
+            border: 2px solid var(--p); 
+            background: transparent; 
+            padding: 20px; 
+            text-align: center; 
+            cursor: pointer; 
+            transition: all 0.2s ease-in-out; 
+            text-decoration: none;
+            color: var(--p);
+            display: block;
+            text-transform: uppercase;
+        }
+        
+        /* EFECTO DE INVERSIÓN ORIGINAL */
+        .module-card:hover, .module-card:active { 
+            background: var(--p); 
+            color: var(--f); 
+            box-shadow: 0 0 20px var(--p);
+            font-weight: bold;
+        }
+
+        .module-card h3 { margin: 0 0 5px 0; font-size: 1.1rem; }
+        .module-card p { margin: 0; font-size: 0.7rem; opacity: 0.8; }
+
+        /* ANIMACIONES CSS */
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-3px, 2px); }
+            40% { transform: translate(-3px, -2px); }
+            60% { transform: translate(3px, 2px); }
+            80% { transform: translate(3px, -2px); }
+            100% { transform: translate(0); }
+        }
         @keyframes typing { from { width: 0 } to { width: 100% } }
         @keyframes blink { from, to { border-color: transparent } 50% { border-color: var(--p); } }
-        body::before { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)); z-index: 10; background-size: 100% 2px, 3px 100%; pointer-events: none; }
+
+        /* EFECTO SCANLINE */
+        body::before { 
+            content: " "; 
+            display: block; 
+            position: absolute; 
+            top: 0; left: 0; bottom: 0; right: 0; 
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)); 
+            z-index: -1; 
+            background-size: 100% 2px, 3px 100%; 
+            pointer-events: none; 
+        }
     </style>
 </head>
 <body>
-
-    <div class="banner">A.T.O.M. - AIRSOFT TACTICS OPERATION MAPS</div>
 
     <div class="glitch-wrapper">
         <div class="main-title">SISTEMA A.T.O.M.</div>
