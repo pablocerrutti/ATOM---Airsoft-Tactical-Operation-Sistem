@@ -3,24 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> A.T.O.M. - HQ Mando Central </title>
+    <title> A.T.O.M. - HQ Gestión de Misiones </title>
     <style>
-        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --safe: #00ffff; --warn: #ffd700; }
+        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --warn: #ffd700; }
         body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; height: 100vh; overflow: hidden; }
         
         #side-panel { width: 380px; border-right: 2px solid var(--p); padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #000; overflow-y: auto; flex-shrink: 0; z-index: 10; }
         #map { flex-grow: 1; height: 100%; background: #111; }
 
         .control-group { border: 1px solid #333; padding: 10px; border-radius: 4px; background: #050505; margin-bottom: 5px; }
-        h3 { margin: 0 0 10px 0; color: var(--p); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        h3 { margin: 0 0 10px 0; color: var(--p); font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; display: flex; justify-content: space-between; }
         
         button, input, select { width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 8px; margin-bottom: 5px; font-family: monospace; font-size: 11px; cursor: pointer; text-transform: uppercase; }
         button:hover { background: var(--p); color: #000; }
         
-        .player-row { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 5px; margin-bottom: 3px; font-size: 10px; border-left: 3px solid #444; }
-
+        .player-row { background: #111; border: 1px solid #222; padding: 8px; margin-bottom: 5px; font-size: 11px; border-left: 3px solid var(--p); }
+        .player-info { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        
         #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        #auth-error { color: var(--red); font-size: 10px; margin-top: 10px; display: none; }
+        .btn-small { width: auto; padding: 2px 5px; font-size: 9px; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -28,69 +29,54 @@
     <div id="lock-screen">
         <div style="border: 2px solid var(--p); padding: 40px; text-align: center; background: #050505; width: 300px;">
             <h1 style="letter-spacing: 8px;">A.T.O.M.</h1>
-            <p style="font-size: 10px; color: #444;">RESTRICTED AREA - HQ ACCESS</p>
-            <input type="password" id="master-key" placeholder="MASTER KEY" autofocus style="margin: 20px 0;">
-            <button onclick="checkAuth()">AUTORIZAR ACCESO</button>
-            <div id="auth-error">DENIEGO: CLAVE INCORRECTA</div>
+            <p style="font-size: 10px; color: #444;">ACCESO RESTRINGIDO - COMANDANCIA</p>
+            <input type="password" id="master-key" placeholder="CLAVE MAESTRA" autofocus style="margin: 20px 0;">
+            <button onclick="checkAuth()">ENTRAR AL HQ</button>
         </div>
     </div>
 
     <div id="side-panel">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h2 style="margin:0; font-size: 1rem; color: #fff;">HQ ESTRATÉGICO</h2>
+            <h2 style="margin:0; font-size: 1rem; color: #fff;">SISTEMA DE MANDO</h2>
             <button onclick="location.reload()" style="width: auto; padding: 4px 8px; font-size: 9px;">LOGOUT</button>
-        </div>
-        
-        <div class="control-group">
-            <h3>Operadores Activos (Desde DB)</h3>
-            <div id="lista-usuarios-db" style="max-height: 200px; overflow-y: auto;"></div>
         </div>
 
         <div class="control-group">
-            <h3>Escuadrones Registrados</h3>
-            <div id="lista-escuadrones-db"></div>
+            <h3>Seleccionar Operación</h3>
+            <select id="mision-activa" onchange="actualizarListaPorMision()">
+                <option value="NINGUNA">-- SELECCIONE MISIÓN --</option>
+                <option value="OPERACION_EUCALIPTUS">OPERACIÓN EUCALIPTUS</option>
+                <option value="OPERACION_MENDOZA">OPERACIÓN MENDOZA</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <h3>
+                Operadores Inscritos
+                <button class="btn-small" onclick="autoBalancear()">AUTO-BANDO</button>
+            </h3>
+            <div id="lista-operadores-mision" style="min-height: 50px;">
+                <p style="color:#444; font-size: 10px;">Seleccione una misión para filtrar...</p>
+            </div>
         </div>
     </div>
 
     <div id="map"></div>
 
     <script>
-        // CONFIGURACIÓN DE TU GOOGLE SHEET (Copiado de BASE DE DATOS ATOM SISTEM )
-        // Debes ir a Archivo > Compartir > Publicar en la Web > Valores separados por comas (.csv)
-        const URL_USUARIOS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6l...TU_URL_AQUI.../pub?gid=0&single=true&output=csv";
-        const URL_ESCUADRONES_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6l...TU_URL_AQUI.../pub?gid=12345&single=true&output=csv";
+        // URL de tu Google Sheet publicado como CSV (Pestaña de Usuarios/Inscripciones)
+        const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6l7G-9G7_G_p1FpYvL_n_xNfS_lD3XlQYnK6z6W8yS8y/pub?gid=0&single=true&output=csv";
 
-        let map, usuariosCache = [];
+        let map, dbUsuarios = [];
 
         async function checkAuth() {
-            const inputKey = document.getElementById('master-key').value;
-            const errorMsg = document.getElementById('auth-error');
-
-            try {
-                // Obtenemos los usuarios directamente de la hoja de Google 
-                const response = await fetch(URL_USUARIOS_CSV);
-                const data = await response.text();
-                const filas = data.split("\n").slice(1); // Omitir encabezado
-
-                let autorizado = false;
-                filas.forEach(fila => {
-                    const [nombre, password, status] = fila.split(",");
-                    if (password && password.trim() === inputKey) {
-                        autorizado = true;
-                        usuariosCache.push({nombre, status});
-                    }
-                });
-
-                if (autorizado) {
-                    document.getElementById('lock-screen').style.display = 'none';
-                    initMap();
-                    renderizarDatos();
-                } else {
-                    throw new Error("Invalid Key");
-                }
-            } catch (e) {
-                errorMsg.style.display = 'block';
-                setTimeout(() => { errorMsg.style.display = 'none'; }, 3000);
+            // Clave de acceso (puedes cambiarla o validarla contra la DB)
+            if(document.getElementById('master-key').value === "Ik3rc3rru771") {
+                document.getElementById('lock-screen').style.display = 'none';
+                initMap();
+                await cargarBaseDatos();
+            } else {
+                alert("ACCESO DENEGADO");
             }
         }
 
@@ -101,15 +87,65 @@
             });
         }
 
-        function renderizarDatos() {
-            const userList = document.getElementById('lista-usuarios-db');
-            usuariosCache.forEach(u => {
+        async function cargarBaseDatos() {
+            try {
+                const res = await fetch(URL_CSV);
+                const data = await res.text();
+                const filas = data.split("\n").slice(1);
+                
+                dbUsuarios = filas.map(f => {
+                    const c = f.split(",");
+                    return {
+                        callsign: c[0]?.trim(),
+                        status: c[2]?.trim(),
+                        mision: c[3]?.trim(), // Columna de la Misión
+                        equipo: c[4]?.trim() || "SIN_BANDO" // Columna del Equipo
+                    };
+                });
+            } catch (e) {
+                console.error("Error cargando DB:", e);
+            }
+        }
+
+        function actualizarListaPorMision() {
+            const misionSeleccionada = document.getElementById('mision-activa').value;
+            const container = document.getElementById('lista-operadores-mision');
+            container.innerHTML = "";
+
+            // Filtramos la DB local para mostrar SOLO los que coinciden con la misión elegida
+            const filtrados = dbUsuarios.filter(u => u.mision === misionSeleccionada);
+
+            if (filtrados.length === 0) {
+                container.innerHTML = "<p style='color:red; font-size:10px;'>NO HAY OPERADORES INSCRITOS PARA ESTA MISIÓN.</p>";
+                return;
+            }
+
+            filtrados.forEach(u => {
                 const div = document.createElement('div');
                 div.className = 'player-row';
-                div.innerHTML = `<span>👤 ${u.nombre}</span> <small style="color:gold">${u.status}</small>`;
-                userList.appendChild(div);
+                div.innerHTML = `
+                    <div class="player-info">
+                        <span>👤 ${u.callsign}</span>
+                        <small style="color:var(--warn)">${u.status}</small>
+                    </div>
+                    <select onchange="asignarEquipoManual('${u.callsign}', this.value)" style="font-size:9px; height:24px;">
+                        <option value="SIN_BANDO" ${u.equipo === 'SIN_BANDO' ? 'selected' : ''}>-- ASIGNAR BANDO --</option>
+                        <option value="ROJO" ${u.equipo === 'ROJO' ? 'selected' : ''}>EQUIPO ROJO</option>
+                        <option value="AZUL" ${u.equipo === 'AZUL' ? 'selected' : ''}>EQUIPO AZUL</option>
+                    </select>
+                `;
+                container.appendChild(div);
             });
-            // Aquí podrías añadir lógica similar para cargar la pestaña de escuadrones 
+        }
+
+        function asignarEquipoManual(callsign, bando) {
+            alert(`SINCRO: ${callsign} asignado a ${bando}. (Actualizando Planilla Central...)`);
+            // Aquí llamarías a tu Google Apps Script para impactar el cambio en la celda del Excel
+        }
+
+        function autoBalancear() {
+            alert("Calculando equilibrio de fuerzas por estatus...");
+            // Lógica para repartir equitativamente basándose en la cantidad de inscritos
         }
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58" defer></script>
