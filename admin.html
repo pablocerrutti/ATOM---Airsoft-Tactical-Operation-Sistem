@@ -24,13 +24,15 @@
         .btn-obj { border: 1px solid #ffd700; color: #ffd700; background: transparent; }
         .btn-outline { border: 1px solid #444; color: #444; background: transparent; font-size: 10px; }
 
+        /* Estilo para los elementos de las listas */
+        .item-list { font-size: 10px; display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #222; }
+        .mision-entry { cursor: pointer; flex-grow: 1; transition: 0.3s; }
+        .mision-entry:hover { color: #fff; background: #111; }
+        .delete-x { color: red; cursor: pointer; font-weight: bold; padding: 0 5px; border: 1px solid red; margin-left: 5px; font-size: 9px; }
+
         #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
         #lock-box { border: 2px solid var(--p); padding: 40px; text-align: center; background: #050505; width: 300px; }
 
-        .item-list { font-size: 10px; display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #222; }
-        .delete-x { color: red; cursor: pointer; font-weight: bold; padding: 0 5px; border: 1px solid red; margin-left: 5px; }
-        
-        /* Scrollbar personalizado */
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: #000; }
         ::-webkit-scrollbar-thumb { background: var(--p); }
@@ -61,28 +63,30 @@
                 <button class="btn-red" onclick="setMode('marker', 'respawn_rojo')">SPAWN ROJO</button>
                 <button class="btn-blue" onclick="setMode('marker', 'respawn_azul')">SPAWN AZUL</button>
             </div>
-            <button class="btn-obj" onclick="setMode('marker', 'objetivo_conquista')">PUNTO DE CONQUISTA (2 MIN)</button>
+            <button class="btn-obj" onclick="setMode('marker', 'objetivo_conquista')">PUNTO DE CONQUISTA</button>
         </div>
 
         <div class="control-group">
             <h3>Entidades del Borrador</h3>
-            <div id="lista-entidades" style="max-height: 120px; overflow-y: auto;"></div>
+            <div id="lista-entidades" style="max-height: 100px; overflow-y: auto;"></div>
         </div>
 
         <div class="control-group">
-            <h3>Misiones Activas en DB</h3>
-            <div id="lista-misiones-db" style="max-height: 150px; overflow-y: auto; color: #00ffff;">
+            <h3>Misiones Activas (Click para Ver)</h3>
+            <div id="lista-misiones-db" style="max-height: 120px; overflow-y: auto; color: #00ffff;">
                 Cargando misiones...
             </div>
         </div>
 
         <div class="control-group" style="background: #1a0000; border-color: #400;">
-            <h3>GPS Global</h3>
+            <h3>Monitor Táctico</h3>
             <div id="monitor-jugadores" style="font-size: 10px; color: #aaa;">Conexiones: 0</div>
         </div>
 
-        <button onclick="publicarMision()" style="height: 50px; background: #fff; color: #000;">PUBLICAR OPERACIÓN</button>
-        <button class="btn-outline" onclick="location.reload()">LIMPIAR TODO</button>
+        <button onclick="publicarMision()" style="height: 45px; background: #fff; color: #000;">PUBLICAR OPERACIÓN</button>
+        <button class="btn-outline" onclick="location.reload()">LIMPIAR BORRADOR</button>
+        
+        <button class="btn-outline" onclick="window.location.href='index.html'" style="border-color: var(--red); color: var(--red); margin-top: 10px;">✖ SALIR AL INICIO</button>
     </div>
 
     <div id="map"></div>
@@ -102,6 +106,7 @@
 
         let map, drawingManager;
         let allShapes = [];
+        let previewShapes = [];
         let playerMarkers = {};
         let currentRole = 'zona_juego';
         let intentos = 0;
@@ -117,7 +122,6 @@
                 intentos++;
                 if(intentos >= 3) window.location.href = 'index.html';
                 document.getElementById('intentos-msg').innerText = `FALLO ${intentos}/3`;
-                document.getElementById('master-key').value = "";
             }
         }
 
@@ -140,14 +144,59 @@
                 shape.type = event.type;
                 shape.role = currentRole;
                 shape.id = Date.now();
-                
-                if(currentRole === 'respawn_rojo') shape.setOptions({icon: {path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: 'red', fillOpacity: 1, strokeColor: 'white'}});
-                if(currentRole === 'respawn_azul') shape.setOptions({icon: {path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: 'blue', fillOpacity: 1, strokeColor: 'white'}});
-                if(currentRole === 'objetivo_conquista') shape.setOptions({icon: {path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 6, fillColor: 'gold', fillOpacity: 1}});
-                if(currentRole === 'zona_segura') shape.setOptions({fillColor: '#00ffff', strokeColor: '#00ffff'});
-
+                aplicarEstilo(shape, currentRole);
                 allShapes.push(shape);
                 actualizarListaBorrador();
+            });
+        }
+
+        function aplicarEstilo(shape, role) {
+            const estilos = {
+                'respawn_rojo': {icon: {path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: 'red', fillOpacity: 1, strokeColor: 'white'}},
+                'respawn_azul': {icon: {path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: 'blue', fillOpacity: 1, strokeColor: 'white'}},
+                'objetivo_conquista': {icon: {path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 6, fillColor: 'gold', fillOpacity: 1}},
+                'zona_segura': {fillColor: '#00ffff', strokeColor: '#00ffff', fillOpacity: 0.2},
+                'zona_juego': {fillColor: '#00ff00', strokeColor: '#00ff00', fillOpacity: 0.1}
+            };
+            if (estilos[role]) shape.setOptions(estilos[role]);
+        }
+
+        function verMisionEnMapa(mision) {
+            previewShapes.forEach(s => s.setMap(null));
+            previewShapes = [];
+            const bounds = new google.maps.LatLngBounds();
+
+            mision.zonas.forEach(z => {
+                let shape;
+                if(z.type === 'polygon') {
+                    shape = new google.maps.Polygon({ paths: z.path, map: map, clickable: false });
+                    z.path.forEach(p => bounds.extend(p));
+                } else {
+                    shape = new google.maps.Marker({ position: {lat: z.lat, lng: z.lng}, map: map, clickable: false });
+                    bounds.extend({lat: z.lat, lng: z.lng});
+                }
+                aplicarEstilo(shape, z.role);
+                previewShapes.push(shape);
+            });
+            if(!bounds.isEmpty()) map.fitBounds(bounds);
+        }
+
+        function cargarMisionesDB() {
+            db.ref('operaciones').on('value', snap => {
+                const list = document.getElementById('lista-misiones-db');
+                list.innerHTML = "";
+                snap.forEach(misionSnap => {
+                    const mision = misionSnap.val();
+                    const item = document.createElement('div');
+                    item.className = 'item-list';
+                    item.style.borderColor = '#004444';
+                    item.innerHTML = `
+                        <span class="mision-entry">▶ ${mision.nombre}</span>
+                        <span class="delete-x" onclick="event.stopPropagation(); eliminarMisionDB('${misionSnap.key}')">BORRAR</span>
+                    `;
+                    item.onclick = () => verMisionEnMapa(mision);
+                    list.appendChild(item);
+                });
             });
         }
 
@@ -156,74 +205,16 @@
             drawingManager.setDrawingMode(mode === 'marker' ? google.maps.drawing.OverlayType.MARKER : google.maps.drawing.OverlayType.POLYGON);
         }
 
-        function actualizarListaBorrador() {
-            const list = document.getElementById('lista-entidades');
-            list.innerHTML = "";
-            allShapes.forEach(s => {
-                list.innerHTML += `<div class="item-list">
-                    <span>${s.role.toUpperCase()}</span>
-                    <span class="delete-x" onclick="borrarEntidadBorrador(${s.id})">X</span>
-                </div>`;
-            });
-        }
-
-        function borrarEntidadBorrador(id) {
-            const idx = allShapes.findIndex(s => s.id === id);
-            if(idx > -1) {
-                allShapes[idx].setMap(null);
-                allShapes.splice(idx, 1);
-                actualizarListaBorrador();
-            }
-        }
-
-        // --- GESTIÓN DE MISIONES EN BASE DE DATOS ---
-        function cargarMisionesDB() {
-            db.ref('operaciones').on('value', snap => {
-                const list = document.getElementById('lista-misiones-db');
-                list.innerHTML = "";
-                if(!snap.exists()) { list.innerHTML = "No hay misiones."; return; }
-                
-                snap.forEach(misionSnap => {
-                    const mision = misionSnap.val();
-                    list.innerHTML += `<div class="item-list" style="border-color:#004444">
-                        <span title="Click para ver info">${mision.nombre}</span>
-                        <span class="delete-x" onclick="eliminarMisionDB('${misionSnap.key}')">BORRAR</span>
-                    </div>`;
-                });
-            });
-        }
-
         function eliminarMisionDB(key) {
-            if(confirm("¿Seguro que quieres eliminar esta misión de la base de datos? Esto la quitará de los radares de los jugadores.")) {
+            if(confirm("¿Confirmar eliminación definitiva?")) {
                 db.ref(`operaciones/${key}`).remove();
+                previewShapes.forEach(s => s.setMap(null));
             }
-        }
-
-        function monitorJugadores() {
-            const monitorDiv = document.getElementById('monitor-jugadores');
-            ['EQUIPO_ROJO', 'EQUIPO_AZUL'].forEach(equipo => {
-                db.ref(`posiciones/${equipo}`).on('value', snap => {
-                    snap.forEach(playerSnap => {
-                        const name = playerSnap.key;
-                        const pos = playerSnap.val();
-                        if(!playerMarkers[name]) {
-                            playerMarkers[name] = new google.maps.Marker({
-                                map: map,
-                                label: { text: name, color: 'white', fontSize: '9px' },
-                                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 4, fillColor: equipo === 'EQUIPO_ROJO' ? 'red' : 'blue', fillOpacity: 1, strokeColor: 'white' }
-                            });
-                        }
-                        playerMarkers[name].setPosition(pos);
-                    });
-                    monitorDiv.innerHTML = `CONEXIONES ACTIVAS: ${Object.keys(playerMarkers).length}`;
-                });
-            });
         }
 
         function publicarMision() {
             const name = document.getElementById('op-name').value;
-            if(!name) return alert("Ponle un nombre a la misión.");
-            
+            if(!name) return alert("Falta nombre de misión");
             const zonasData = allShapes.map(s => {
                 let data = { type: s.type, role: s.role };
                 if(s.type === 'polygon') {
@@ -235,19 +226,42 @@
                 return data;
             });
 
-            db.ref('conquistas').remove(); // Reset de conquistas anteriores
-            db.ref('operaciones').push({
-                nombre: name,
-                zonas: zonasData,
-                timestamp: Date.now(),
-                activa: true
-            }).then(() => {
-                alert("MISION PUBLICADA CON ÉXITO");
-                // Limpiar borrador tras publicar
-                allShapes.forEach(s => s.setMap(null));
-                allShapes = [];
-                document.getElementById('op-name').value = "";
-                actualizarListaBorrador();
+            db.ref('operaciones').push({ nombre: name, zonas: zonasData, timestamp: Date.now() })
+            .then(() => {
+                alert("OPERACIÓN ACTIVA");
+                location.reload();
+            });
+        }
+
+        function actualizarListaBorrador() {
+            const list = document.getElementById('lista-entidades');
+            list.innerHTML = "";
+            allShapes.forEach(s => {
+                list.innerHTML += `<div class="item-list"><span>${s.role.toUpperCase()}</span><span class="delete-x" onclick="borrarEntidadBorrador(${s.id})">X</span></div>`;
+            });
+        }
+
+        function borrarEntidadBorrador(id) {
+            const idx = allShapes.findIndex(s => s.id === id);
+            if(idx > -1) { allShapes[idx].setMap(null); allShapes.splice(idx, 1); actualizarListaBorrador(); }
+        }
+
+        function monitorJugadores() {
+            ['EQUIPO_ROJO', 'EQUIPO_AZUL'].forEach(equipo => {
+                db.ref(`posiciones/${equipo}`).on('value', snap => {
+                    snap.forEach(playerSnap => {
+                        const name = playerSnap.key;
+                        if(!playerMarkers[name]) {
+                            playerMarkers[name] = new google.maps.Marker({
+                                map: map,
+                                label: { text: name, color: 'white', fontSize: '9px' },
+                                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 4, fillColor: equipo === 'EQUIPO_ROJO' ? 'red' : 'blue', fillOpacity: 1, strokeColor: 'white' }
+                            });
+                        }
+                        playerMarkers[name].setPosition(playerSnap.val());
+                    });
+                    document.getElementById('monitor-jugadores').innerText = `CONEXIONES ACTIVAS: ${Object.keys(playerMarkers).length}`;
+                });
             });
         }
     </script>
