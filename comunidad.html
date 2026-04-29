@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A.T.O.M. - Base de Datos</title>
+    <style>
+        :root { --p: #00ff00; --f: #050505; --cyan: #00ffff; }
+        body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; padding: 20px; box-sizing: border-box; }
+        h1, h2 { text-transform: uppercase; border-bottom: 2px solid var(--p); padding-bottom: 10px; letter-spacing: 2px; }
+        h2 { color: var(--cyan); border-color: var(--cyan); margin-top: 40px; }
+
+        /* Contenedor de Escuadrones */
+        .grid-escuadrones { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
+        .card-escuadron { border: 1px solid var(--cyan); background: #0a0a0a; padding: 15px; position: relative; }
+        .escudo { width: 80px; height: 80px; border: 1px solid var(--cyan); float: left; margin-right: 15px; object-fit: cover; }
+        .foto-grupo { width: 100%; height: 150px; object-fit: cover; margin-top: 10px; border: 1px solid #333; }
+        .nombre-eq { font-size: 1.2rem; font-weight: bold; display: block; margin-bottom: 5px; }
+
+        /* Lista de Usuarios */
+        .lista-usuarios { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+        .badge-user { border: 1px solid var(--p); padding: 5px 10px; font-size: 0.9rem; background: rgba(0, 255, 0, 0.05); }
+        .contador { font-size: 0.8rem; color: #888; margin-left: 10px; }
+
+        .btn-volver { position: fixed; bottom: 20px; right: 20px; background: var(--p); color: #000; border: none; padding: 10px 20px; cursor: pointer; font-family: monospace; font-weight: bold; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+    <h1><span id="count-users">0</span> OPERADORES REGISTRADOS</h1>
+    <div id="usuarios-list" class="lista-usuarios">Cargando base de datos de personal...</div>
+
+    <h2>ESCUADRONES OPERATIVOS</h2>
+    <div id="escuadrones-grid" class="grid-escuadrones">Cargando registros de escuadrones...</div>
+
+    <a href="index.html" class="btn-volver">VOLVER AL INICIO</a>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            authDomain: "atom--airsoft.firebaseapp.com",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Cargar Usuarios (Solo Alias)
+        db.ref('usuarios').on('value', snap => {
+            const container = document.getElementById('usuarios-list');
+            const countLabel = document.getElementById('count-users');
+            container.innerHTML = "";
+            let total = 0;
+
+            snap.forEach(userSnap => {
+                const user = userSnap.val();
+                const badge = document.createElement('div');
+                badge.className = 'badge-user';
+                badge.innerText = user.callsign || user.alias || "S/N";
+                container.appendChild(badge);
+                total++;
+            });
+            countLabel.innerText = total;
+            if(total === 0) container.innerText = "No hay usuarios registrados.";
+        });
+
+        // Cargar Escuadrones
+        db.ref('escuadrones').on('value', snap => {
+            const container = document.getElementById('escuadrones-grid');
+            container.innerHTML = "";
+            let hayEscuadrones = false;
+
+            snap.forEach(eqSnap => {
+                const eq = eqSnap.val();
+                hayEscuadrones = true;
+                
+                // Asumimos que guardaste las URLs de las fotos en Firebase
+                const card = document.createElement('div');
+                card.className = 'card-escuadron';
+                card.innerHTML = `
+                    <img src="${eq.escudoURL || 'https://via.placeholder.com/80?text=ESCUDO'}" class="escudo">
+                    <span class="nombre-eq">${eq.nombre}</span>
+                    <small>LÍDER: ${eq.lider || 'N/A'}</small>
+                    <div style="clear:both"></div>
+                    <img src="${eq.fotoGrupoURL || 'https://via.placeholder.com/300x150?text=FOTO+DE+GRUPO'}" class="foto-grupo">
+                    <p style="font-size: 0.8rem; color: #aaa; margin-top: 10px;">${eq.descripcion || ''}</p>
+                `;
+                container.appendChild(card);
+            });
+            if(!hayEscuadrones) container.innerText = "No hay escuadrones operativos registrados.";
+        });
+    </script>
+</body>
