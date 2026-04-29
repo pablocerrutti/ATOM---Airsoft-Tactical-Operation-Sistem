@@ -1,81 +1,77 @@
 <!DOCTYPE html>
-
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.O.M - Misiones DISPONIBLES</title>
+    <title> Sistema A.T.O.M. - Uruguay </title>
     <style>
         :root { --p: #00ff00; --f: #050505; }
         body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; text-align: center; }
-        .banner { background: #111; padding: 15px; border-bottom: 2px solid var(--p); font-weight: bold; }
-        #login-area, #ops-area { margin: 20px auto; width: 90%; max-width: 400px; }
-        .op-card { border: 1px solid var(--p); padding: 15px; margin-bottom: 15px; background: #111; cursor: pointer; }
-        .no-ops { color: #ff3333; padding: 40px; border: 1px dashed #ff3333; }
-        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; }
-        .btn-home { display: inline-block; margin: 20px; color: var(--p); text-decoration: none; border: 1px solid var(--p); padding: 8px 15px; font-size: 11px; }
+        .login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        .box { border: 1px solid var(--p); padding: 30px; background: #111; width: 80%; max-width: 300px; }
+        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; text-align: center; }
+        button { background: var(--p); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; }
+        #misiones-lista { display: none; padding: 20px; }
     </style>
 </head>
 <body>
-    <div class="banner">A.T.O.M. - AIRSOFT TACTICS OPERATION MAPS</div>
-
-    <div id="login-area">
-        <h3>IDENTIFICACIÓN REQUERIDA</h3>
-        <input type="text" id="l-user" placeholder="CALLSIGN">
-        <input type="password" id="l-pass" placeholder="CONTRASEÑA">
-        <button onclick="validar()" style="width:100%; padding:12px; background:var(--p); font-weight:bold;">VERIFICAR</button>
+    <div id="login-section" class="login-container">
+        <div class="box">
+            <h3>ACCESO OPERATIVO</h3>
+            <input type="text" id="user" placeholder="CALLSIGN">
+            <input type="password" id="pass" placeholder="PASSWORD">
+            <button onclick="login()">INGRESAR</button>
+            <button onclick="window.location.href='index.html'" style="background: transparent; color: #444; border: 1px solid #222; margin-top: 10px;">VOLVER</button>
+        </div>
     </div>
 
-    <div id="ops-area" style="display:none;">
-        <h3>MISIONES DISPONIBLES</h3>
-        <div id="lista-ops"></div>
-        <div id="user-stats" style="margin-top:30px; border-top:1px solid #333; padding-top:15px; font-size:12px;"></div>
+    <div id="misiones-lista">
+        <h2>MISIONES DISPONIBLES</h2>
+        <div id="lista"></div>
     </div>
-
-    <a href="index.html" class="btn-home">⬅ VOLVER AL INICIO</a>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script>
-        const firebaseConfig = { /* TU CONFIG */ };
+        const firebaseConfig = { apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+  authDomain: "atom--airsoft.firebaseapp.com",
+  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+  projectId: "atom--airsoft",
+  storageBucket: "atom--airsoft.firebasestorage.app",
+  messagingSenderId: "310010107781",
+  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
+  measurementId: "G-3X2C87MPPV" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        function validar() {
-            const u = document.getElementById('l-user').value.toUpperCase();
-            const p = document.getElementById('l-pass').value;
-            db.ref('users/' + u).once('value', snap => {
-                const d = snap.val();
-                if(d && d.password === p) {
-                    document.getElementById('login-area').style.display = 'none';
-                    document.getElementById('ops-area').style.display = 'block';
-                    cargarOps(u, d.stats);
-                } else { alert("ACCESO DENEGADO"); }
+        function login() {
+            const u = document.getElementById('user').value.trim().toUpperCase();
+            const p = document.getElementById('pass').value;
+
+            db.ref('users').orderByChild('callsign').equalTo(u).once('value', snap => {
+                let found = false;
+                snap.forEach(child => {
+                    if(child.val().pass === p) {
+                        found = true;
+                        alert("Bienvenido nuevamente " + u);
+                        document.getElementById('login-section').style.display = 'none';
+                        document.getElementById('misiones-lista').style.display = 'block';
+                        cargarMisiones();
+                    }
+                });
+                if(!found) alert("ACCESO DENEGADO: Credenciales Incorrectas");
             });
         }
 
-        function cargarOps(user, stats) {
-            document.getElementById('user-stats').innerHTML = `
-                <p>OPERADOR: ${user}</p>
-                <p>MISIÓNES: ${stats.misiones || 0} | BAJAS: ${stats.bajas || 0} | HERIDAS: ${stats.heridas || 0}</p>
-            `;
-
+        function cargarMisiones() {
             db.ref('operaciones').on('value', snap => {
-                const ops = snap.val();
-                const container = document.getElementById('lista-ops');
-                container.innerHTML = "";
-                if(!ops) {
-                    container.innerHTML = "<div class='no-ops'>NO HAY OPERACIONES DISPONIBLES EN ESTE MOMENTO</div>";
-                } else {
-                    for(let id in ops) {
-                        container.innerHTML += `
-                            <div class="op-card" onclick="window.location.href='mapa.html?op=${id}&u=${user}'">
-                                <strong>${ops[id].nombre}</strong><br>
-                                <small>ESTADO: ACTIVA</small>
-                            </div>
-                        `;
-                    }
-                }
+                const lista = document.getElementById('lista');
+                lista.innerHTML = "";
+                snap.forEach(op => {
+                    lista.innerHTML += `<div style="border:1px solid #00ff00; margin:10px; padding:15px; cursor:pointer" onclick="location.href='mapa.html?id=${op.key}'">
+                        ${op.val().nombre} - [DESPLEGAR]
+                    </div>`;
+                });
             });
         }
     </script>
