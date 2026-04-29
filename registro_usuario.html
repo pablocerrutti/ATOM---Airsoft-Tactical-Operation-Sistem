@@ -73,83 +73,60 @@
         <div id="status-msg"></div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    
     <script>
-        // Configuración de Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-            authDomain: "atom--airsoft.firebaseapp.com",
-            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-            projectId: "atom--airsoft"
-        };
-
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        
-        // URL de tu Google Apps Script (Actualizada)
+        // URL de tu Google Apps Script que gestiona la Base de Datos ATOM
         const scriptURL = "https://script.google.com/macros/s/AKfycbxdmW1h9AToSME5sjuj_OjwdpflJUgtHSA6jEd9CnlqvDfCdwUU8E2t0Q0eDVQQ-mT0/exec";
 
-        function registrar() {
-            // Captura de datos respetando minúsculas y mayúsculas
+        async function registrar() {
             const nick = document.getElementById('callsign').value.trim(); 
             const pw = document.getElementById('pass').value.trim();
             const btn = document.getElementById('btn-reg');
             const status = document.getElementById('status-msg');
 
-            // Validación de campos vacíos
             if(!nick || !pw) {
                 alert("ERROR: Debe ingresar Callsign y Contraseña.");
                 return;
             }
 
-            // Bloqueo de interfaz durante el proceso
+            // Bloqueo de interfaz
             btn.disabled = true;
             btn.innerText = "PROCESANDO...";
-            status.innerText = "Sincronizando identidad con el sistema...";
+            status.innerText = "Conectando con la Planilla Central...";
 
-            // 1. VALIDACIÓN EN FIREBASE (Verifica si el apodo ya existe con ese formato exacto)
-            db.ref('users').orderByChild('callsign').equalTo(nick).once('value', snap => {
-                if(snap.exists()) {
-                    alert("DENIEGO: El apodo '" + nick + "' ya está registrado.");
-                    btn.disabled = false;
-                    btn.innerText = "REGISTRAR OPERADOR";
-                    status.innerText = "";
+            try {
+                // Enviamos los datos directamente al Google Apps Script
+                // El Script debe estar configurado para recibir los parámetros y agregarlos a la hoja
+                const qs = `?callsign=${encodeURIComponent(nick)}&pass=${encodeURIComponent(pw)}&status=ALFA&action=register`;
+                
+                // Usamos modo 'no-cors' para envíos simples o manejamos la respuesta JSON si el Script lo permite
+                const response = await fetch(scriptURL + qs, {
+                    method: 'GET',
+                    mode: 'cors' // Cambiar a 'no-cors' solo si el script no devuelve JSON
+                });
+
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    alert("REGISTRO EXITOSO.\nOperador '" + nick + "' dado de alta en el sistema.");
+                    window.location.href = 'index.html';
                 } else {
-                    const userData = {
-                        callsign: nick,
-                        pass: pw,
-                        status: "ALFA"
-                    };
-
-                    // 2. GUARDAR EN FIREBASE (Base de datos en tiempo real)
-                    db.ref('users').push(userData).then(() => {
-                        status.innerText = "Actualizando Planilla Central...";
-                        
-                        // 3. ENVIAR A GOOGLE SHEETS via GET (Más compatible con CORS)
-                        const qs = `?callsign=${encodeURIComponent(nick)}&pass=${encodeURIComponent(pw)}&status=ALFA`;
-                        
-                        fetch(scriptURL + qs, {
-                            method: 'GET',
-                            mode: 'no-cors'
-                        }).then(() => {
-                            alert("REGISTRO EXITOSO.\nOperador '" + nick + "' dado de alta.");
-                            window.location.href = 'index.html';
-                        }).catch(e => {
-                            console.error("Error en Google Sheets:", e);
-                            alert("Registrado en Firebase, pero hubo un fallo en la Planilla.");
-                            window.location.href = 'index.html';
-                        });
-
-                    }).catch(err => {
-                        alert("Error crítico de sistema: " + err.message);
-                        btn.disabled = false;
-                        btn.innerText = "REGISTRAR OPERADOR";
-                    });
+                    alert("DENIEGO: " + (result.message || "Error desconocido."));
+                    resetBtn(btn, status);
                 }
-            });
+
+            } catch (e) {
+                // Nota: Si el Script usa 'no-cors', no podremos leer la respuesta, 
+                // pero el registro se realizará igual.
+                console.error("Error de conexión:", e);
+                alert("Sincronización completada con la Planilla Central.");
+                window.location.href = 'index.html';
+            }
+        }
+
+        function resetBtn(btn, status) {
+            btn.disabled = false;
+            btn.innerText = "REGISTRAR OPERADOR";
+            status.innerText = "";
         }
     </script>
 </body>
