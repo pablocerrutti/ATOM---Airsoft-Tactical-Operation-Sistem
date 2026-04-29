@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> A.T.O.M. - HQ Mando Central </title>
+    <title> A.T.O.M. - HQ Mando Central Dinámico </title>
     <style>
-        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --safe: #00ffff; --warn: #ffd700; }
+        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --warn: #ffd700; }
         body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; height: 100vh; overflow: hidden; }
         
         #side-panel { width: 380px; border-right: 2px solid var(--p); padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #000; overflow-y: auto; flex-shrink: 0; z-index: 10; }
@@ -17,7 +17,8 @@
         button, input, select { width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 8px; margin-bottom: 5px; font-family: monospace; font-size: 11px; cursor: pointer; text-transform: uppercase; }
         button:hover { background: var(--p); color: #000; }
         
-        .player-row { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 5px; margin-bottom: 3px; font-size: 10px; border-left: 3px solid #444; }
+        .player-row { background: #111; border: 1px solid #222; padding: 8px; margin-bottom: 5px; font-size: 11px; border-left: 3px solid var(--p); }
+        .player-info { display: flex; justify-content: space-between; margin-bottom: 5px; }
 
         #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
         #auth-error { color: var(--red); font-size: 10px; margin-top: 10px; display: none; }
@@ -29,7 +30,7 @@
         <div style="border: 2px solid var(--p); padding: 40px; text-align: center; background: #050505; width: 300px;">
             <h1 style="letter-spacing: 8px;">A.T.O.M.</h1>
             <p style="font-size: 10px; color: #444;">RESTRICTED AREA - HQ ACCESS</p>
-            <input type="password" id="Ik3rc3rru771" placeholder="MASTER KEY" autofocus style="margin: 20px 0;">
+            <input type="password" id="master-key-input" placeholder="MASTER KEY" autofocus style="margin: 20px 0;">
             <button onclick="checkAuth()">AUTORIZAR ACCESO</button>
             <div id="auth-error">DENIEGO: CLAVE INCORRECTA</div>
         </div>
@@ -42,55 +43,52 @@
         </div>
         
         <div class="control-group">
-            <h3>Operadores Activos (Desde DB)</h3>
-            <div id="lista-usuarios-db" style="max-height: 200px; overflow-y: auto;"></div>
+            <h3>Misiones Activas (Firebase)</h3>
+            <select id="filtro-mision" onchange="renderizarDatos()">
+                <option value="">-- CARGANDO MISIONES... --</option>
+            </select>
         </div>
 
         <div class="control-group">
-            <h3>Escuadrones Registrados</h3>
-            <div id="lista-escuadrones-db"></div>
+            <h3>Operadores Inscritos en Misión</h3>
+            <div id="lista-usuarios-db" style="max-height: 400px; overflow-y: auto;">
+                <p style="color:#444; font-size:10px;">Seleccione una misión activa.</p>
+            </div>
         </div>
     </div>
 
     <div id="map"></div>
 
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
     <script>
-        // CONFIGURACIÓN DE TU GOOGLE SHEET (Copiado de BASE DE DATOS ATOM SISTEM )
-        // Debes ir a Archivo > Compartir > Publicar en la Web > Valores separados por comas (.csv)
-        const URL_USUARIOS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6l...TU_URL_AQUI.../pub?gid=0&single=true&output=csv";
-        const URL_ESCUADRONES_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6l...TU_URL_AQUI.../pub?gid=12345&single=true&output=csv";
+        // CONFIGURACIÓN FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            authDomain: "atom--airsoft.firebaseapp.com",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // CONFIGURACIÓN SHEETS
+        const URL_USUARIOS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6l7G-9G7_G_p1FpYvL_n_xNfS_lD3XlQYnK6z6W8yS8y/pub?gid=0&single=true&output=csv";
+        const MASTER_KEY = "Ik3rc3rru771";
 
         let map, usuariosCache = [];
 
         async function checkAuth() {
-            const inputKey = document.getElementById('master-key').value;
-            const errorMsg = document.getElementById('auth-error');
-
-            try {
-                // Obtenemos los usuarios directamente de la hoja de Google 
-                const response = await fetch(URL_USUARIOS_CSV);
-                const data = await response.text();
-                const filas = data.split("\n").slice(1); // Omitir encabezado
-
-                let autorizado = false;
-                filas.forEach(fila => {
-                    const [nombre, password, status] = fila.split(",");
-                    if (password && password.trim() === inputKey) {
-                        autorizado = true;
-                        usuariosCache.push({nombre, status});
-                    }
-                });
-
-                if (autorizado) {
-                    document.getElementById('lock-screen').style.display = 'none';
-                    initMap();
-                    renderizarDatos();
-                } else {
-                    throw new Error("Invalid Key");
-                }
-            } catch (e) {
-                errorMsg.style.display = 'block';
-                setTimeout(() => { errorMsg.style.display = 'none'; }, 3000);
+            const inputKey = document.getElementById('master-key-input').value;
+            if (inputKey === MASTER_KEY) {
+                document.getElementById('lock-screen').style.display = 'none';
+                initMap();
+                cargarMisionesDesdeFirebase();
+                await cargarDatosDesdeSheet();
+            } else {
+                document.getElementById('auth-error').style.display = 'block';
+                setTimeout(() => { document.getElementById('auth-error').style.display = 'none'; }, 3000);
             }
         }
 
@@ -101,15 +99,77 @@
             });
         }
 
+        // 1. CARGAR MISIONES DESDE TU FIREBASE
+        function cargarMisionesDesdeFirebase() {
+            db.ref('operaciones').once('value', snap => {
+                const sel = document.getElementById('filtro-mision');
+                sel.innerHTML = '<option value="">-- SELECCIONE MISIÓN --</option>';
+                snap.forEach(m => {
+                    // m.key es el ID (ej: -O123...) y m.val().nombre es el nombre que pusiste en el mapa
+                    sel.innerHTML += `<option value="${m.key}">${m.val().nombre}</option>`;
+                });
+            });
+        }
+
+        // 2. CARGAR OPERADORES DESDE GOOGLE SHEETS
+        async function cargarDatosDesdeSheet() {
+            try {
+                const response = await fetch(URL_USUARIOS_CSV);
+                const data = await response.text();
+                const filas = data.split("\n").slice(1);
+
+                usuariosCache = filas.map(fila => {
+                    const c = fila.split(",");
+                    return {
+                        nombre: c[0]?.trim(),
+                        status: c[2]?.trim(),
+                        misionId: c[3]?.trim(), // El ID de la misión en el Excel debe coincidir con el Key de Firebase
+                        equipo: c[4]?.trim() || "SIN BANDO"
+                    };
+                });
+            } catch (e) {
+                console.error("Error al leer Sheets");
+            }
+        }
+
         function renderizarDatos() {
+            const misionIdActiva = document.getElementById('filtro-mision').value;
             const userList = document.getElementById('lista-usuarios-db');
-            usuariosCache.forEach(u => {
+            userList.innerHTML = "";
+
+            if (!misionIdActiva) return;
+
+            // Filtramos: solo quienes están anotados con ese ID de misión de Firebase
+            const filtrados = usuariosCache.filter(u => u.nombre && u.misionId === misionIdActiva);
+
+            if (filtrados.length === 0) {
+                userList.innerHTML = "<p style='color:#666; font-size:10px;'>Sin operadores inscritos para este despliegue.</p>";
+                return;
+            }
+
+            filtrados.forEach(u => {
                 const div = document.createElement('div');
                 div.className = 'player-row';
-                div.innerHTML = `<span>👤 ${u.nombre}</span> <small style="color:gold">${u.status}</small>`;
+                div.innerHTML = `
+                    <div style="width:100%">
+                        <div class="player-info">
+                            <span>👤 ${u.nombre}</span>
+                            <small style="color:var(--warn)">${u.status}</small>
+                        </div>
+                        <select onchange="adjudicarBando('${u.nombre}', this.value)" style="height:25px; font-size:9px; margin-top:5px;">
+                            <option value="">-- ADJUDICAR BANDO --</option>
+                            <option value="ROJO" ${u.equipo === 'ROJO' ? 'selected' : ''}>EQUIPO ROJO</option>
+                            <option value="AZUL" ${u.equipo === 'AZUL' ? 'selected' : ''}>EQUIPO AZUL</option>
+                        </select>
+                    </div>
+                `;
                 userList.appendChild(div);
             });
-            // Aquí podrías añadir lógica similar para cargar la pestaña de escuadrones 
+        }
+
+        function adjudicarBando(callsign, bando) {
+            alert(`Sincronizando ${callsign} al bando ${bando}`);
+            // Aquí enviarías el bando al bando correspondiente en Firebase o Sheets
         }
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58" defer></script>
