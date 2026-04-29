@@ -23,17 +23,21 @@
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
     <script>
+        // Configuración corregida
         const firebaseConfig = {
-  apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-  authDomain: "atom--airsoft.firebaseapp.com",
-  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-  projectId: "atom--airsoft",
-  storageBucket: "atom--airsoft.firebasestorage.app",
-  messagingSenderId: "310010107781",
-  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
-  measurementId: "G-3X2C87MPPV"
-;};
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            authDomain: "atom--airsoft.firebaseapp.com",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft",
+            storageBucket: "atom--airsoft.firebasestorage.app",
+            messagingSenderId: "310010107781",
+            appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
+            measurementId: "G-3X2C87MPPV"
+        };
+
+        // Inicialización
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
@@ -41,7 +45,12 @@
             const nick = document.getElementById('callsign').value.trim().toUpperCase();
             const pw = document.getElementById('pass').value;
 
-            if(!nick || !pw) return alert("COMPLETE LOS CAMPOS");
+            if(!nick || !pw) {
+                alert("COMPLETE LOS CAMPOS");
+                return;
+            }
+
+            console.log("Intentando registrar a:", nick); // Para que veas en consola (F12)
 
             // VALIDACIÓN DE DUPLICADOS
             db.ref('users').orderByChild('callsign').equalTo(nick).once('value', snap => {
@@ -56,6 +65,8 @@
                     }).then(() => {
                         alert("Registro Exitoso. Bienvenido al sistema A.T.O.M.");
                         window.location.href = 'index.html';
+                    }).catch(err => {
+                        alert("Error de Firebase: " + err.message);
                     });
                 }
             });
