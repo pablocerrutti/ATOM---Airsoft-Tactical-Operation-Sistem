@@ -3,67 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Sistema A.T.O.M. - Administrador </title>
+    <title> A.T.O.M. - Mando Central Administrativo </title>
     <style>
-        :root { --p: #00ff00; --f: #0b0b0b; }
+        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; }
         body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; height: 100vh; overflow: hidden; }
         
-        #side-panel { width: 300px; border-right: 2px solid var(--p); padding: 20px; display: flex; flex-direction: column; gap: 15px; background: #000; overflow-y: auto; flex-shrink: 0; }
+        /* Panel Lateral */
+        #side-panel { width: 340px; border-right: 2px solid var(--p); padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #000; overflow-y: auto; flex-shrink: 0; z-index: 10; }
         #map { flex-grow: 1; height: 100%; background: #111; }
 
-        .control-group { border: 1px solid #333; padding: 10px; border-radius: 4px; }
-        h3 { margin-top: 0; color: var(--p); font-size: 0.9rem; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .control-group { border: 1px solid #333; padding: 10px; border-radius: 4px; margin-bottom: 5px; background: #050505; }
+        h3 { margin: 0 0 10px 0; color: var(--p); font-size: 0.85rem; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; }
         
-        select, input, button { width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 8px; margin-bottom: 10px; font-family: monospace; box-sizing: border-box; }
-        button { background: var(--p); color: #000; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        select, input, button { width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 10px; margin-bottom: 8px; font-family: monospace; font-size: 11px; box-sizing: border-box; }
+        button { background: var(--p); color: #000; font-weight: bold; cursor: pointer; text-transform: uppercase; border: none; }
         button:hover { background: #00cc00; }
         
-        .zone-item { font-size: 0.8rem; border-bottom: 1px solid #222; padding: 5px 0; display: flex; justify-content: space-between; align-items: center; }
-        .btn-delete { width: auto; padding: 2px 5px; background: #f00; color: #fff; border: none; font-size: 9px; cursor: pointer; }
+        /* Botones Especiales */
+        .btn-red { border: 1px solid var(--red); color: var(--red); background: transparent; }
+        .btn-blue { border: 1px solid var(--blue); color: var(--blue); background: transparent; }
+        .btn-obj { border: 1px solid #ffd700; color: #ffd700; background: transparent; }
+        .btn-outline { border: 1px solid #444; color: #444; background: transparent; font-size: 10px; }
 
+        /* Login Screen */
         #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        
-        /* Estilo para el botón secundario de volver */
-        .btn-outline { background: transparent; color: #666; border: 1px solid #333; margin-top: 5px; font-size: 0.7rem; }
-        .btn-outline:hover { color: var(--p); border-color: var(--p); }
+        #lock-box { border: 2px solid var(--p); padding: 40px; text-align: center; background: #050505; width: 300px; }
+
+        .zone-item { font-size: 10px; display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #222; }
+        .delete-x { color: red; cursor: pointer; font-weight: bold; padding: 0 5px; }
     </style>
 </head>
 <body>
 
     <div id="lock-screen">
-        <div style="border: 2px solid var(--p); padding: 40px; text-align: center; background: #000;">
-            <h1 style="letter-spacing: 5px; margin-bottom: 5px;">SISTEMA A.T.O.M.</h1>
-            <p style="margin-bottom: 20px; color: #666;">CENTRO DE MANDO ADMINISTRATIVO</p>
-            
-            <input type="password" id="master-key" placeholder="INGRESE MASTER KEY" autofocus>
-            <button onclick="checkAuth()">AUTORIZAR</button>
-            
+        <div id="lock-box">
+            <h1 style="letter-spacing: 8px; margin: 0;">A.T.O.M.</h1>
+            <p style="color: #666; font-size: 10px; margin-bottom: 20px;">ADMINISTRATIVE TERMINAL</p>
+            <input type="password" id="master-key" placeholder="MASTER KEY" autofocus>
+            <button onclick="checkAuth()">AUTORIZAR ACCESO</button>
             <button class="btn-outline" onclick="window.location.href='index.html'">VOLVER AL INICIO</button>
-            
-            <p id="intentos-msg" style="font-size: 10px; margin-top: 15px; color: #444;"></p>
+            <p id="intentos-msg" style="font-size: 9px; margin-top: 10px; color: #444;"></p>
         </div>
     </div>
 
     <div id="side-panel">
-        <h3>Gestión de Operación</h3>
-        <input type="text" id="op-name" placeholder="Nombre de la Misión">
-        
+        <h2 style="margin:0; font-size: 1.2rem;">OPERACIONES</h2>
+        <input type="text" id="op-name" placeholder="NOMBRE DE LA MISIÓN" style="font-size: 14px; border-color: #555;">
+
         <div class="control-group">
-            <h3>Zonas y Escuadrones</h3>
-            <select id="select-equipo">
-                <option value="SIN ASIGNAR">-- Seleccionar Equipo --</option>
-            </select>
-            <button onclick="asignarEquipoAZona()">Vincular Equipo</button>
-            <button onclick="autoAsignar()" style="background: #333; color: #fff;">Auto-Repartir</button>
+            <h3>Diseño de Campo</h3>
+            <button onclick="setMode('polygon', 'zona_juego')">DIBUJAR LÍMITE DE CAMPO</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                <button class="btn-red" onclick="setMode('marker', 'respawn_rojo')">SPAWN ROJO</button>
+                <button class="btn-blue" onclick="setMode('marker', 'respawn_azul')">SPAWN AZUL</button>
+            </div>
+            <button class="btn-obj" onclick="setMode('marker', 'objetivo_conquista')">PUNTO DE CONQUISTA (2 MIN)</button>
         </div>
 
         <div class="control-group">
-            <h3>Capas Guardadas</h3>
-            <div id="lista-zonas"></div>
+            <h3>Monitor de Entidades</h3>
+            <div id="lista-entidades" style="max-height: 150px; overflow-y: auto;">
+                </div>
         </div>
 
-        <button onclick="guardarMisionCompleta()" style="height: 50px; margin-top: auto;">PUBLICAR MISIÓN</button>
-        <button onclick="window.location.href='index.html'" style="background: transparent; color: #444; border-color: #222;">Salir</button>
+        <div class="control-group" style="background: #1a0000; border-color: #400;">
+            <h3>Estado Global</h3>
+            <div id="monitor-jugadores" style="font-size: 10px; color: #aaa;">
+                Esperando despliegue...
+            </div>
+        </div>
+
+        <button onclick="publicarMision()" style="height: 60px; font-size: 14px; margin-top: auto;">PUBLICAR Y ACTIVAR</button>
+        <button class="btn-outline" onclick="location.reload()">REINICIAR TABLERO</button>
     </div>
 
     <div id="map"></div>
@@ -76,175 +87,148 @@
             apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
             authDomain: "atom--airsoft.firebaseapp.com",
             databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-            projectId: "atom--airsoft",
-            storageBucket: "atom--airsoft.firebasestorage.app",
-            messagingSenderId: "310010107781",
-            appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
+            projectId: "atom--airsoft"
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
         let map, drawingManager, selectedShape;
         let allShapes = [];
-        let equiposDisponibles = [];
-        
-        // --- LÓGICA DE SEGURIDAD ---
-        let intentosFallidos = 0;
+        let playerMarkers = {};
+        let currentRole = 'zona_juego';
+        let intentos = 0;
 
+        // --- SEGURIDAD ---
         function checkAuth() {
-            const passField = document.getElementById('master-key');
-            const pass = passField.value;
-            const msgArea = document.getElementById('intentos-msg');
-
+            const pass = document.getElementById('master-key').value;
             if(pass === "Ik3rc3rru771") {
                 document.getElementById('lock-screen').style.display = 'none';
-                if (typeof google !== 'undefined' && google.maps) {
-                    initMap();
-                    cargarEquipos();
-                }
+                initMap();
+                monitorJugadores();
             } else {
-                intentosFallidos++;
-                passField.value = ""; // Limpiar campo
-                
-                if(intentosFallidos >= 3) {
-                    alert("DEMASIADOS INTENTOS FALLIDOS. RE-DIRECCIONANDO...");
-                    window.location.href = 'index.html';
-                } else {
-                    alert("ACCESO DENEGADO. INTENTO " + intentosFallidos + " DE 3.");
-                    msgArea.innerText = "INTENTOS RESTANTES: " + (3 - intentosFallidos);
-                }
+                intentos++;
+                if(intentos >= 3) window.location.href = 'index.html';
+                document.getElementById('intentos-msg').innerText = `FALLO ${intentos}/3`;
+                document.getElementById('master-key').value = "";
             }
         }
-        // Permite presionar Enter para ingresar
-        document.getElementById('master-key').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') checkAuth();
-        });
 
-        // --- LÓGICA DEL MAPA ---
+        // --- MAPA ---
         function initMap() {
-            const mapDiv = document.getElementById("map");
-            map = new google.maps.Map(mapDiv, {
-                center: { lat: -34.095, lng: -56.214 }, 
-                zoom: 15,
-                mapTypeId: 'satellite'
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: -34.095, lng: -56.214 },
+                zoom: 16,
+                mapTypeId: 'satellite',
+                tilt: 45
             });
 
             drawingManager = new google.maps.drawing.DrawingManager({
-                drawingMode: google.maps.drawing.OverlayType.POLYGON,
                 drawingControl: true,
                 drawingControlOptions: {
                     position: google.maps.ControlPosition.TOP_CENTER,
-                    drawingModes: ['marker', 'polygon', 'rectangle']
+                    drawingModes: ['marker', 'polygon']
                 },
-                polygonOptions: {
-                    fillColor: '#00ff00',
-                    strokeColor: '#00ff00',
-                    strokeWeight: 2,
-                    editable: true
-                }
+                polygonOptions: { fillColor: '#00ff00', strokeColor: '#00ff00', strokeWeight: 2, editable: true }
             });
             drawingManager.setMap(map);
 
             google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
-                let newShape = event.overlay;
-                newShape.type = event.type;
-                newShape.id = Date.now();
-                newShape.asignado = "SIN ASIGNAR";
-                allShapes.push(newShape);
-                actualizarListaZonas();
-                google.maps.event.addListener(newShape, 'click', () => setSelection(newShape));
+                let shape = event.overlay;
+                shape.type = event.type;
+                shape.role = currentRole;
+                shape.id = Date.now();
+                
+                // Estética según rol
+                if(currentRole === 'respawn_rojo') shape.setOptions({icon: {path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: 'red', fillOpacity: 1, strokeColor: 'white'}});
+                if(currentRole === 'respawn_azul') shape.setOptions({icon: {path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: 'blue', fillOpacity: 1, strokeColor: 'white'}});
+                if(currentRole === 'objetivo_conquista') shape.setOptions({icon: {path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 6, fillColor: 'gold', fillOpacity: 1}});
+
+                allShapes.push(shape);
+                actualizarLista();
             });
         }
 
-        function setSelection(shape) {
-            selectedShape = shape;
-            allShapes.forEach(s => s.setOptions({ strokeWeight: 2, strokeColor: '#00ff00' }));
-            shape.setOptions({ strokeWeight: 5, strokeColor: '#ffffff' });
+        function setMode(mode, role) {
+            currentRole = role;
+            drawingManager.setDrawingMode(mode === 'marker' ? google.maps.drawing.OverlayType.MARKER : google.maps.drawing.OverlayType.POLYGON);
         }
 
-        function cargarEquipos() {
-            db.ref('equipos').on('value', snap => {
-                const select = document.getElementById('select-equipo');
-                select.innerHTML = '<option value="SIN ASIGNAR">-- Seleccionar Equipo --</option>';
-                equiposDisponibles = [];
-                snap.forEach(child => {
-                    const eq = child.val().nombre;
-                    equiposDisponibles.push(eq);
-                    select.innerHTML += `<option value="${eq}">${eq}</option>`;
-                });
-            });
-        }
-
-        function asignarEquipoAZona() {
-            if(!selectedShape) return alert("Selecciona una zona en el mapa primero.");
-            const equipo = document.getElementById('select-equipo').value;
-            selectedShape.asignado = equipo;
-            actualizarListaZonas();
-        }
-
-        function autoAsignar() {
-            if(allShapes.length === 0 || equiposDisponibles.length === 0) return alert("Sin zonas o equipos cargados.");
-            allShapes.forEach((shape, i) => {
-                shape.asignado = equiposDisponibles[i % equiposDisponibles.length];
-            });
-            actualizarListaZonas();
-        }
-
-        function actualizarListaZonas() {
-            const lista = document.getElementById('lista-zonas');
-            lista.innerHTML = "";
-            allShapes.forEach((s, i) => {
-                lista.innerHTML += `
+        function actualizarLista() {
+            const list = document.getElementById('lista-entidades');
+            list.innerHTML = "";
+            allShapes.forEach(s => {
+                list.innerHTML += `
                     <div class="zone-item">
-                        <span>ZONA ${i+1}: <b>${s.asignado}</b></span>
-                        <button class="btn-delete" onclick="borrarZona(${s.id})">X</button>
+                        <span>${s.role.replace('_',' ').toUpperCase()}</span>
+                        <span class="delete-x" onclick="borrarEntidad(${s.id})">ELIMINAR</span>
                     </div>`;
             });
         }
 
-        function borrarZona(id) {
+        function borrarEntidad(id) {
             const idx = allShapes.findIndex(s => s.id === id);
             if(idx > -1) {
                 allShapes[idx].setMap(null);
                 allShapes.splice(idx, 1);
-                actualizarListaZonas();
+                actualizarLista();
             }
         }
 
-        function guardarMisionCompleta() {
-            const nombreMision = document.getElementById('op-name').value;
-            if(!nombreMision) return alert("El nombre de la misión es obligatorio.");
+        // --- MONITOR DE JUGADORES (GLOBAL PARA ADMIN) ---
+        function monitorJugadores() {
+            const monitorDiv = document.getElementById('monitor-jugadores');
             
-            const datosZonas = allShapes.map(s => {
-                let obj = { type: s.type, asignado: s.asignado };
+            ['EQUIPO_ROJO', 'EQUIPO_AZUL'].forEach(equipo => {
+                db.ref(`posiciones/${equipo}`).on('value', snap => {
+                    let conteo = 0;
+                    snap.forEach(playerSnap => {
+                        conteo++;
+                        const name = playerSnap.key;
+                        const pos = playerSnap.val();
+
+                        if(!playerMarkers[name]) {
+                            playerMarkers[name] = new google.maps.Marker({
+                                map: map,
+                                label: { text: name, color: 'white', fontSize: '10px' },
+                                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: equipo === 'EQUIPO_ROJO' ? 'red' : 'blue', fillOpacity: 1, strokeColor: 'white' }
+                            });
+                        }
+                        playerMarkers[name].setPosition(pos);
+                    });
+                    monitorDiv.innerHTML = `CONEXIONES ACTIVAS: ${Object.keys(playerMarkers).length}`;
+                });
+            });
+        }
+
+        // --- PERSISTENCIA ---
+        function publicarMision() {
+            const name = document.getElementById('op-name').value;
+            if(!name) return alert("¡ERROR! Ingrese un nombre para la misión.");
+            
+            const zonasData = allShapes.map(s => {
+                let data = { type: s.type, role: s.role };
                 if(s.type === 'polygon') {
-                    obj.path = s.getPath().getArray().map(p => ({ lat: p.lat(), lng: p.lng() }));
-                } else if(s.type === 'rectangle') {
-                    const bounds = s.getBounds();
-                    obj.bounds = {
-                        north: bounds.getNorthEast().lat(),
-                        east: bounds.getNorthEast().lng(),
-                        south: bounds.getSouthWest().lat(),
-                        west: bounds.getSouthWest().lng()
-                    };
+                    data.path = s.getPath().getArray().map(p => ({ lat: p.lat(), lng: p.lng() }));
                 } else {
-                    obj.lat = s.getPosition().lat();
-                    obj.lng = s.getPosition().lng();
+                    data.lat = s.getPosition().lat();
+                    data.lng = s.getPosition().lng();
                 }
-                return obj;
+                return data;
             });
 
-            db.ref('operaciones').push({ 
-                nombre: nombreMision, 
-                zonas: datosZonas, 
-                fecha: new Date().toISOString() 
-            }).then(() => { 
-                alert("MISIÓN PUBLICADA EXITOSAMENTE"); 
-                window.location.reload(); 
+            // Limpiar datos antiguos de conquista para nueva misión
+            db.ref('conquistas').remove();
+
+            db.ref('operaciones').push({
+                nombre: name,
+                zonas: zonasData,
+                timestamp: Date.now(),
+                activa: true
+            }).then(() => {
+                alert("OPERACIÓN DESPLEGADA: Los jugadores ya pueden ver los objetivos.");
             });
         }
     </script>
-
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing" defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing,geometry" defer></script>
 </body>
 </html>
