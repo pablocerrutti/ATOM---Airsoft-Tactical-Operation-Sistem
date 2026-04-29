@@ -20,79 +20,105 @@
     </style>
 </head>
 <body>
-    <div class="banner-map">A.T.O.M. - AIRSOFT TACTICS OPERATION MAPS</div>
-    <a href="index.html" class="btn-home-small">INICIO</a>
-    
+    <div id="alert">⚠️ FUERA DE LÍMITES ⚠️</div>
+    <div id="hud">SISTEMA ATAC<br>USER: <span id="u-txt">--</span> | EQ: <span id="t-txt">--</span></div>
     <div id="map"></div>
-
-    <div id="controls">
-        <div style="display:flex;">
-            <button class="btn-action btn-medic" onclick="requestMedic()">🚑 SOLICITAR MÉDICO</button>
-            <button class="btn-action btn-down" onclick="reportKilled()">💀 BAJA CONFIRMADA</button>
+    <div id="radio">
+        <button class="btn-med" onclick="toggleStatus()">⚠️ NOTIFICAR BAJA</button>
+        <div id="chat"></div>
+        <div class="input-bar">
+            <input type="text" id="m-in" placeholder="TRANSMITIR...">
+            <button onclick="sendMsg()" style="background:var(--p); border:none; padding:10px;">></button>
         </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script>
-        const firebaseConfig = { /* TU CONFIG */ };
+        const firebaseConfig = {
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft"
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const urlParams = new URLSearchParams(window.location.search);
-        const opId = urlParams.get('op');
-        const myUser = urlParams.get('u');
-        
-        let map, myTeam, markers = {};
+        const opId = new URLSearchParams(window.location.search).get('op');
+        let map, myTeam, myCallsign, isDown = false, markers = {}, zones = {};
 
-        // Cargar datos de equipo
-        db.ref('users/' + myUser).once('value', snap => {
-            myTeam = snap.val().team;
-            initMap();
-        });
+        function login() {
+            const user = prompt("CALLSIGN:").toUpperCase();
+            const pass = prompt("CONTRASEÑA:");
+            db.ref('users/' + user).once('value', snap => {
+                const d = snap.val();
+                if (d && d.password === pass) {
+                    myCallsign = user; myTeam = d.team;
+                    document.getElementById('u-txt').innerText = user;
+                    document.getElementById('t-txt').innerText = d.team.toUpperCase();
+                    initMap(); listenRadio();
+                } else {
+                    alert("DEBE DARSE DE ALTA COMO PARTICIPANTE O CLAVE INCORRECTA");
+                    window.location.href = "index.html";
+                }
+            });
+        }
 
         function initMap() {
             map = L.map('map', {zoomControl: false}).setView([-34.10, -56.21], 16);
             L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
 
-            map.locate({watch:true, enableHighAccuracy:true});
-            map.on('locationfound', e => {
-                db.ref('positions/'+myUser).update({lat:e.latlng.lat, lng:e.latlng.lng, team:myTeam});
+            db.ref('operaciones/'+opId).on('value', snap => {
+                const op = snap.val(); if(!op) return;
+                if(op.limites) zones.poly = L.polygon(op.limites, {color:'lime', fillOpacity:0.05}).addTo(map);
+                if(op.resA) zones.resA = L.polygon(op.resA, {color:'#3399ff', fillOpacity:0.1}).addTo(map);
+                if(op.resR) zones.resR = L.polygon(op.resR, {color:'#ff3333', fillOpacity:0.1}).addTo(map);
+                if(op.objetivos) op.objetivos.forEach(o => L.circleMarker([o.lat, o.lng], {radius:10, color:'yellow'}).addTo(map));
             });
 
-            // Escuchar posiciones y alertas médicas
+            map.locate({watch:true, enableHighAccuracy:true});
+            map.on('locationfound', e => {
+                checkZones(e.latlng);
+                db.ref('positions/'+myCallsign).set({lat:e.latlng.lat, lng:e.latlng.lng, team:myTeam, status:isDown?'DOWN':'OK'});
+            });
+
             db.ref('positions').on('value', snap => {
-                const data = snap.val();
-                for(let id in data) {
-                    if(data[id].team === myTeam) {
+                const p = snap.val();
+                for(let id in p) {
+                    if(p[id].team === myTeam && id !== myCallsign) {
                         if(markers[id]) map.removeLayer(markers[id]);
-                        
-                        let iconHtml = `<div style="background:${myTeam==='azul'?'#3399ff':'#ff3333'}; width:12px; height:12px; border-radius:50%; border:2px solid white;"></div>`;
-                        
-                        if(data[id].status === 'NEED_MEDIC') {
-                            iconHtml = `<div class="medic-icon" style="width:15px; height:15px; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:10px;">+</div>`;
-                            if(id !== myUser) window.navigator.vibrate([200, 100, 200]); // Vibrar si un aliado pide médico
-                        }
-                        
-                        let customIcon = L.divIcon({ html: iconHtml, className: '' });
-                        markers[id] = L.marker([data[id].lat, data[id].lng], {icon: customIcon}).addTo(map).bindTooltip(id, {permanent:true, direction:'top'});
+                        let color = p[id].status==='DOWN'?'#fff':(myTeam==='azul'?'#3399ff':'#ff3333');
+                        markers[id] = L.circleMarker([p[id].lat, p[id].lng], {radius:7, color:color, fillOpacity:1}).addTo(map).bindTooltip(id);
                     }
                 }
             });
         }
 
-        function requestMedic() {
-            db.ref('positions/'+myUser).update({status: 'NEED_MEDIC'});
-            // Sumar a estadística de herido
-            db.ref('users/'+myUser+'/stats/heridas').transaction(h => (h || 0) + 1);
-            alert("ALERTA MÉDICA ENVIADA AL EQUIPO");
+        function checkZones(ll) {
+            const pt = turf.point([ll.lng, ll.lat]);
+            if(zones.poly) {
+                const poly = turf.polygon([zones.poly.getLatLngs()[0].map(p=>[p.lng, p.lat]).concat([[zones.poly.getLatLngs()[0][0].lng, zones.poly.getLatLngs()[0][0].lat]])]);
+                document.getElementById('alert').style.display = turf.booleanPointInPolygon(pt, poly) ? 'none' : 'block';
+            }
         }
 
-        function reportKilled() {
-            db.ref('positions/'+myUser).update({status: 'KILLED'});
-            db.ref('users/'+myUser+'/stats/bajas').transaction(b => (b || 0) + 1);
-            alert("BAJA REGISTRADA EN TU HOJA DE SERVICIO");
+        function toggleStatus() { isDown = !isDown; sendMsg(isDown?"!!! ELIMINADO !!!":"REGRESO A COMBATE"); }
+        function sendMsg(alt) {
+            const i = document.getElementById('m-in');
+            const txt = alt || i.value; if(!txt) return;
+            db.ref('radio/'+opId).push({user:myCallsign, msg:txt, team:myTeam});
+            i.value = "";
         }
+
+        function listenRadio() {
+            db.ref('radio/'+opId).limitToLast(5).on('child_added', snap => {
+                const m = snap.val(); if(m.team === myTeam) {
+                    const b = document.getElementById('chat'); b.innerHTML += `<div><b>${m.user}:</b> ${m.msg}</div>`; b.scrollTop = b.scrollHeight;
+                }
+            });
+        }
+
+        login();
     </script>
 </body>
 </html>
