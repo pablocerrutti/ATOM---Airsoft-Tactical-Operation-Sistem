@@ -3,89 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATAC - Comunidad Airsoft</title>
+    <title>Sistema A.T.O.M. Uruguay</title>
     <style>
-        :root { --p: #00ff00; --f: #0a0a0a; }
-        body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; padding: 20px; }
-        .header { text-align: center; border-bottom: 2px solid var(--p); padding-bottom: 20px; margin-bottom: 30px; }
-        .event-card { border: 1px solid var(--p); padding: 15px; margin-bottom: 20px; background: rgba(0,255,0,0.05); }
-        .event-card h3 { margin-top: 0; color: #fff; }
-        .btn { background: transparent; border: 1px solid var(--p); color: var(--p); padding: 10px 20px; cursor: pointer; width: 100%; text-transform: uppercase; font-weight: bold; }
-        .btn:hover { background: var(--p); color: #000; }
-        .admin-link { display: block; text-align: center; margin-top: 50px; font-size: 0.8rem; color: #444; text-decoration: none; }
-        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 10px; margin-bottom: 10px; width: calc(100% - 22px); }
+        :root { --p: #00ff00; --f: #050505; --a: #3399ff; --r: #ff3333; }
+        body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; }
+        
+        /* Animación de Inicio */
+        .glitch-wrapper { text-align: center; margin: 40px 0; }
+        .main-title { font-size: 2.5rem; font-weight: bold; animation: glitch 500ms infinite; letter-spacing: 3px; }
+        .sub-title { font-size: 0.9rem; opacity: 0.8; border-right: 2px solid var(--p); white-space: nowrap; overflow: hidden; animation: typing 2s steps(40, end), blink .75s step-end infinite; margin: 10px auto; width: fit-content; }
+        .credits { font-size: 0.6rem; opacity: 0.5; margin-top: 5px; }
+
+        /* Módulos (Recuadros) */
+        .grid-container { display: grid; grid-template-columns: 1fr; gap: 20px; width: 90%; max-width: 400px; padding: 20px; }
+        .module-card { border: 2px solid var(--p); background: rgba(0, 40, 0, 0.1); padding: 20px; text-align: center; cursor: pointer; transition: 0.3s; position: relative; overflow: hidden; }
+        .module-card:hover { background: var(--p); color: black; box-shadow: 0 0 15px var(--p); }
+        .module-card h3 { margin: 0 0 10px 0; font-size: 1.2rem; }
+        .module-card p { margin: 0; font-size: 0.7rem; opacity: 0.7; }
+
+        @keyframes glitch { 0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 80% { transform: translate(2px, -2px); } 100% { transform: translate(0); } }
+        @keyframes typing { from { width: 0 } to { width: 100% } }
+        @keyframes blink { from, to { border-color: transparent } 50% { border-color: var(--p); } }
+        body::before { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)); z-index: 10; background-size: 100% 2px, 3px 100%; pointer-events: none; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>SISTEMA A.T.O.M - Airsoft Tactics Operation Maps.</h1>
-        <p>CENTRO DE OPERACIONES Y COMUNIDAD</p>
+
+    <div class="glitch-wrapper">
+        <div class="main-title">SISTEMA A.T.O.M.</div>
+        <div class="sub-title">Airsoft Tactics Operation Maps</div>
+        <div class="credits">Creado por Pablo Cerrutti - Florida - Uruguay</div>
     </div>
 
-    <div id="auth-section">
-        <h3>REGISTRO DE COMBATIENTE</h3>
-        <input type="text" id="reg-callsign" placeholder="CALLSIGN (Nombre en juego)">
-        <input type="email" id="reg-email" placeholder="CORREO ELECTRÓNICO">
-        <input type="password" id="reg-pass" placeholder="CONTRASEÑA">
-        <button class="btn" onclick="registrar()">DARSE DE ALTA</button>
+    <div class="grid-container">
+        <div class="module-card" onclick="window.location.href='registro_usuario.html'">
+            <h3>ALTA DE USUARIO</h3>
+            <p>Registrar nuevo operador en la red táctica.</p>
+        </div>
+
+        <div class="module-card" onclick="window.location.href='escuadrones.html'">
+            <h3>ALTA DE EQUIPO</h3>
+            <p>Inscribir escuadrones y cargar insignias.</p>
+        </div>
+
+        <div class="module-card" onclick="window.location.href='operaciones.html'">
+            <h3>MISIONES OPERATIVAS</h3>
+            <p>Acceso a despliegue de mapa y radio en vivo.</p>
+        </div>
+
+        <div class="module-card" style="border-color: #555; opacity: 0.6;" onclick="window.location.href='admin.html'">
+            <h3>COMANDO CENTRAL</h3>
+            <p>Acceso restringido para administradores.</p>
+        </div>
     </div>
 
-    <hr style="border: 0.5px solid #222; margin: 30px 0;">
-
-    <h2>PRÓXIMAS OPERACIONES</h2>
-    <div id="calendar">
-        <p>Buscando transmisiones enemigas...</p>
-    </div>
-
-    <a href="admin.html" class="admin-link">ACCESO COMANDANCIA [ADMIN]</a>
-
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-            authDomain: "atom--airsoft.firebaseapp.com",
-            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-            projectId: "atom--airsoft",
-            storageBucket: "atom--airsoft.firebasestorage.app",
-            messagingSenderId: "310010107781",
-            appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const auth = firebase.auth();
-
-        function registrar() {
-            const email = document.getElementById('reg-email').value;
-            const pass = document.getElementById('reg-pass').value;
-            const callsign = document.getElementById('reg-callsign').value;
-
-            auth.createUserWithEmailAndPassword(email, pass).then((userCredential) => {
-                db.ref('users/' + userCredential.user.uid).set({
-                    callsign: callsign,
-                    role: 'jugador',
-                    team: 'pendiente'
-                });
-                alert("Soldado registrado correctamente.");
-            }).catch(e => alert(e.message));
-        }
-
-        // Cargar eventos del calendario
-        db.ref('operaciones').on('value', (snap) => {
-            const ops = snap.val();
-            const container = document.getElementById('calendar');
-            container.innerHTML = "";
-            for (let id in ops) {
-                container.innerHTML += `
-                    <div class="event-card">
-                        <h3>${ops[id].nombre}</h3>
-                        <p>📍 Ubicación: Florida, Uruguay</p>
-                        <button class="btn" onclick="window.location.href='mapa.html?op=${id}'">DESPLEGARSE</button>
-                    </div>
-                `;
-            }
-        });
-    </script>
 </body>
 </html>

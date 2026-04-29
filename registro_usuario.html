@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATAC - Registro de Operador</title>
+    <style>
+        body { background: #050505; color: #00ff00; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { border: 1px solid #00ff00; padding: 20px; width: 300px; text-align: center; }
+        input { background: #000; border: 1px solid #00ff00; color: #00ff00; padding: 10px; margin: 10px 0; width: 100%; box-sizing: border-box; }
+        button { background: #00ff00; color: #000; border: none; padding: 10px; width: 100%; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h3>NUEVO OPERADOR</h3>
+        <input type="text" id="reg-callsign" placeholder="CALLSIGN (EJ: ALPHA 1)">
+        <input type="password" id="reg-pass" placeholder="CONTRASEÑA">
+        <button onclick="registrar()">ENROLARSE</button>
+        <br><br><a href="index.html" style="color:#00ff00; font-size: 10px;">VOLVER AL INICIO</a>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script>
+        const firebaseConfig = { /* TU CONFIG DE FIREBASE AQUÍ */ };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function registrar() {
+            const call = document.getElementById('reg-callsign').value.toUpperCase();
+            const pass = document.getElementById('reg-pass').value;
+            if(!call || !pass) return alert("COMPLETE TODOS LOS CAMPOS");
+
+            db.ref('users').child(call).set({
+                callsign: call,
+                password: pass,
+                team: 'pendiente',
+                status: 'OK'
+            }).then(() => {
+                alert("REGISTRO EXITOSO, YA PUEDE IR A MISIONES");
+                window.location.href = "index.html";
+            });
+        }
+    </script>
+</body>
+</html>

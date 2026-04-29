@@ -34,12 +34,9 @@
 
     <div id="lock-screen">
         <div class="login-box">
-            <h2 style="margin-top:0">COMANDO CENTRAL</h2>
-            <p style="font-size: 10px;">ACCESO RESTRINGIDO</p>
-            <input type="password" id="admin-pass" placeholder="CONTRASEÑA MAESTRA">
+            <h2>COMANDO CENTRAL</h2>
+            <input type="password" id="admin-pass" placeholder="PASSWORD">
             <button onclick="checkPass()" style="width:100%; background: var(--p); color: black;">ACCEDER</button>
-            
-            <button id="finger-btn" class="biometric-btn" onclick="tryBiometric()" style="display:none; width:100%;">☝️ USAR HUELLA DACTILAR</button>
         </div>
     </div>
 
@@ -47,12 +44,15 @@
         <div id="admin-map"></div>
         <div class="panel">
             <div class="controls">
-                <button id="btn-poly" onclick="setMode('polygon')">📐 LÍMITES</button>
-                <button id="btn-safe" onclick="setMode('safezone')" style="border-color:white; color:white;">🛡️ SAFE ZONE</button>
-                <button id="btn-resA" onclick="setMode('resA')" style="border-color:var(--a); color:var(--a);">🟦 RESPAWN A</button>
-                <button id="btn-resR" onclick="setMode('resR')" style="border-color:var(--r); color:var(--r);">🟥 RESPAWN R</button>
-                <button id="btn-obj" onclick="setMode('obj')">🎯 OBJETIVO</button>
-                <button onclick="saveOp()" style="grid-column: 1 / span 2; background: #004400; border-color: lime;">🚀 LANZAR OPERACIÓN</button>
+                <button id="btn-polygon" onclick="setMode('polygon')">LÍMITES</button>
+                <button id="btn-safezone" onclick="setMode('safezone')" style="border-color:white; color:white;">SAFE ZONE</button>
+                <button id="btn-resA" onclick="setMode('resA')" style="border-color:var(--a); color:var(--a);">RESPAWN A</button>
+                <button id="btn-resR" onclick="setMode('resR')" style="border-color:var(--r); color:var(--r);">RESPAWN R</button>
+                <button id="btn-obj" onclick="setMode('obj')">OBJETIVO</button>
+                <button onclick="undoLast()">↩️ DESHACER</button>
+                <button class="btn-special" onclick="autoBalance()" style="grid-column: span 2;">⚖️ AUTO-ASIGNAR EQUIPOS (50/50)</button>
+                <button onclick="saveOp()" style="grid-column: span 2; background: #004400; border-color: lime;">🚀 LANZAR OPERACIÓN</button>
+                <button onclick="clearAll()" style="grid-column: span 2; font-size: 9px; border-color: #444;">LIMPIAR TODO EL MAPA</button>
             </div>
             <div id="player-list"></div>
         </div>
@@ -74,65 +74,39 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-
-        // 🔑 SISTEMA DE SEGURIDAD
-        const PASS_MAESTRA = "33884677"; // CAMBIA ESTO POR TU CONTRASEÑA REAL
+        const PASS_MAESTRA = "1234"; 
 
         function checkPass() {
-            const val = document.getElementById('admin-pass').value;
-            if(val === PASS_MAESTRA) { unlock(); } else { alert("ACCESO DENEGADO"); }
-        }
-
-        // Detección de Biometría
-        if (window.PublicKeyCredential) {
-            document.getElementById('finger-btn').style.display = 'block';
-        }
-
-        async function tryBiometric() {
-            // Esto activa el lector de huellas del móvil/PC
-            try {
-                alert("Escaneando identidad biométrica...");
-                // Nota: En un sistema real usaríamos WebAuthn, aquí simulamos el éxito 
-                // ya que requiere registro previo del dispositivo.
-                unlock();
-            } catch (e) { alert("Error en escaneo"); }
+            if(document.getElementById('admin-pass').value === PASS_MAESTRA) unlock();
+            else alert("ACCESO DENEGADO");
         }
 
         function unlock() {
             document.getElementById('lock-screen').style.display = 'none';
             document.getElementById('admin-content').style.display = 'flex';
-            init(); // Iniciar mapa solo tras validar
+            init();
         }
 
-        // 🗺️ LÓGICA DEL PANEL (IGUAL A LA ANTERIOR)
-        let map, mode = 'view';
-        let coords = { poly: [], safe: [], resA: [], resR: [], obj: [] };
-        let layers = {};
+        let map, mode = 'view', coords = { polygon:[], safezone:[], resA:[], resR:[], obj:[] }, layers = {};
 
         function init() {
-            if(map) return;
             map = L.map('admin-map').setView([-34.10, -56.21], 15);
             L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
 
             map.on('click', e => {
+                if(mode === 'view') return;
                 let latlng = [e.latlng.lat, e.latlng.lng];
-                if(mode === 'polygon') draw(latlng, 'poly', 'lime');
-                else if(mode === 'safezone') draw(latlng, 'safe', 'white');
-                else if(mode === 'resA') draw(latlng, 'resA', '#3399ff');
-                else if(mode === 'resR') draw(latlng, 'resR', '#ff3333');
-                else if(mode === 'obj') {
-                    coords.obj.push({lat: latlng[0], lng: latlng[1]});
-                    L.marker(latlng).addTo(map);
-                }
+                if(mode === 'obj') { coords.obj.push({lat: latlng[0], lng: latlng[1]}); L.marker(latlng).addTo(map); }
+                else { coords[mode].push(latlng); refreshLayer(mode); }
             });
 
             db.ref('users').on('value', snap => {
-                const users = snap.val();
-                const list = document.getElementById('player-list');
-                list.innerHTML = "<h4>JUGADORES</h4>";
-                for(let id in users) {
+                const u = snap.val(); const list = document.getElementById('player-list');
+                list.innerHTML = "<h4>OPERADORES REGISTRADOS</h4>";
+                for(let id in u) {
+                    let teamColor = u[id].team === 'azul' ? 'var(--a)' : (u[id].team === 'rojo' ? 'var(--r)' : '#555');
                     list.innerHTML += `<div class="player-row">
-                        <span>${users[id].callsign} [${users[id].team || '---'}]</span>
+                        <span>${u[id].callsign} <span class="team-badge" style="background:${teamColor}">${u[id].team.toUpperCase()}</span></span>
                         <div>
                             <button onclick="assign('${id}','azul')" style="color:var(--a)">A</button>
                             <button onclick="assign('${id}','rojo')" style="color:var(--r)">R</button>
@@ -142,28 +116,34 @@
             });
         }
 
-        function draw(latlng, type, color) {
-            coords[type].push(latlng);
+        function refreshLayer(type) {
             if(layers[type]) map.removeLayer(layers[type]);
+            let color = (type === 'safezone'?'white':type==='resA'?'#3399ff':type==='resR'?'#ff3333':'lime');
             layers[type] = L.polygon(coords[type], {color: color, fillOpacity: 0.3}).addTo(map);
         }
 
-        function setMode(m) { 
-            mode = m; 
-            document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-' + m).classList.add('active');
-        }
-
+        function undoLast() { if(coords[mode] && coords[mode].length > 0) { coords[mode].pop(); refreshLayer(mode); } }
+        function clearAll() { if(confirm("¿RESETEAR TODO?")) { location.reload(); } }
+        function setMode(m) { mode = m; document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active')); document.getElementById('btn-'+m).classList.add('active'); }
         function assign(uid, team) { db.ref('users/'+uid).update({team: team}); }
 
-        function saveOp() {
-            const name = prompt("Nombre de la Operación:");
-            if(!name) return;
-            db.ref('operaciones').push().set({
-                nombre: name, limites: coords.poly, safezone: coords.safe,
-                resA: coords.resA, resR: coords.resR, objetivos: coords.obj
+        function autoBalance() {
+            db.ref('users').once('value', snap => {
+                const users = snap.val(); if(!users) return;
+                let ids = Object.keys(users);
+                ids.sort(() => Math.random() - 0.5);
+                ids.forEach((id, i) => {
+                    const team = (i % 2 === 0) ? 'azul' : 'rojo';
+                    db.ref('users/'+id).update({team: team});
+                });
+                alert("EQUIPOS NIVELADOS");
             });
-            alert("OPERACIÓN PUBLICADA");
+        }
+
+        function saveOp() {
+            const n = prompt("Nombre de la Misión:"); if(!n) return;
+            db.ref('operaciones').push().set({ nombre: n, limites: coords.polygon, safezone: coords.safezone, resA: coords.resA, resR: coords.resR, objetivos: coords.obj });
+            alert("MISIÓN ENVIADA AL CAMPO");
         }
     </script>
 </body>
