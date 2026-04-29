@@ -66,6 +66,39 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <script>
+let intentosInvalidos = 0;
+
+function checkAuth() {
+    const pass = document.getElementById('master-key').value;
+    
+    // 1. Verificamos si la clave es correcta
+    if(pass === "1234") {
+        document.getElementById('lock-screen').style.display = 'none';
+        
+        // Inicializar mapa si Google está listo
+        if (typeof google !== 'undefined') {
+            initMap();
+            cargarEquipos();
+            alert("Bienvenido nuevamente Administrador");
+        } else {
+            alert("Error: Google Maps no cargó. Revisa tu API Key.");
+        }
+    } else {
+        // 2. Si la clave es incorrecta, sumamos un intento
+        intentosInvalidos++;
+        
+        const restantes = 3 - intentosInvalidos;
+        
+        if (intentosInvalidos >= 3) {
+            alert("ACCESO DENEGADO: Demasiados intentos fallidos. Regresando al inicio.");
+            window.location.href = 'index.html'; // Redirección automática
+        } else {
+            alert("CLAVE MAESTRA INCORRECTA. Intentos restantes: " + restantes);
+            document.getElementById('master-key').value = ""; // Limpiamos el campo
+            document.getElementById('master-key').focus();    // Ponemos el cursor listo
+        }
+    }
+}
         const firebaseConfig = {
             apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
             authDomain: "atom--airsoft.firebaseapp.com",
