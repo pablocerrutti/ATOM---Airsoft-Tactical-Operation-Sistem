@@ -8,6 +8,7 @@
         :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --warn: #ffd700; }
         body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
+        /* Encabezado */
         #header { height: 60px; background: #000; border-bottom: 2px solid var(--p); display: flex; align-items: center; padding: 0 10px; justify-content: space-between; z-index: 10; }
         #map { flex-grow: 1; background: #111; }
 
@@ -20,32 +21,37 @@
         .tactical-panel button { 
             pointer-events: auto; padding: 12px 5px; font-size: 10px; font-weight: bold;
             background: rgba(0,0,0,0.85); border: 1px solid var(--p); color: var(--p);
-            text-transform: uppercase;
+            text-transform: uppercase; cursor: pointer;
         }
         .btn-danger { border-color: var(--red) !important; color: var(--red) !important; }
         .btn-active { background: var(--p) !important; color: #000 !important; }
 
+        /* Indicadores de Equipo */
         .team-indicator { padding: 4px 8px; font-size: 11px; border: 1px solid #444; }
         .team-rojo { border-color: var(--red); color: var(--red); }
         .team-azul { border-color: var(--blue); color: var(--blue); }
         
+        /* Pantalla de Identificación */
         #setup-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
-        
-        /* Etiquetas de Mapa Custom */
-        .map-label { 
-            color: white; background: rgba(0,0,0,0.6); padding: 2px 5px; 
-            border: 1px solid var(--p); font-size: 10px; white-space: nowrap; 
+        .setup-content { border: 2px solid var(--p); padding: 30px; background: #050505; width: 85%; max-width: 400px; }
+        .setup-content h2 { letter-spacing: 4px; text-align: center; margin-top: 0; }
+        .setup-content select, .setup-content input { 
+            width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); 
+            padding: 10px; margin-bottom: 15px; box-sizing: border-box; font-family: monospace; 
         }
+        .btn-main { background: var(--p); color: #000; font-weight: bold; border: none; padding: 12px; width: 100%; cursor: pointer; text-transform: uppercase; }
+        .btn-back { background: transparent; color: #666; border: 1px solid #333; padding: 8px; margin-top: 10px; width: 100%; font-size: 10px; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="setup-screen">
-        <div style="border: 2px solid var(--p); padding: 30px; background: #050505; width: 85%;">
-            <h2 style="letter-spacing: 4px; text-align: center;">IDENTIFICACIÓN</h2>
-            <select id="select-mision" style="width: 100%; margin-bottom: 10px;"></select>
-            <input type="text" id="user-callsign" placeholder="TU CALLSIGN" style="width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 10px; margin-bottom: 15px; box-sizing: border-box;">
-            <button onclick="iniciarDespliegue()" style="width: 100%; background: var(--p); color: #000; font-weight: bold; padding: 12px;">INICIAR DESPLIEGUE</button>
+        <div class="setup-content">
+            <h2>IDENTIFICACIÓN</h2>
+            <select id="select-mision"><option>CARGANDO MISIONES...</option></select>
+            <input type="text" id="user-callsign" placeholder="TU CALLSIGN">
+            <button class="btn-main" onclick="iniciarDespliegue()">INICIAR DESPLIEGUE</button>
+            <button class="btn-back" onclick="window.location.href='index.html'">VOLVER AL INICIO</button>
         </div>
     </div>
 
@@ -54,7 +60,7 @@
             <span id="op-active-name" style="font-size: 12px; color: #fff;">ORDENES PENDIENTES</span>
             <span id="my-team-display" class="team-indicator" style="margin-top: 4px; width: fit-content;">---</span>
         </div>
-        <button onclick="location.reload()" style="padding: 5px;">SALIR</button>
+        <button onclick="location.reload()" style="padding: 5px; background: transparent; border: 1px solid #444; color: #888; font-size: 10px;">SALIR</button>
     </div>
 
     <div id="map"></div>
@@ -62,7 +68,7 @@
     <div class="tactical-panel">
         <button onclick="enviarEstado('MÉDICO NECESARIO')">🚑 LLAMAR MÉDICO</button>
         <button class="btn-danger" onclick="enviarEstado('BAJA CONFIRMADA')">💀 DARSE DE BAJA</button>
-        <button onclick="abrirComunicaciones()">📡 COMUNICACIONES</button>
+        <button onclick="alert('CANAL DE EQUIPO ACTIVO')">📡 COMUNICACIONES</button>
         <button id="btn-marcar-enemigo" onclick="activarModoMarcado()" style="border-color: gold; color: gold;">🎯 MARCAR ENEMIGO</button>
     </div>
 
@@ -80,31 +86,31 @@
 
         let map, myCallsign, myTeam, myMisionId;
         let playerMarkers = {};
-        let enemyMarkers = {};
         let modoMarcado = false;
 
-        // Diccionario de Etiquetas por Rol
         const NOMBRES_ROLES = {
             'zona_juego': 'ÁREA DE JUEGO',
             'objetivo': 'OBJETIVO TÁCTICO',
             'respawn_rojo': 'RESPAWN BRAVO (R)',
             'respawn_azul': 'RESPAWN ALFA (A)',
-            'zona_segura': 'ZONA SEGURA / SAFETY'
+            'zona_segura': 'ZONA SEGURA'
         };
 
+        // Cargar misiones existentes
         db.ref('operaciones').once('value', snap => {
             const sel = document.getElementById('select-mision');
+            sel.innerHTML = "";
             snap.forEach(m => { sel.innerHTML += `<option value="${m.key}">${m.val().nombre}</option>`; });
         });
 
         function iniciarDespliegue() {
             myCallsign = document.getElementById('user-callsign').value.trim().toUpperCase();
             myMisionId = document.getElementById('select-mision').value;
-            if(!myCallsign) return alert("CALLSIGN REQUERIDO");
+            if(!myCallsign) return alert("INGRESE CALLSIGN");
 
             db.ref(`inscripciones/${myCallsign}`).once('value', snap => {
                 const data = snap.val();
-                if(!data) return alert("NO ESTÁS EN LA LISTA DE INSCRITOS");
+                if(!data || data.mision !== myMisionId) return alert("NO ESTÁS INSCRITO EN ESTA MISIÓN");
                 
                 myTeam = data.equipo;
                 document.getElementById('setup-screen').style.display = 'none';
@@ -121,16 +127,17 @@
 
         function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 16, mapTypeId: 'satellite', disableDefaultUI: true,
-                clickableIcons: false
+                zoom: 16, mapTypeId: 'satellite', disableDefaultUI: true, clickableIcons: false
             });
 
             map.addListener('click', (e) => {
                 if(modoMarcado) {
-                    const lat = e.latLng.lat();
-                    const lng = e.latLng.lng();
-                    db.ref(`marcas_enemigas/${myTeam}`).push({ lat, lng, time: Date.now() });
-                    activarModoMarcado(); // Desactivar modo tras marcar
+                    db.ref(`marcas_enemigas/${myTeam}`).push({ 
+                        lat: e.latLng.lat(), 
+                        lng: e.latLng.lng(), 
+                        time: Date.now() 
+                    });
+                    activarModoMarcado();
                 }
             });
         }
@@ -142,24 +149,22 @@
                 const bounds = new google.maps.LatLngBounds();
 
                 m.zonas.forEach(z => {
-                    let centerPos;
+                    let labelPos;
                     if(z.type === 'polygon') {
-                        const shape = new google.maps.Polygon({ paths: z.path, map: map, clickable: false });
+                        new google.maps.Polygon({ paths: z.path, map: map, clickable: false, fillColor: '#00ff00', fillOpacity: 0.05, strokeColor: '#00ff00', strokeWeight: 2 });
                         z.path.forEach(p => bounds.extend(p));
-                        centerPos = z.path[0]; 
+                        labelPos = z.path[0]; 
                     } else {
                         const shape = new google.maps.Marker({ position: {lat: z.lat, lng: z.lng}, map: map });
                         bounds.extend({lat: z.lat, lng: z.lng});
-                        centerPos = {lat: z.lat, lng: z.lng};
+                        labelPos = {lat: z.lat, lng: z.lng};
                         aplicarEstiloTatico(shape, z.role);
                     }
                     
-                    // Crear Etiqueta Visual
                     new google.maps.Marker({
-                        position: centerPos,
-                        map: map,
-                        label: { text: NOMBRES_ROLES[z.role] || 'PUNTO INTERÉS', color: 'white', fontSize: '9px' },
-                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 } // Marcador invisible, solo se ve el texto
+                        position: labelPos, map: map,
+                        label: { text: NOMBRES_ROLES[z.role] || 'PUNTO', color: 'white', fontSize: '9px' },
+                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
                     });
                 });
                 if(!bounds.isEmpty()) map.fitBounds(bounds);
@@ -177,24 +182,12 @@
             db.ref(`marcas_enemigas/${myTeam}`).on('child_added', snap => {
                 const data = snap.val();
                 const marker = new google.maps.Marker({
-                    position: {lat: data.lat, lng: data.lng},
-                    map: map,
-                    icon: {
-                        path: 'M 0,-1 L 1,0 L 0,1 L -1,0 Z', scale: 10,
-                        fillColor: 'red', fillOpacity: 0.8, strokeColor: 'white'
-                    },
+                    position: {lat: data.lat, lng: data.lng}, map: map,
+                    icon: { path: 'M 0,-1 L 1,0 L 0,1 L -1,0 Z', scale: 10, fillColor: 'red', fillOpacity: 0.8, strokeColor: 'white' },
                     label: { text: "⚠ ENEMIGO", color: 'white', fontSize: '10px' }
                 });
-                
-                // Las marcas enemigas desaparecen a los 2 minutos (táctica)
                 setTimeout(() => { marker.setMap(null); }, 120000);
             });
-        }
-
-        // --- Funciones de Soporte Existentes ---
-        function enviarEstado(msg) {
-            alert("ESTADO ENVIADO AL HQ: " + msg);
-            // Aquí podrías guardar el log en Firebase si deseas que el HQ lo vea
         }
 
         function activarRastreoGPS() {
@@ -202,6 +195,7 @@
                 navigator.geolocation.watchPosition(pos => {
                     const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     db.ref(`posiciones/${myTeam}/${myCallsign}`).set(loc);
+                    map.panTo(loc);
                 }, null, { enableHighAccuracy: true });
             }
         }
@@ -213,8 +207,7 @@
                     if(callsign === myCallsign) return;
                     if(!playerMarkers[callsign]) {
                         playerMarkers[callsign] = new google.maps.Marker({
-                            map: map,
-                            label: { text: callsign, color: 'white', fontSize: '10px' },
+                            map: map, label: { text: callsign, color: 'white', fontSize: '10px' },
                             icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 5, fillColor: myTeam === 'EQUIPO_ROJO' ? 'red' : 'blue', fillOpacity: 1, strokeColor: 'white' }
                         });
                     }
@@ -223,13 +216,15 @@
             });
         }
 
+        function enviarEstado(msg) { alert("HQ NOTIFICADO: " + msg); }
+
         function aplicarEstiloTatico(shape, role) {
-            const c = {
+            const styles = {
                 'respawn_rojo': { icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: 'red', fillOpacity: 0.8, strokeColor: '#fff' } },
                 'respawn_azul': { icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: 'blue', fillOpacity: 0.8, strokeColor: '#fff' } },
                 'objetivo': { icon: { path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 8, fillColor: 'gold', fillOpacity: 1, strokeColor: '#000' } }
             };
-            if(c[role]) shape.setOptions(c[role]);
+            if(styles[role]) shape.setOptions(styles[role]);
         }
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=geometry" defer></script>
