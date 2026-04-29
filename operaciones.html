@@ -2,63 +2,49 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M. - Terminal Táctica</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> A.T.O.M. - Despliegue Operativo </title>
     <style>
-        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --warn: #ffd700; }
-        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; }
+        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        #map { flex: 1; width: 100%; border-bottom: 2px solid var(--p); background: #000; }
-        #status-bar { height: 42vh; padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #000; overflow-y: auto; }
-        
-        #timer-display { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid var(--p); padding: 5px 15px; font-size: 1.2rem; font-weight: bold; z-index: 1000; display: none; color: var(--p); }
+        #header { height: 60px; background: #000; border-bottom: 2px solid var(--p); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; z-index: 10; }
+        #map { flex-grow: 1; background: #111; }
 
-        .overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
-        input, select { width: 90%; padding: 12px; margin: 8px 0; background: #111; border: 1px solid var(--p); color: var(--p); font-family: monospace; text-align: center; }
+        .overlay-ui { position: absolute; bottom: 20px; left: 20px; right: 20px; display: flex; gap: 10px; z-index: 5; }
+        .info-box { background: rgba(0,0,0,0.8); border: 1px solid var(--p); padding: 10px; font-size: 12px; flex-grow: 1; }
         
-        .btn-tactic { background: #111; border: 1px solid var(--p); color: var(--p); padding: 12px; font-weight: bold; text-transform: uppercase; cursor: pointer; font-size: 11px; }
-        .btn-tactic:active { background: var(--p); color: #000; }
-        .full-width { grid-column: span 2; }
-        .btn-danger { border-color: var(--red); color: var(--red); }
-        .hidden { display: none !important; }
-
-        #chat-messages { height: 70px; overflow-y: auto; background: #050505; border: 1px solid #222; padding: 5px; font-size: 10px; grid-column: span 2; border-left: 3px solid var(--p); }
+        select, button { background: #111; border: 1px solid var(--p); color: var(--p); padding: 8px; font-family: monospace; cursor: pointer; }
+        .team-indicator { padding: 5px 10px; font-weight: bold; text-transform: uppercase; border: 1px solid #444; }
+        .team-rojo { border-color: var(--red); color: var(--red); }
+        .team-azul { border-color: var(--blue); color: var(--blue); }
+        
+        #setup-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div id="timer-display">00:00:00</div>
-
-    <div id="screen-login" class="overlay">
-        <h1>A.T.O.M.</h1>
-        <p style="font-size: 0.7rem; color: #666;">FLORIDA, URUGUAY - TERMINAL DE CAMPO</p>
-        <input type="text" id="login-alias" placeholder="ALIAS / CALLSIGN">
-        <input type="password" id="login-pass" placeholder="CONTRASEÑA">
-        <select id="select-mision" class="hidden"></select>
-        <div id="no-misiones-msg" style="color: var(--warn); font-size: 10px;">CONECTANDO...</div>
-        <button id="btn-entrar" class="btn-tactic" style="width: 90%; margin-top: 15px;" onclick="autenticarYEntrar()">SINCRONIZAR</button>
-    </div>
-
-    <div id="game-ui" class="hidden" style="height: 100vh; flex-direction: column;">
-        <div id="map"></div>
-        <div id="status-bar">
-            <div id="info-status" class="full-width" style="text-align: center; font-size: 11px; border: 1px solid #222; padding: 5px;">ESPERANDO EQUIPO...</div>
-            
-            <button id="btn-contacto" class="btn-tactic full-width op-btn hidden" style="border-color: #ffa500; color: #ffa500;" onclick="marcarContacto()">⚠️ MARCAR CONTACTO ENEMIGO</button>
-            <button id="btn-medico" class="btn-tactic op-btn hidden" style="border-color: var(--warn); color: var(--warn);" onclick="cambiarEstado('MEDICO')">💉 SOLICITAR MÉDICO</button>
-            <button id="btn-baja" class="btn-tactic btn-danger op-btn hidden" onclick="cambiarEstado('BAJA')">💀 INFORMAR BAJA</button>
-            
-            <div id="chat-messages" class="op-btn hidden"></div>
-            <input type="text" id="chat-input" class="op-btn hidden" placeholder="COMUNICACIÓN EQUIPO..." style="grid-column: 1 / 2; margin: 0; height: 40px;">
-            <button id="btn-send" class="btn-tactic op-btn hidden" onclick="enviarMensaje()" style="grid-column: 2 / 3;">ENVIAR</button>
-
-            <button class="btn-tactic full-width" style="background: #fff; color: #000;" onclick="cambiarEstado('OPERATIVO')">RESPAWN / LISTO</button>
+    <div id="setup-screen">
+        <div style="border: 2px solid var(--p); padding: 30px; background: #050505; width: 320px;">
+            <h2 style="letter-spacing: 4px;">IDENTIFICACIÓN</h2>
+            <select id="select-mision" style="margin-bottom: 10px; width: 100%"><option>CARGANDO MISIONES...</option></select>
+            <input type="text" id="user-callsign" placeholder="TU CALLSIGN" style="width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+            <button onclick="iniciarDespliegue()" style="width: 100%">INICIAR TRANSMISIÓN GPS</button>
         </div>
     </div>
 
+    <div id="header">
+        <div>
+            <span id="op-active-name" style="font-weight: bold; color: #fff;">ESPERANDO ORDENES</span>
+            <span id="my-team-display" class="team-indicator" style="margin-left: 15px;">SIN ASIGNAR</span>
+        </div>
+        <button onclick="location.reload()" style="font-size: 10px;">ABORTAR</button>
+    </div>
+
+    <div id="map"></div>
+
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
@@ -69,149 +55,117 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let map, miMarker, miCallsign, miMisionId, miEquipo;
-        let markersAliados = {};
-        let markersEnemigos = {};
+        let map, myCallsign, myTeam, myMisionId;
+        let playerMarkers = {};
+        let missionShapes = [];
 
-        // 1. CARGA DE MISIONES
-        db.ref('operaciones').on('value', snap => {
-            const select = document.getElementById('select-mision');
-            if (snap.exists()) {
-                select.innerHTML = '<option value="">--- SELECCIONAR OPERACIÓN ---</option>';
-                snap.forEach(op => {
-                    let opt = document.createElement('option');
-                    opt.value = op.key; opt.innerText = op.val().nombre;
-                    select.appendChild(opt);
-                });
-                select.classList.remove('hidden');
-                document.getElementById('no-misiones-msg').classList.add('hidden');
-            }
+        // Cargar misiones al inicio
+        db.ref('operaciones').once('value', snap => {
+            const sel = document.getElementById('select-mision');
+            sel.innerHTML = "";
+            snap.forEach(m => {
+                sel.innerHTML += `<option value="${m.key}">${m.val().nombre}</option>`;
+            });
         });
 
-        async function autenticarYEntrar() {
-            miCallsign = document.getElementById('login-alias').value.trim();
-            const pass = document.getElementById('login-pass').value.trim();
-            miMisionId = document.getElementById('select-mision').value;
+        function iniciarDespliegue() {
+            myCallsign = document.getElementById('user-callsign').value.trim().toUpperCase();
+            myMisionId = document.getElementById('select-mision').value;
 
-            if(!miCallsign || !miMisionId) return alert("Datos incompletos.");
+            if(!myCallsign) return alert("INGRESE CALLSIGN");
 
-            // (Aquí iría tu validación de Google Sheets del código anterior)
-            // Por brevedad, saltamos al inicio de terminal:
-            document.getElementById('screen-login').classList.add('hidden');
-            iniciarTerminal();
-        }
-
-        function iniciarTerminal() {
-            document.getElementById('game-ui').style.display = 'flex';
-            document.getElementById('game-ui').classList.remove('hidden');
-            
-            map = new google.maps.Map(document.getElementById("map"), {
-                mapTypeId: 'satellite', disableDefaultUI: true, zoom: 18, center: { lat: -34.095, lng: -56.214 }
-            });
-
-            miMarker = new google.maps.Marker({
-                map: map, title: "TÚ",
-                icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 5, fillColor: "#fff", fillOpacity: 1, strokeColor: "#000", strokeWeight: 2 }
-            });
-
-            // 2. FILTRADO DE ZONA Y EQUIPO
-            db.ref(`inscripciones/${miCallsign}/equipo`).on('value', snap => {
-                if(snap.exists() && snap.val() !== 'PENDIENTE') {
-                    miEquipo = snap.val();
-                    activarInterfazEquipo();
-                    cargarZonasLimitadas();
-                    rastrearAliados();
-                    escucharContactosEnemigos();
+            // Verificar equipo del jugador
+            db.ref(`inscripciones/${myCallsign}`).once('value', snap => {
+                const data = snap.val();
+                if(!data || data.mision !== myMisionId) {
+                    return alert("NO ESTÁS INSCRITO EN ESTA MISIÓN");
                 }
+                myTeam = data.equipo;
+                document.getElementById('setup-screen').style.display = 'none';
+                document.getElementById('my-team-display').innerText = myTeam.replace('_', ' ');
+                document.getElementById('my-team-display').className = `team-indicator team-${myTeam.split('_')[1].toLowerCase()}`;
+                
+                initMap();
+                cargarDatosMision();
+                activarRastreoGPS();
+                escucharCompañeros();
             });
         }
 
-        // CARGAR SOLO LO PERMITIDO (Zona de juego + Mi Respawn + Objetivos)
-        function cargarZonasLimitadas() {
-            db.ref(`operaciones/${miMisionId}/zonas`).once('value', snap => {
-                snap.forEach(zDoc => {
-                    const z = zDoc.val();
-                    // Mostrar solo zona de juego o el respawn de MI equipo
-                    if (z.role === 'zona_juego' || z.role === `respawn_${miEquipo.toLowerCase().split('_')[1]}` || z.role === 'objetivo') {
-                        if (z.type === 'polygon') {
-                            new google.maps.Polygon({
-                                paths: z.path, map: map, strokeColor: '#00ff00', strokeOpacity: 0.8, strokeWeight: 2, fillOpacity: 0.1, fillColor: '#00ff00'
-                            });
-                        } else {
-                            new google.maps.Marker({
-                                position: {lat: z.lat, lng: z.lng}, map: map,
-                                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: z.role === 'objetivo' ? 'gold' : 'white', fillOpacity: 1, strokeColor: '#000' }
-                            });
-                        }
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 17,
+                mapTypeId: 'satellite',
+                disableDefaultUI: true,
+                styles: [{ featureType: "all", elementType: "labels", stylers: [{ visibility: "on" }] }]
+            });
+        }
+
+        function cargarDatosMision() {
+            db.ref(`operaciones/${myMisionId}`).once('value', snap => {
+                const m = snap.val();
+                document.getElementById('op-active-name').innerText = m.nombre;
+                const bounds = new google.maps.LatLngBounds();
+
+                m.zonas.forEach(z => {
+                    let shape;
+                    if(z.type === 'polygon') {
+                        shape = new google.maps.Polygon({ paths: z.path, map: map, clickable: false });
+                        z.path.forEach(p => bounds.extend(p));
+                    } else {
+                        shape = new google.maps.Marker({ position: {lat: z.lat, lng: z.lng}, map: map });
+                        bounds.extend({lat: z.lat, lng: z.lng});
                     }
+                    aplicarEstiloTatico(shape, z.role);
                 });
+                if(!bounds.isEmpty()) map.fitBounds(bounds);
             });
         }
 
-        // VER SOLO COMPAÑEROS
-        function rastrearAliados() {
-            db.ref(`posiciones/${miEquipo}`).on('value', snap => {
-                snap.forEach(aliado => {
-                    if (aliado.key !== miCallsign) {
-                        if (!markersAliados[aliado.key]) {
-                            markersAliados[aliado.key] = new google.maps.Marker({
-                                map: map, label: { text: aliado.key, color: 'white', fontSize: '10px' },
-                                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: miEquipo === 'EQUIPO_ROJO' ? 'red' : 'blue', fillOpacity: 1 }
-                            });
-                        }
-                        markersAliados[aliado.key].setPosition(aliado.val());
+        function activarRastreoGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(pos => {
+                    const localizacion = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    db.ref(`posiciones/${myTeam}/${myCallsign}`).set(localizacion);
+                    map.panTo(localizacion);
+                }, null, { enableHighAccuracy: true });
+            }
+        }
+
+        function escucharCompañeros() {
+            // Solo escucha la rama de posiciones de TU equipo
+            db.ref(`posiciones/${myTeam}`).on('value', snap => {
+                snap.forEach(pPos => {
+                    const callsign = pPos.key;
+                    if(callsign === myCallsign) return; // No dibujarse a si mismo dos veces
+
+                    if(!playerMarkers[callsign]) {
+                        playerMarkers[callsign] = new google.maps.Marker({
+                            map: map,
+                            label: { text: callsign, color: 'white', fontSize: '10px', fontWeight: 'bold' },
+                            icon: {
+                                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                                scale: 5,
+                                fillColor: myTeam === 'EQUIPO_ROJO' ? 'red' : 'blue',
+                                fillOpacity: 1,
+                                strokeColor: 'white',
+                                strokeWeight: 1
+                            }
+                        });
                     }
+                    playerMarkers[callsign].setPosition(pPos.val());
                 });
             });
         }
 
-        // MARCAR CONTACTO ENEMIGO (Visible para todo el equipo)
-        function marcarContacto() {
-            const pos = miMarker.getPosition().toJSON();
-            db.ref(`operaciones/${miMisionId}/contactos_${miEquipo}`).push({
-                pos: pos, timestamp: Date.now(), por: miCallsign
-            });
-            if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        }
-
-        function escucharContactosEnemigos() {
-            db.ref(`operaciones/${miMisionId}/contactos_${miEquipo}`).on('child_added', snap => {
-                const c = snap.val();
-                const m = new google.maps.Marker({
-                    position: c.pos, map: map,
-                    icon: { path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 6, fillColor: 'orange', fillOpacity: 1, strokeColor: 'red' },
-                    animation: google.maps.Animation.BOUNCE
-                });
-                // Desaparece tras 3 minutos (táctica obsoleta)
-                setTimeout(() => m.setMap(null), 180000);
-            });
-        }
-
-        function activarInterfazEquipo() {
-            const status = document.getElementById('info-status');
-            status.innerText = `UNIDAD: ${miEquipo}`;
-            status.style.color = (miEquipo === 'EQUIPO_ROJO') ? 'var(--red)' : 'var(--blue)';
-            document.querySelectorAll('.op-btn').forEach(el => el.classList.remove('hidden'));
-        }
-
-        function rastrearGPS() {
-            navigator.geolocation.watchPosition(pos => {
-                const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                miMarker.setPosition(p);
-                if(miEquipo) db.ref(`posiciones/${miEquipo}/${miCallsign}`).set(p);
-            }, null, { enableHighAccuracy: true });
-        }
-
-        function cambiarEstado(st) {
-            db.ref(`inscripciones/${miCallsign}`).update({ estado: st });
-            alert("ESTADO ACTUALIZADO: " + st);
-        }
-
-        function enviarMensaje() {
-            const txt = document.getElementById('chat-input');
-            if(!txt.value.trim()) return;
-            db.ref(`chats/${miMisionId}/${miEquipo}`).push({ user: miCallsign, text: txt.value });
-            txt.value = "";
+        function aplicarEstiloTatico(shape, role) {
+            const c = {
+                'respawn_rojo': { icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: 'red', fillOpacity: 0.8, strokeColor: '#fff' } },
+                'respawn_azul': { icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: 'blue', fillOpacity: 0.8, strokeColor: '#fff' } },
+                'objetivo': { icon: { path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 8, fillColor: 'gold', fillOpacity: 1, strokeColor: '#000' } },
+                'zona_juego': { fillColor: '#00ff00', strokeColor: '#00ff00', fillOpacity: 0.05, strokeWeight: 2 }
+            };
+            if(c[role]) shape.setOptions(c[role]);
         }
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=geometry" defer></script>
