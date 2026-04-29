@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M. - Terminal de Campo</title>
+    <style>
+        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; }
+        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); }
+        #map { height: 70vh; width: 100%; border-bottom: 2px solid var(--p); }
+        #status-bar { height: 30vh; padding: 15px; box-sizing: border-box; overflow-y: auto; background: #000; }
+        .alert-out { position: fixed; top: 0; left: 0; width: 100%; background: red; color: white; text-align: center; font-weight: bold; padding: 10px; display: none; z-index: 10000; animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        .btn-join { width: 100%; padding: 15px; background: var(--p); color: #000; border: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="alerta-fuera" class="alert-out">¡FUERA DE ZONA DE OPERACIONES! VUELVA INMEDIATAMENTE</div>
+
+    <div id="setup" style="padding: 20px;">
+        <h1>SISTEMA A.T.O.M.</h1>
+        <input type="text" id="callsign" placeholder="TU CALLSIGN (Nombre)">
+        <select id="mi-equipo">
+            <option value="EQUIPO_ROJO">EQUIPO ROJO</option>
+            <option value="EQUIPO_AZUL">EQUIPO AZUL</option>
+        </select>
+        <button class="btn-join" onclick="iniciarMision()">INGRESAR A OPERACIÓN</button>
+    </div>
+
+    <div id="game-ui" style="display: none;">
+        <div id="map"></div>
+        <div id="status-bar">
+            <div id="conquista-timer" style="font-size: 1.2rem; color: #ffd700;"></div>
+            <div id="log" style="font-size: 0.8rem; color: #666;">Esperando señal GPS...</div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
+    <script>
+        // CONFIGURACIÓN FIREBASE (Usa la tuya)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            authDomain: "atom--airsoft.firebaseapp.com",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let map, miMarker, miEquipo, miCallsign;
+        let zonaJuegoPoligono;
+        let objetivosGlobales = [];
+        let markersAliados = {};
+        let miPosActual = null;
+
+        function iniciarMision() {
+            miCallsign = document.getElementById('callsign').value.toUpperCase();
+            miEquipo = document.getElementById('mi-equipo').value;
+            if(!miCallsign) return alert("Ingresa tu nombre");
+            
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'block';
+            
+            initMap();
+        }
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 17, center: {lat: -34.095, lng: -56.214}, mapTypeId: 'satellite', disableDefaultUI: true
+            });
+
+            miMarker = new google.maps.Marker({ map: map, title: "TÚ", icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#fff", fillOpacity: 1, strokeColor: "#000", strokeWeight: 2 } });
+
+            cargarMision();
+            rastrearUbicacion();
+            escucharAliados();
+        }
+
+        function cargarMision() {
+            db.ref('operaciones').limitToLast(1).on('value', snap => {
+                snap.forEach(child => {
+                    const op = child.val();
+                    op.zonas.forEach(zona => {
+                        if(zona.type === 'polygon') {
+                            zonaJuegoPoligono = new google.maps.Polygon({ paths: zona.path, map: map, fillOpacity: 0, strokeColor: '#00ff00', strokeWeight: 1 });
+                        }
+                        if(zona.role === 'objetivo_conquista') {
+                            crearMarcadorObjetivo(zona);
+                        }
+                    });
+                });
+            });
+        }
+
+        function rastrearUbicacion() {
+            navigator.geolocation.watchPosition(pos => {
+                miPosActual = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                miMarker.setPosition(miPosActual);
+                map.setCenter(miPosActual);
+
+                // 1. Enviar posición a Firebase
+                db.ref(`posiciones/${miEquipo}/${miCallsign}`).set(miPosActual);
+
+                // 2. Geofencing (Vibrar si sale)
+                if(zonaJuegoPoligono) {
+                    const dentro = google.maps.geometry.poly.containsLocation(new google.maps.LatLng(miPosActual), zonaJuegoPoligono);
+                    document.getElementById('alerta-fuera').style.display = dentro ? 'none' : 'block';
+                    if(!dentro && "vibrate" in navigator) navigator.vibrate([500, 200, 500]);
+                }
+
+                // 3. Chequear Conquista (Lógica de 2 minutos)
+                chequearProximidadObjetivos();
+                
+            }, err => console.error(err), { enableHighAccuracy: true });
+        }
+
+        function crearMarcadorObjetivo(zona) {
+            let color = "#888888"; // Gris inicial
+            let objMarker = new google.maps.Circle({
+                map: map, center: {lat: zona.lat, lng: zona.lng}, radius: 15,
+                fillColor: color, fillOpacity: 0.5, strokeColor: color, strokeWeight: 2
+            });
+            
+            // Escuchar cambios de dueño en tiempo real
+            db.ref(`conquistas/${zona.lat}_${zona.lng}`).on('value', s => {
+                const data = s.val();
+                if(data && data.dueno) {
+                    let nuevoColor = (data.dueno === 'EQUIPO_ROJO') ? '#ff3333' : '#33aaff';
+                    objMarker.setOptions({fillColor: nuevoColor, strokeColor: nuevoColor});
+                }
+            });
+
+            objetivosGlobales.push({lat: zona.lat, lng: zona.lng, marker: objMarker});
+        }
+
+        function chequearProximidadObjetivos() {
+            objetivosGlobales.forEach(obj => {
+                const dist = google.maps.geometry.spherical.computeDistanceBetween(
+                    new google.maps.LatLng(miPosActual), new google.maps.LatLng(obj.lat, obj.lng)
+                );
+
+                if(dist < 15) { // Si estoy a menos de 15 metros del punto
+                    manejarCaptura(obj);
+                }
+            });
+        }
+
+        let tempStartTime = null;
+        function manejarCaptura(obj) {
+            const path = `conquistas/${obj.lat}_${obj.lng}`;
+            db.ref(path).once('value', s => {
+                const data = s.val();
+                if(data && data.dueno === miEquipo) {
+                    document.getElementById('conquista-timer').innerText = "PUNTO ASEGURADO";
+                    return;
+                }
+
+                if(!tempStartTime) tempStartTime = Date.now();
+                let transcurrido = Math.floor((Date.now() - tempStartTime) / 1000);
+                let restante = 120 - transcurrido;
+
+                if(restante > 0) {
+                    document.getElementById('conquista-timer').innerText = `CONQUISTANDO: ${restante}s`;
+                } else {
+                    db.ref(path).set({ dueno: miEquipo, fecha: Date.now() });
+                    document.getElementById('conquista-timer').innerText = "¡ZONA CAPTURADA!";
+                    tempStartTime = null;
+                }
+            });
+        }
+
+        function escucharAliados() {
+            db.ref(`posiciones/${miEquipo}`).on('value', snap => {
+                snap.forEach(aliado => {
+                    if(aliado.key === miCallsign) return;
+                    const pos = aliado.val();
+                    if(!markersAliados[aliado.key]) {
+                        markersAliados[aliado.key] = new google.maps.Marker({ map: map, label: aliado.key, icon: { path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW, scale: 4, fillColor: miEquipo === 'EQUIPO_ROJO' ? 'red' : 'blue', fillOpacity: 1 } });
+                    }
+                    markersAliados[aliado.key].setPosition(pos);
+                });
+            });
+
+            // RADAR ENEMIGO: Solo parpadea si está a menos de 50m
+            const equipoEnemigo = (miEquipo === 'EQUIPO_ROJO') ? 'EQUIPO_AZUL' : 'EQUIPO_ROJO';
+            db.ref(`posiciones/${equipoEnemigo}`).on('value', snap => {
+                snap.forEach(enemigo => {
+                    const ePos = enemigo.val();
+                    const d = google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(miPosActual), new google.maps.LatLng(ePos));
+                    if(d < 50) parpadearEnemigo(ePos);
+                });
+            });
+        }
+
+        function parpadearEnemigo(pos) {
+            let m = new google.maps.Marker({ position: pos, map: map, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 5, fillColor: 'orange', fillOpacity: 1 } });
+            let i = 0;
+            let interval = setInterval(() => {
+                m.setVisible(!m.getVisible());
+                if(i++ > 6) { clearInterval(interval); m.setMap(null); }
+            }, 400);
+        }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing,geometry" defer></script>
+</body>
+</html>
