@@ -3,42 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATAC - Registro de Operador</title>
+    <title>ATAC - Registro</title>
     <style>
-        body { background: #050505; color: #00ff00; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .box { border: 1px solid #00ff00; padding: 20px; width: 300px; text-align: center; }
-        input { background: #000; border: 1px solid #00ff00; color: #00ff00; padding: 10px; margin: 10px 0; width: 100%; box-sizing: border-box; }
-        button { background: #00ff00; color: #000; border: none; padding: 10px; width: 100%; font-weight: bold; cursor: pointer; }
+        :root { --p: #00ff00; --f: #050505; }
+        body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; text-align: center; }
+        .banner { background: #111; padding: 15px; border-bottom: 2px solid var(--p); font-weight: bold; font-size: 1.2rem; }
+        .box { border: 1px solid var(--p); padding: 20px; margin: 20px auto; width: 85%; max-width: 350px; background: rgba(0,20,0,0.5); }
+        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; }
+        button { background: var(--p); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; }
+        .btn-home { display: inline-block; margin-top: 20px; color: var(--p); text-decoration: none; border: 1px solid var(--p); padding: 8px 15px; font-size: 11px; }
     </style>
 </head>
 <body>
+    <div class="banner">A.T.O.M. - AIRSOFT TACTICS OPERATION MAPS</div>
+    
     <div class="box">
-        <h3>NUEVO OPERADOR</h3>
-        <input type="text" id="reg-callsign" placeholder="CALLSIGN (EJ: ALPHA 1)">
-        <input type="password" id="reg-pass" placeholder="CONTRASEÑA">
-        <button onclick="registrar()">ENROLARSE</button>
-        <br><br><a href="index.html" style="color:#00ff00; font-size: 10px;">VOLVER AL INICIO</a>
+        <h3>ENROLAMIENTO DE OPERADOR</h3>
+        <input type="text" id="reg-callsign" placeholder="CALLSIGN (APODO)">
+        <input type="password" id="reg-pass" placeholder="ESTABLECER CONTRASEÑA">
+        <button onclick="registrar()">REGISTRAR IDENTIDAD</button>
+        <p style="font-size: 10px; opacity: 0.6; margin-top: 15px;">Sus estadísticas de bajas y misiones se vincularán a esta cuenta.</p>
     </div>
+
+    <a href="index.html" class="btn-home">⬅ VOLVER AL INICIO</a>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script>
-        const firebaseConfig = { /* TU CONFIG DE FIREBASE AQUÍ */ };
+        const firebaseConfig = { /* TU CONFIG */ };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
         function registrar() {
-            const call = document.getElementById('reg-callsign').value.toUpperCase();
-            const pass = document.getElementById('reg-pass').value;
-            if(!call || !pass) return alert("COMPLETE TODOS LOS CAMPOS");
+            const call = document.getElementById('reg-callsign').value.toUpperCase().trim();
+            const pass = document.getElementById('reg-pass').value.trim();
+            if(!call || !pass) return alert("DATOS INCOMPLETOS");
 
-            db.ref('users').child(call).set({
+            db.ref('users/' + call).set({
                 callsign: call,
                 password: pass,
                 team: 'pendiente',
-                status: 'OK'
+                stats: { misiones: 0, bajas: 0, heridas: 0 }
             }).then(() => {
-                alert("REGISTRO EXITOSO, YA PUEDE IR A MISIONES");
+                alert("REGISTRO EXITOSO. BIENVENIDO OPERADOR.");
                 window.location.href = "index.html";
             });
         }
