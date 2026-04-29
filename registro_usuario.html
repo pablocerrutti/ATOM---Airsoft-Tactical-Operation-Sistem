@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Sistema A.T.O.M. - Uruguay </title>
+    <title> Sistema A.T.O.M. - Enrolamiento </title>
     <style>
         :root { --p: #00ff00; --f: #050505; }
         body { background: var(--f); color: var(--p); font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
         .form-box { border: 2px solid var(--p); padding: 25px; width: 85%; max-width: 350px; background: rgba(0,20,0,0.3); }
         input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; outline: none; }
         button { background: var(--p); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        #status-msg { font-size: 10px; text-align: center; margin-top: 10px; color: #888; }
     </style>
 </head>
 <body>
@@ -17,15 +18,16 @@
         <h2 style="text-align: center; margin-top: 0;">ENROLAMIENTO</h2>
         <input type="text" id="callsign" placeholder="CALLSIGN (APODO)">
         <input type="password" id="pass" placeholder="PASSWORD DE ACCESO">
-        <button onclick="registrar()">REGISTRAR OPERADOR</button>
+        <button id="btn-reg" onclick="registrar()">REGISTRAR OPERADOR</button>
         <button onclick="window.location.href='index.html'" style="background: transparent; color: #666; border: 1px solid #444; font-size: 10px;">VOLVER</button>
+        <div id="status-msg"></div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <script>
-        // Configuración corregida
+        // Configuración de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
             authDomain: "atom--airsoft.firebaseapp.com",
@@ -40,33 +42,66 @@
         // Inicialización
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        
+        // URL de tu Google Apps Script
+        const scriptURL = "https://script.google.com/macros/s/AKfycbx7vFxc3UPXQjaE0ihAL3ai6lw-4LU_Lydh2cf_dHahkGUQtQR4RbE0ebdQA7fV7dt1/exec";
 
         function registrar() {
             const nick = document.getElementById('callsign').value.trim().toUpperCase();
             const pw = document.getElementById('pass').value;
+            const btn = document.getElementById('btn-reg');
+            const status = document.getElementById('status-msg');
 
             if(!nick || !pw) {
                 alert("COMPLETE LOS CAMPOS");
                 return;
             }
 
-            console.log("Intentando registrar a:", nick); // Para que veas en consola (F12)
+            // Bloquear botón para evitar múltiples clics
+            btn.disabled = true;
+            btn.innerText = "PROCESANDO...";
+            status.innerText = "Sincronizando con base de datos...";
 
-            // VALIDACIÓN DE DUPLICADOS
+            // 1. VALIDACIÓN EN FIREBASE
             db.ref('users').orderByChild('callsign').equalTo(nick).once('value', snap => {
                 if(snap.exists()) {
-                    alert("Usuario Existente");
+                    alert("ERROR: El Callsign ya está registrado.");
+                    btn.disabled = false;
+                    btn.innerText = "REGISTRAR OPERADOR";
+                    status.innerText = "";
                 } else {
-                    db.ref('users').push({
+                    // Datos a guardar
+                    const userData = {
+                        tipo: "usuario", // Identificador para el script de Google
                         callsign: nick,
                         pass: pw,
                         team: "sin asignar",
                         status: "ALFA"
-                    }).then(() => {
-                        alert("Registro Exitoso. Bienvenido al sistema A.T.O.M.");
-                        window.location.href = 'index.html';
+                    };
+
+                    // 2. GUARDAR EN FIREBASE
+                    db.ref('users').push(userData).then(() => {
+                        
+                        // 3. ENVIAR A GOOGLE SHEETS
+                        // Usamos fetch con 'no-cors' para Apps Script
+                        fetch(scriptURL, {
+                            method: 'POST',
+                            mode: 'no-cors', 
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(userData)
+                        }).then(() => {
+                            alert("REGISTRO EXITOSO.\nOperador dado de alta en Sistema y Planilla.");
+                            window.location.href = 'index.html';
+                        }).catch(e => {
+                            console.error("Error en Planilla:", e);
+                            alert("Registrado en Firebase, pero hubo un error con la Planilla.");
+                            window.location.href = 'index.html';
+                        });
+
                     }).catch(err => {
                         alert("Error de Firebase: " + err.message);
+                        btn.disabled = false;
+                        btn.innerText = "REGISTRAR OPERADOR";
                     });
                 }
             });
