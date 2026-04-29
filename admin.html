@@ -92,11 +92,11 @@
 
         let map, drawingManager, miMisionEdicionId = null;
         let allShapes = [];
-        let playerMarkers = {};
         let currentRole = 'zona_juego';
 
         function checkAuth() {
             const errorMsg = document.getElementById('auth-error');
+            // La clave que mencionaste anteriormente
             if(document.getElementById('master-key').value === "Ik3rc3rru771") {
                 document.getElementById('lock-screen').style.display = 'none';
                 initMap();
@@ -150,19 +150,36 @@
 
             db.ref(`operaciones/${id}`).once('value', snap => {
                 const m = snap.val();
+                if(!m) return;
+                
                 document.getElementById('op-name').value = m.nombre;
+                const bounds = new google.maps.LatLngBounds();
+
                 m.zonas.forEach(z => {
                     let shape;
                     if(z.type === 'polygon') {
                         shape = new google.maps.Polygon({ paths: z.path, map: map, editable: true });
+                        z.path.forEach(p => bounds.extend(p));
                     } else {
-                        shape = new google.maps.Marker({ position: {lat: z.lat, lng: z.lng}, map: map, draggable: true });
+                        const pos = {lat: z.lat, lng: z.lng};
+                        shape = new google.maps.Marker({ position: pos, map: map, draggable: true });
+                        bounds.extend(pos);
                     }
                     shape.role = z.role;
                     shape.type = z.type;
                     aplicarEstilo(shape, z.role);
                     allShapes.push(shape);
                 });
+
+                // AUTO-ZOOM SOBRE LA ZONA DE JUEGO
+                if (!bounds.isEmpty()) {
+                    map.fitBounds(bounds);
+                    const listener = google.maps.event.addListener(map, "idle", function() {
+                        if (map.getZoom() > 18) map.setZoom(18);
+                        google.maps.event.removeListener(listener);
+                    });
+                }
+
                 escucharInscritos(id);
             });
         }
@@ -191,7 +208,6 @@
                 let rojos = 0, azules = 0;
                 let pendientes = [];
 
-                // 1. Contar estados actuales
                 snap.forEach(child => {
                     const p = child.val();
                     if(p.equipo === 'EQUIPO_ROJO') rojos++;
@@ -199,7 +215,6 @@
                     else pendientes.push(child.key);
                 });
 
-                // 2. Asignar pendientes para igualar
                 pendientes.forEach(id => {
                     if(rojos <= azules) {
                         asignarEquipo(id, 'EQUIPO_ROJO');
