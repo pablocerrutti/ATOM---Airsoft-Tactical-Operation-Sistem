@@ -5,40 +5,220 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title> Sistema A.T.O.M. - Uruguay </title>
     <style>
-        :root { --p: #00ff00; --f: #0a0a0a; }
-        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); height: 100vh; display: flex; flex-direction: column; }
-        #lock-screen { position: fixed; width: 100%; height: 100%; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        .box { border: 2px solid var(--p); padding: 30px; text-align: center; }
-        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 10px; width: 100%; margin: 10px 0; box-sizing: border-box; }
-        button { background: var(--p); color: #000; padding: 10px; width: 100%; border: none; font-weight: bold; cursor: pointer; }
+        :root { --p: #00ff00; --f: #0b0b0b; }
+        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Barra Lateral de Herramientas */
+        #side-panel { width: 300px; border-right: 2px solid var(--p); padding: 20px; display: flex; flex-direction: column; gap: 15px; background: #000; overflow-y: auto; }
+        #map { flex-grow: 1; height: 100%; }
+
+        .control-group { border: 1px solid #333; padding: 10px; border-radius: 4px; }
+        h3 { margin-top: 0; color: var(--p); font-size: 0.9rem; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        
+        select, input, button { width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); padding: 8px; margin-bottom: 10px; font-family: monospace; }
+        button { background: var(--p); color: #000; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        button:hover { background: #00cc00; }
+        
+        .zone-item { font-size: 0.8rem; border-bottom: 1px solid #222; padding: 5px 0; display: flex; justify-content: space-between; }
+        .btn-delete { width: auto; padding: 2px 5px; background: #f00; color: #fff; border: none; font-size: 9px; }
+
+        /* Pantalla de Bloqueo */
+        #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
     </style>
 </head>
 <body>
+
     <div id="lock-screen">
-        <div class="box">
-            <h2>COMANDO CENTRAL</h2>
-            <input type="password" id="admin-pass" placeholder="MASTER KEY">
-            <button onclick="checkAdmin()">ACCEDER</button>
-            <a href="index.html" style="color:#444; display:block; margin-top:15px; text-decoration:none; font-size:10px;">← CANCELAR</a>
+        <div style="border: 2px solid var(--p); padding: 40px; text-align: center;">
+            <h1 style="letter-spacing: 5px;">SISTEMA A.T.O.M.</h1>
+            <p>CENTRO DE MANDO ADMINISTRATIVO</p>
+            <input type="password" id="master-key" placeholder="INGRESE MASTER KEY">
+            <button onclick="checkAuth()">AUTORIZAR</button>
         </div>
     </div>
 
-    <div id="admin-content" style="display:none; padding: 20px;">
-        <h1>PANEL DE CONTROL GOOGLE MAPS</h1>
+    <div id="side-panel">
+        <h3>Gestión de Operación</h3>
+        <input type="text" id="op-name" placeholder="Nombre de la Misión">
+        
+        <div class="control-group">
+            <h3>Zonas y Escuadrones</h3>
+            <label style="font-size: 10px;">Asignar a Zona Seleccionada:</label>
+            <select id="select-equipo">
+                <option value="SIN ASIGNAR">-- Seleccionar Equipo --</option>
+            </select>
+            <button onclick="asignarEquipoAZona()">Vincular Equipo</button>
+            <button onclick="autoAsignar()" style="background: #555; color: #fff;">Auto-Repartir Grupos</button>
         </div>
 
+        <div class="control-group">
+            <h3>Capas Guardadas</h3>
+            <div id="lista-zonas"></div>
+        </div>
+
+        <button onclick="guardarMisionCompleta()" style="height: 50px; margin-top: auto;">PUBLICAR MISIÓN</button>
+        <button onclick="window.location.href='index.html'" style="background: transparent; color: #444; border-color: #222;">Salir</button>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
     <script>
-        function checkAdmin() {
-            const p = document.getElementById('admin-pass').value;
-            if(p === "Ik3rc3rru771") { // Cambia esto por tu clave maestra
-                alert("Bienvenido nuevamente Administrador");
+        const firebaseConfig = {
+            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+            authDomain: "atom--airsoft.firebaseapp.com",
+            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+            projectId: "atom--airsoft",
+            storageBucket: "atom--airsoft.firebasestorage.app",
+            messagingSenderId: "310010107781",
+            appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let map;
+        let drawingManager;
+        let selectedShape;
+        let allShapes = []; // Aquí guardamos polígonos y marcadores
+        let equiposDisponibles = [];
+
+        function checkAuth() {
+            if(document.getElementById('master-key').value === "1234") {
                 document.getElementById('lock-screen').style.display = 'none';
-                document.getElementById('admin-content').style.display = 'block';
-                // Aquí podrías disparar la función initMap()
+                initMap();
+                cargarEquipos();
             } else {
-                alert("CLAVE MAESTRA INCORRECTA");
+                alert("ACCESO DENEGADO");
             }
         }
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: -34.095, lng: -56.214 }, // Florida, Uruguay
+                zoom: 15,
+                mapTypeId: 'satellite',
+                styles: [{ "stylers": [{ "hue": "#00ff00" }, { "saturation": -50 }] }]
+            });
+
+            drawingManager = new google.maps.visualization.drawing.DrawingManager({
+                drawingMode: google.maps.visualization.drawing.OverlayType.POLYGON,
+                drawingControl: true,
+                drawingControlOptions: {
+                    position: google.maps.ControlPosition.TOP_CENTER,
+                    drawingModes: ['marker', 'polygon', 'rectangle']
+                },
+                polygonOptions: {
+                    fillColor: '#00ff00',
+                    strokeColor: '#00ff00',
+                    editable: true
+                }
+            });
+            drawingManager.setMap(map);
+
+            // Evento cuando se termina de dibujar algo
+            google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
+                let newShape = event.overlay;
+                newShape.type = event.type;
+                newShape.id = Date.now();
+                newShape.asignado = "SIN ASIGNAR";
+                
+                allShapes.push(newShape);
+                actualizarListaZonas();
+
+                google.maps.event.addListener(newShape, 'click', function() {
+                    setSelection(newShape);
+                });
+            });
+        }
+
+        function setSelection(shape) {
+            selectedShape = shape;
+            // Resaltar visualmente
+            allShapes.forEach(s => s.setOptions({ strokeWeight: 2 }));
+            shape.setOptions({ strokeWeight: 5 });
+        }
+
+        function cargarEquipos() {
+            db.ref('equipos').on('value', snap => {
+                const select = document.getElementById('select-equipo');
+                select.innerHTML = '<option value="SIN ASIGNAR">-- Seleccionar Equipo --</option>';
+                equiposDisponibles = [];
+                snap.forEach(child => {
+                    const eq = child.val().nombre;
+                    equiposDisponibles.push(eq);
+                    select.innerHTML += `<option value="${eq}">${eq}</option>`;
+                });
+            });
+        }
+
+        function asignarEquipoAZona() {
+            if(!selectedShape) return alert("Primero toca una zona en el mapa");
+            const equipo = document.getElementById('select-equipo').value;
+            selectedShape.asignado = equipo;
+            actualizarListaZonas();
+            alert(`Zona vinculada a: ${equipo}`);
+        }
+
+        function autoAsignar() {
+            if(allShapes.length === 0 || equiposDisponibles.length === 0) return alert("No hay zonas o equipos suficientes");
+            
+            allShapes.forEach((shape, index) => {
+                // Reparto circular de equipos en las zonas
+                const eqIndex = index % equiposDisponibles.length;
+                shape.asignado = equiposDisponibles[eqIndex];
+            });
+            actualizarListaZonas();
+            alert("Autoasignación completada en base a zonas dibujadas");
+        }
+
+        function actualizarListaZonas() {
+            const lista = document.getElementById('lista-zonas');
+            lista.innerHTML = "";
+            allShapes.forEach((s, i) => {
+                lista.innerHTML += `
+                    <div class="zone-item">
+                        <span>ZONA ${i+1}: <b>${s.asignado}</b></span>
+                        <button class="btn-delete" onclick="borrarZona(${s.id})">X</button>
+                    </div>
+                `;
+            });
+        }
+
+        function borrarZona(id) {
+            const index = allShapes.findIndex(s => s.id === id);
+            if(index > -1) {
+                allShapes[index].setMap(null);
+                allShapes.splice(index, 1);
+                actualizarListaZonas();
+            }
+        }
+
+        function guardarMisionCompleta() {
+            const nombreMision = document.getElementById('op-name').value;
+            if(!nombreMision) return alert("Nombre de misión obligatorio");
+
+            const datosZonas = allShapes.map(s => {
+                if(s.type === 'polygon') {
+                    const coords = s.getPath().getArray().map(p => ({ lat: p.lat(), lng: p.lng() }));
+                    return { type: 'polygon', path: coords, asignado: s.asignado };
+                } else if(s.type === 'marker') {
+                    return { type: 'marker', lat: s.getPosition().lat(), lng: s.getPosition().lng(), asignado: s.asignado };
+                }
+            });
+
+            db.ref('operaciones').push({
+                nombre: nombreMision,
+                zonas: datosZonas,
+                fecha: new Date().toISOString()
+            }).then(() => {
+                alert("Misión publicada exitosamente en el Sistema A.T.O.M.");
+                window.location.reload();
+            });
+        }
     </script>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key=TU_API_KEY&libraries=drawing&callback=initMap" async defer></script>
 </body>
 </html>
