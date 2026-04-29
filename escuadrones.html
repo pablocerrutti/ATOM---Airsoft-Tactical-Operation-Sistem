@@ -8,37 +8,33 @@
         :root { --p: #00ff00; --f: #050505; }
         body { background: var(--f); color: var(--p); font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
         .form-box { border: 2px solid var(--p); padding: 25px; width: 90%; max-width: 400px; background: rgba(0,20,0,0.2); }
-        input[type="text"] { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; }
-        .file-input { margin: 15px 0; font-size: 0.8rem; }
-        label { display: block; margin-bottom: 5px; color: #888; font-size: 0.7rem; text-transform: uppercase; }
-        button { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
-        #status { font-size: 0.7rem; margin-top: 10px; text-align: center; color: yellow; }
+        input[type="text"], input[type="url"] { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; outline: none; }
+        label { display: block; margin-top: 10px; color: #888; font-size: 0.7rem; text-transform: uppercase; }
+        button { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 20px; }
+        .hint { font-size: 0.65rem; color: #555; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <div class="form-box">
         <h2 style="text-align: center; margin-top: 0; letter-spacing: 2px;">ALTA DE ESCUADRÓN</h2>
         
+        <label>Identificación de la Unidad</label>
         <input type="text" id="nombreEquipo" placeholder="NOMBRE DEL EQUIPO">
         
-        <div class="file-input">
-            <label>Escudo del Equipo (Logo):</label>
-            <input type="file" id="escudoFile" accept="image/*">
-        </div>
+        <label>Link del Escudo (URL Pública)</label>
+        <div class="hint">Ej: https://web.com/mi-logo.jpg</div>
+        <input type="url" id="escudoLink" placeholder="PEGAR LINK DEL ESCUDO AQUÍ">
 
-        <div class="file-input">
-            <label>Foto del Escuadrón (Unidad):</label>
-            <input type="file" id="fotoFile" accept="image/*">
-        </div>
+        <label>Link Foto de Unidad (URL Pública)</label>
+        <div class="hint">Imagen del equipo en el campo</div>
+        <input type="url" id="fotoLink" placeholder="PEGAR LINK DE LA FOTO AQUÍ">
 
-        <div id="status"></div>
-        <button id="btnReg" onclick="registrarCompleto()">Dar de Alta Escuadrón</button>
+        <button id="btnReg" onclick="registrarEquipo()">Dar de Alta Escuadrón</button>
         <button onclick="window.location.href='index.html'" style="background: transparent; color: #555; border: 1px solid #333; margin-top: 15px;">Volver</button>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-storage-compat.js"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
@@ -51,57 +47,32 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const storage = firebase.storage();
 
-        async function registrarCompleto() {
+        function registrarEquipo() {
             const nombre = document.getElementById('nombreEquipo').value.trim().toUpperCase();
-            const escudoImg = document.getElementById('escudoFile').files[0];
-            const fotoImg = document.getElementById('fotoFile').files[0];
-            const status = document.getElementById('status');
+            const escudo = document.getElementById('escudoLink').value.trim();
+            const foto = document.getElementById('fotoLink').value.trim();
 
-            if(!nombre || !escudoImg || !fotoImg) {
-                return alert("ERROR: NOMBRE, ESCUDO Y FOTO SON OBLIGATORIOS");
+            if(!nombre || !escudo || !foto) {
+                return alert("ERROR: TODOS LOS CAMPOS Y LINKS SON OBLIGATORIOS");
             }
 
-            status.innerText = "VERIFICANDO NOMBRE...";
-
-            // 1. Validar nombre duplicado
-            const snap = await db.ref('equipos').orderByChild('nombre').equalTo(nombre).once('value');
-            if(snap.exists()) {
-                status.innerText = "";
-                return alert("Escuadron Existente");
-            }
-
-            try {
-                status.innerText = "SUBIENDO ARCHIVOS TÁCTICOS...";
-                document.getElementById('btnReg').disabled = true;
-
-                // 2. Subir Escudo
-                const escudoRef = storage.ref(`escudos/${nombre}_logo`);
-                await escudoRef.put(escudoImg);
-                const escudoUrl = await escudoRef.getDownloadURL();
-
-                // 3. Subir Foto
-                const fotoRef = storage.ref(`fotos/${nombre}_unidad`);
-                await fotoRef.put(fotoImg);
-                const fotoUrl = await fotoRef.getDownloadURL();
-
-                // 4. Guardar en Database
-                await db.ref('equipos').push({
-                    nombre: nombre,
-                    escudo: escudoUrl,
-                    foto: fotoUrl,
-                    fecha: new Date().toLocaleDateString()
-                });
-
-                alert("Registro Exitoso. Bienvenido al sistema A.T.O.M.");
-                window.location.href = 'escuadrones_operativos.html';
-
-            } catch (error) {
-                console.error(error);
-                alert("ERROR EN LA CARGA");
-                document.getElementById('btnReg').disabled = false;
-            }
+            // Validar si el escuadrón ya existe
+            db.ref('equipos').orderByChild('nombre').equalTo(nombre).once('value', snap => {
+                if(snap.exists()) {
+                    alert("Escuadron Existente");
+                } else {
+                    db.ref('equipos').push({
+                        nombre: nombre,
+                        escudo: escudo, // Guardamos directamente el link
+                        foto: foto,     // Guardamos directamente el link
+                        fecha: new Date().toLocaleDateString()
+                    }).then(() => {
+                        alert("Registro Exitoso. Bienvenido al sistema A.T.O.M.");
+                        window.location.href = 'escuadrones_operativos.html';
+                    });
+                }
+            });
         }
     </script>
 </body>
