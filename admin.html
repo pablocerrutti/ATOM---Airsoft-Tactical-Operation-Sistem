@@ -22,16 +22,25 @@
         .btn-delete { width: auto; padding: 2px 5px; background: #f00; color: #fff; border: none; font-size: 9px; cursor: pointer; }
 
         #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        
+        /* Estilo para el botón secundario de volver */
+        .btn-outline { background: transparent; color: #666; border: 1px solid #333; margin-top: 5px; font-size: 0.7rem; }
+        .btn-outline:hover { color: var(--p); border-color: var(--p); }
     </style>
 </head>
 <body>
 
     <div id="lock-screen">
-        <div style="border: 2px solid var(--p); padding: 40px; text-align: center;">
-            <h1 style="letter-spacing: 5px;">SISTEMA A.T.O.M.</h1>
-            <p>CENTRO DE MANDO ADMINISTRATIVO</p>
-            <input type="password" id="master-key" placeholder="INGRESE MASTER KEY">
+        <div style="border: 2px solid var(--p); padding: 40px; text-align: center; background: #000;">
+            <h1 style="letter-spacing: 5px; margin-bottom: 5px;">SISTEMA A.T.O.M.</h1>
+            <p style="margin-bottom: 20px; color: #666;">CENTRO DE MANDO ADMINISTRATIVO</p>
+            
+            <input type="password" id="master-key" placeholder="INGRESE MASTER KEY" autofocus>
             <button onclick="checkAuth()">AUTORIZAR</button>
+            
+            <button class="btn-outline" onclick="window.location.href='index.html'">VOLVER AL INICIO</button>
+            
+            <p id="intentos-msg" style="font-size: 10px; margin-top: 15px; color: #444;"></p>
         </div>
     </div>
 
@@ -78,33 +87,48 @@
         let map, drawingManager, selectedShape;
         let allShapes = [];
         let equiposDisponibles = [];
+        
+        // --- LÓGICA DE SEGURIDAD ---
+        let intentosFallidos = 0;
 
         function checkAuth() {
-            const pass = document.getElementById('master-key').value;
-            // Clave que definiste previamente
+            const passField = document.getElementById('master-key');
+            const pass = passField.value;
+            const msgArea = document.getElementById('intentos-msg');
+
             if(pass === "Ik3rc3rru771") {
                 document.getElementById('lock-screen').style.display = 'none';
                 if (typeof google !== 'undefined' && google.maps) {
                     initMap();
                     cargarEquipos();
-                } else {
-                    alert("Error crítico: Google Maps no cargó. Revisa tu consola (F12).");
                 }
             } else {
-                alert("ACCESO DENEGADO");
+                intentosFallidos++;
+                passField.value = ""; // Limpiar campo
+                
+                if(intentosFallidos >= 3) {
+                    alert("DEMASIADOS INTENTOS FALLIDOS. RE-DIRECCIONANDO...");
+                    window.location.href = 'index.html';
+                } else {
+                    alert("ACCESO DENEGADO. INTENTO " + intentosFallidos + " DE 3.");
+                    msgArea.innerText = "INTENTOS RESTANTES: " + (3 - intentosFallidos);
+                }
             }
         }
+        // Permite presionar Enter para ingresar
+        document.getElementById('master-key').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') checkAuth();
+        });
 
+        // --- LÓGICA DEL MAPA ---
         function initMap() {
             const mapDiv = document.getElementById("map");
-            
             map = new google.maps.Map(mapDiv, {
                 center: { lat: -34.095, lng: -56.214 }, 
                 zoom: 15,
                 mapTypeId: 'satellite'
             });
 
-            // Se accede a la librería de dibujo mediante google.maps.drawing
             drawingManager = new google.maps.drawing.DrawingManager({
                 drawingMode: google.maps.drawing.OverlayType.POLYGON,
                 drawingControl: true,
