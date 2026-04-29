@@ -3,161 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.O.M - Comando Central</title>
+    <title> Sistema A.T.O.M. - Uruguay </title>
     <style>
-        /* COLORES UNIFICADOS A.T.O.M. */
-        :root { 
-            --p: #00ff00; /* Verde Neón */
-            --f: #050505; /* Fondo Principal */
-            --a: #3399ff; /* Azul Equipo */
-            --r: #ff3333; /* Rojo Equipo */
-        }
-
-        body { 
-            margin: 0; 
-            font-family: monospace; 
-            background: var(--f); 
-            color: var(--p); 
-            height: 100vh; 
-            overflow: hidden; 
-            display: flex; 
-            flex-direction: column; 
-        }
-        
-        /* PANTALLA DE BLOQUEO */
-        #lock-screen { 
-            position: fixed; 
-            top: 0; left: 0; width: 100%; height: 100%; 
-            background: var(--f); 
-            z-index: 9999; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-        }
-        .login-box { 
-            border: 2px solid var(--p); 
-            padding: 30px; 
-            text-align: center; 
-            background: rgba(0, 20, 0, 0.8); 
-            border-radius: 0; /* Estilo terminal: sin redondeo */
-        }
-        input { 
-            background: #000; 
-            border: 1px solid var(--p); 
-            color: var(--p); 
-            padding: 12px; 
-            margin: 10px 0; 
-            width: 200px; 
-            text-align: center; 
-            font-size: 16px; 
-            outline: none;
-        }
-        
-        /* CONTENIDO PRINCIPAL */
-        #admin-content { display: none; flex-direction: column; flex-grow: 1; height: 100vh; }
-        #google-map { flex-grow: 1; border-bottom: 2px solid var(--p); }
-        
-        /* PANEL DE CONTROL */
-        .panel { background: #000; padding: 10px; max-height: 45vh; overflow-y: auto; border-top: 1px solid #1a1a1a; }
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        
-        button { 
-            background: transparent; 
-            border: 1px solid var(--p); 
-            color: var(--p); 
-            padding: 10px; 
-            cursor: pointer; 
-            font-size: 11px; 
-            font-weight: bold; 
-            text-transform: uppercase; 
-            transition: 0.2s;
-        }
-
-        /* EFECTO DE INVERSIÓN (HOVER/ACTIVE) */
-        button:hover, button:active, button.active { 
-            background: var(--p); 
-            color: #000; 
-            box-shadow: 0 0 10px var(--p);
-        }
-        
-        .btn-special { 
-            background: rgba(170, 85, 0, 0.2); 
-            color: #ffaa00; 
-            border-color: #ffaa00; 
-        }
-        .btn-special:hover { background: #ffaa00; color: #000; }
-
-        .player-row { 
-            display: flex; 
-            justify-content: space-between; 
-            padding: 10px; 
-            border-bottom: 1px solid #1a1a1a; 
-            align-items: center; 
-            font-size: 12px;
-        }
-
-        h2, h4 { letter-spacing: 2px; margin-top: 0; }
-        a { transition: 0.2s; }
-        a:hover { color: var(--p) !important; }
+        :root { --p: #00ff00; --f: #0a0a0a; }
+        body { margin: 0; font-family: monospace; background: var(--f); color: var(--p); height: 100vh; display: flex; flex-direction: column; }
+        #lock-screen { position: fixed; width: 100%; height: 100%; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        .box { border: 2px solid var(--p); padding: 30px; text-align: center; }
+        input { background: #000; border: 1px solid var(--p); color: var(--p); padding: 10px; width: 100%; margin: 10px 0; box-sizing: border-box; }
+        button { background: var(--p); color: #000; padding: 10px; width: 100%; border: none; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
-
     <div id="lock-screen">
-        <div class="login-box">
+        <div class="box">
             <h2>COMANDO CENTRAL</h2>
-            <input type="password" id="admin-pass" placeholder="PASSWORD">
-            <button onclick="checkPass()" style="width:100%; margin-top: 10px;">ACCEDER</button>
-            <br><br>
-            <a href="index.html" style="color: #666; text-decoration: none; font-size: 10px;">← CANCELAR Y VOLVER</a>
+            <input type="password" id="admin-pass" placeholder="MASTER KEY">
+            <button onclick="checkAdmin()">ACCEDER</button>
+            <a href="index.html" style="color:#444; display:block; margin-top:15px; text-decoration:none; font-size:10px;">← CANCELAR</a>
         </div>
     </div>
 
-    <div id="admin-content">
-        <div id="google-map"></div>
-        <div class="panel">
-            <div class="controls">
-                <button id="btn-polygon" onclick="setMode('polygon')">LÍMITES</button>
-                <button id="btn-safezone" onclick="setMode('safezone')" style="border-color:#fff; color:#fff;">SAFE ZONE</button>
-                <button id="btn-resA" onclick="setMode('resA')" style="border-color:var(--a); color:var(--a);">RESPAWN A</button>
-                <button id="btn-resR" onclick="setMode('resR')" style="border-color:var(--r); color:var(--r);">RESPAWN R</button>
-                <button id="btn-obj" onclick="setMode('obj')">OBJETIVO</button>
-                <button onclick="undoLast()">↩️ DESHACER</button>
-                
-                <button class="btn-special" onclick="autoBalance()" style="grid-column: span 2;">⚖️ AUTO-ASIGNAR EQUIPOS</button>
-                <button onclick="saveOp()" style="grid-column: span 2; border-color: #00ff00; background: rgba(0, 255, 0, 0.1);">🚀 LANZAR OPERACIÓN</button>
-                
-                <button onclick="window.location.href='index.html'" style="grid-column: span 2; border-color: var(--r); color: var(--r);">SALIR AL INICIO</button>
-            </div>
-            <div id="player-list"></div>
+    <div id="admin-content" style="display:none; padding: 20px;">
+        <h1>PANEL DE CONTROL GOOGLE MAPS</h1>
         </div>
-    </div>
-
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
 
     <script>
-        // ... (Tu lógica de Firebase y Google Maps se mantiene intacta)
-        const firebaseConfig = { /* TU CONFIG */ };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const PASS_MAESTRA = "1234";
-
-        function checkPass() {
-            if(document.getElementById('admin-pass').value === PASS_MAESTRA) unlock();
-            else alert("ACCESO DENEGADO");
+        function checkAdmin() {
+            const p = document.getElementById('admin-pass').value;
+            if(p === "Ik3rc3rru771") { // Cambia esto por tu clave maestra
+                alert("Bienvenido nuevamente Administrador");
+                document.getElementById('lock-screen').style.display = 'none';
+                document.getElementById('admin-content').style.display = 'block';
+                // Aquí podrías disparar la función initMap()
+            } else {
+                alert("CLAVE MAESTRA INCORRECTA");
+            }
         }
-
-        function unlock() {
-            document.getElementById('lock-screen').style.display = 'none';
-            document.getElementById('admin-content').style.display = 'flex';
-            // Aseguramos que el mapa se redimensione al mostrar el contenedor
-            if (map) google.maps.event.trigger(map, "resize");
-        }
-
-        // --- El resto de tu script de mapas sigue aquí ---
     </script>
 </body>
 </html>
