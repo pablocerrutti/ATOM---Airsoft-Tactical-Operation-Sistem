@@ -6,131 +6,26 @@
     <title> Sistema A.T.O.M. - Uruguay </title>
     <style>
         :root { --p: #00ff00; --f: #050505; }
-        
-        body { 
-            background: var(--f); 
-            color: var(--p); 
-            font-family: monospace; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            min-height: 100vh; 
-            overflow-x: hidden;
-        }
-
-        /* ANIMACIÓN DE TÍTULO (GLITCH) */
+        body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; }
         .glitch-wrapper { text-align: center; margin-bottom: 30px; }
-        .main-title { 
-            font-size: 2.5rem; 
-            font-weight: bold; 
-            animation: glitch 500ms infinite; 
-            text-shadow: 2px 0 0 rgba(255,0,0,0.5), -2px 0 0 rgba(0,0,255,0.5);
-            letter-spacing: 3px;
-        }
-        .sub-title { 
-            font-size: 0.9rem; 
-            opacity: 0.8; 
-            border-right: 2px solid var(--p); 
-            white-space: nowrap; 
-            overflow: hidden; 
-            animation: typing 2s steps(40, end), blink .75s step-end infinite;
-            margin: 10px auto;
-            width: fit-content;
-        }
-        .credits { font-size: 0.6rem; opacity: 0.6; margin-top: 5px; }
-
-        /* CONTENEDOR DE MÓDULOS CON INVERSIÓN */
-        .grid-container { 
-            display: grid; 
-            grid-template-columns: 1fr; 
-            gap: 15px; 
-            width: 90%; 
-            max-width: 380px; 
-            padding-bottom: 50px; 
-        }
-        
-        .module-card { 
-            border: 2px solid var(--p); 
-            background: transparent; 
-            padding: 20px; 
-            text-align: center; 
-            cursor: pointer; 
-            transition: all 0.2s ease-in-out; 
-            text-decoration: none;
-            color: var(--p);
-            display: block;
-            text-transform: uppercase;
-        }
-        
-        /* EFECTO DE INVERSIÓN ORIGINAL */
-        .module-card:hover, .module-card:active { 
-            background: var(--p); 
-            color: var(--f); 
-            box-shadow: 0 0 20px var(--p);
-            font-weight: bold;
-        }
-
-        .module-card h3 { margin: 0 0 5px 0; font-size: 1.1rem; }
-        .module-card p { margin: 0; font-size: 0.7rem; opacity: 0.8; }
-
-        /* ANIMACIONES CSS */
-        @keyframes glitch {
-            0% { transform: translate(0); }
-            20% { transform: translate(-3px, 2px); }
-            40% { transform: translate(-3px, -2px); }
-            60% { transform: translate(3px, 2px); }
-            80% { transform: translate(3px, -2px); }
-            100% { transform: translate(0); }
-        }
-        @keyframes typing { from { width: 0 } to { width: 100% } }
-        @keyframes blink { from, to { border-color: transparent } 50% { border-color: var(--p); } }
-
-        /* EFECTO SCANLINE */
-        body::before { 
-            content: " "; 
-            display: block; 
-            position: absolute; 
-            top: 0; left: 0; bottom: 0; right: 0; 
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)); 
-            z-index: -1; 
-            background-size: 100% 2px, 3px 100%; 
-            pointer-events: none; 
-        }
+        .main-title { font-size: 2.2rem; font-weight: bold; animation: glitch 500ms infinite; letter-spacing: 3px; }
+        .grid-container { display: grid; grid-template-columns: 1fr; gap: 15px; width: 90%; max-width: 380px; }
+        .module-card { border: 2px solid var(--p); background: transparent; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; text-decoration: none; color: var(--p); display: block; text-transform: uppercase; }
+        .module-card:hover { background: var(--p); color: var(--f); box-shadow: 0 0 20px var(--p); font-weight: bold; }
+        @keyframes glitch { 0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 100% { transform: translate(0); } }
+        body::before { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%); z-index: -1; background-size: 100% 2px; pointer-events: none; }
     </style>
 </head>
 <body>
-
     <div class="glitch-wrapper">
         <div class="main-title">SISTEMA A.T.O.M.</div>
-        <div class="sub-title">Airsoft Tactics Operation Maps</div>
-        <div class="credits">Creado por Pablo Cerrutti - Florida - Uruguay</div>
+        <p style="font-size: 0.8rem; opacity: 0.7;">TACTICAL INTERFACE URUGUAY</p>
     </div>
-
     <div class="grid-container">
-        
-        <a href="registro_usuario.html" class="module-card">
-            <h3>ALTA DE USUARIO</h3>
-            <p>ENROLAMIENTO Y HOJA DE SERVICIO</p>
-        </a>
-
-        <a href="escuadrones.html" class="module-card">
-            <h3>ALTA DE EQUIPO</h3>
-            <p>REGISTRO DE UNIDADES Y EMBLEMAS</p>
-        </a>
-
-        <a href="operaciones.html" class="module-card" style="border-width: 4px;">
-            <h3>MISIONES OPERATIVAS</h3>
-            <p>ACCESO TÁCTICO Y DESPLIEGUE</p>
-        </a>
-
-        <a href="admin.html" class="module-card" style="border-color: #444; opacity: 0.6; margin-top: 20px;">
-            <h3>COMANDO CENTRAL</h3>
-            <p>SOLO PERSONAL AUTORIZADO</p>
-        </a>
-
+        <a href="registro_usuario.html" class="module-card">Alta de Usuario</a>
+        <a href="escuadrones.html" class="module-card">Alta de Equipo</a>
+        <a href="operaciones.html" class="module-card" style="border-width: 4px;">Misiones Operativas</a>
+        <a href="admin.html" class="module-card" style="border-color: #444; opacity: 0.7;">Comando Central</a>
     </div>
-
 </body>
 </html>
