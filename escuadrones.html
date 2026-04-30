@@ -2,77 +2,210 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Sistema A.T.O.M. - Uruguay </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title> A.T.O.M. - Alta de Escuadrón </title>
     <style>
-        :root { --p: #00ff00; --f: #050505; }
-        body { background: var(--f); color: var(--p); font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
-        .form-box { border: 2px solid var(--p); padding: 25px; width: 90%; max-width: 400px; background: rgba(0,20,0,0.2); }
-        input[type="text"], input[type="url"] { background: #000; border: 1px solid var(--p); color: var(--p); padding: 12px; margin: 10px 0; width: 100%; box-sizing: border-box; outline: none; }
-        label { display: block; margin-top: 10px; color: #888; font-size: 0.7rem; text-transform: uppercase; }
-        button { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 20px; }
-        .hint { font-size: 0.65rem; color: #555; margin-bottom: 5px; }
+        :root { 
+            --p: #00ff00; 
+            --f: #050505; 
+            --glass: rgba(0, 30, 0, 0.5);
+        }
+
+        body { 
+            background: var(--f); 
+            color: var(--p); 
+            font-family: 'Courier New', monospace; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .form-box { 
+            border: 2px solid var(--p); 
+            padding: 25px; 
+            width: 100%;
+            max-width: 450px; 
+            background: var(--glass); 
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0,255,0,0.1);
+            box-sizing: border-box;
+        }
+
+        h2 { 
+            text-align: center; 
+            margin-top: 0; 
+            letter-spacing: 3px; 
+            font-size: 1.3rem;
+            text-shadow: 0 0 8px var(--p);
+        }
+
+        label { 
+            display: block; 
+            margin-top: 15px; 
+            color: #aaa; 
+            font-size: 0.7rem; 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+        }
+
+        input { 
+            background: rgba(0,0,0,0.8); 
+            border: 1px solid var(--p); 
+            color: var(--p); 
+            padding: 14px; 
+            margin: 8px 0; 
+            width: 100%; 
+            box-sizing: border-box; 
+            outline: none; 
+            font-size: 16px; /* Vital para evitar zoom en móviles */
+            font-family: monospace;
+        }
+
+        .hint { 
+            font-size: 0.6rem; 
+            color: #555; 
+            margin-top: -5px; 
+            margin-bottom: 5px; 
+        }
+
+        button { 
+            background: var(--p); 
+            color: #000; 
+            border: none; 
+            padding: 16px; 
+            width: 100%; 
+            font-weight: bold; 
+            cursor: pointer; 
+            text-transform: uppercase; 
+            margin-top: 20px; 
+            transition: 0.3s;
+        }
+
+        button:hover { 
+            background: #fff; 
+            box-shadow: 0 0 15px var(--p);
+        }
+
+        button:disabled { 
+            background: #004400; 
+            color: #444; 
+        }
+
+        #status-msg { 
+            text-align: center; 
+            font-size: 10px; 
+            margin-top: 15px; 
+            height: 15px; 
+            color: gold; 
+        }
+
+        @media (max-width: 480px) {
+            .form-box { padding: 20px; }
+            h2 { font-size: 1.1rem; }
+        }
     </style>
 </head>
 <body>
+
     <div class="form-box">
-        <h2 style="text-align: center; margin-top: 0; letter-spacing: 2px;">ALTA DE ESCUADRÓN</h2>
+        <h2>ALTA DE ESCUADRÓN</h2>
         
         <label>Identificación de la Unidad</label>
-        <input type="text" id="nombreEquipo" placeholder="NOMBRE DEL EQUIPO">
+        <input type="text" id="nombreEquipo" placeholder="NOMBRE DEL EQUIPO" autocomplete="off">
         
-        <label>Link del Escudo (URL Pública)</label>
-        <div class="hint">Ej: https://web.com/mi-logo.jpg</div>
-        <input type="url" id="escudoLink" placeholder="PEGAR LINK DEL ESCUDO AQUÍ">
+        <label>Link del Escudo</label>
+        <div class="hint">URL pública de la imagen (PNG/JPG)</div>
+        <input type="url" id="escudoLink" placeholder="https://...">
 
-        <label>Link Foto de Unidad (URL Pública)</label>
-        <div class="hint">Imagen del equipo en el campo</div>
-        <input type="url" id="fotoLink" placeholder="PEGAR LINK DE LA FOTO AQUÍ">
+        <label>Foto de Unidad</label>
+        <div class="hint">Imagen del equipo operativa</div>
+        <input type="url" id="fotoLink" placeholder="https://...">
 
-        <button id="btnReg" onclick="registrarEquipo()">Dar de Alta Escuadrón</button>
-        <button onclick="window.location.href='index.html'" style="background: transparent; color: #555; border: 1px solid #333; margin-top: 15px;">Volver</button>
+        <button id="btnReg" onclick="registrarEquipo()">DAR DE ALTA EN HQ</button>
+        <button onclick="window.location.href='index.html'" style="background: transparent; color: #666; border: 1px solid #333; font-size: 10px; margin-top: 15px; padding: 10px;">VOLVER</button>
+
+        <div id="status-msg"></div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
     <script>
+        // Configuración de Firebase (Tu proyecto ATOM)
         const firebaseConfig = {
             apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
             authDomain: "atom--airsoft.firebaseapp.com",
             databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-            projectId: "atom--airsoft",
-            storageBucket: "atom--airsoft.firebasestorage.app",
-            messagingSenderId: "310010107781",
-            appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
+            projectId: "atom--airsoft"
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        function registrarEquipo() {
+        // Tu Script URL de Google Sheets
+        const scriptURL = "https://script.google.com/macros/s/AKfycbxMl0gTLiakSD4Za7Kefpktq5H6OQliXqnEWSoDGg9E_93zJniqXk2isxm_AexY1MfF/exec";
+
+        async function registrarEquipo() {
             const nombre = document.getElementById('nombreEquipo').value.trim().toUpperCase();
             const escudo = document.getElementById('escudoLink').value.trim();
             const foto = document.getElementById('fotoLink').value.trim();
+            const btn = document.getElementById('btnReg');
+            const status = document.getElementById('status-msg');
 
             if(!nombre || !escudo || !foto) {
-                return alert("ERROR: TODOS LOS CAMPOS Y LINKS SON OBLIGATORIOS");
+                alert("SISTEMA: Todos los campos son obligatorios.");
+                return;
             }
 
-            // Validar si el escuadrón ya existe
-            db.ref('equipos').orderByChild('nombre').equalTo(nombre).once('value', snap => {
+            btn.disabled = true;
+            status.innerText = "SINCRONIZANDO CON HQ Y PLANILLA...";
+
+            try {
+                // 1. VERIFICAR Y GUARDAR EN FIREBASE
+                const snap = await db.ref('equipos').orderByChild('nombre').equalTo(nombre).once('value');
+                
                 if(snap.exists()) {
-                    alert("Escuadron Existente");
-                } else {
-                    db.ref('equipos').push({
-                        nombre: nombre,
-                        escudo: escudo, // Guardamos directamente el link
-                        foto: foto,     // Guardamos directamente el link
-                        fecha: new Date().toLocaleDateString()
-                    }).then(() => {
-                        alert("Registro Exitoso. Bienvenido al sistema A.T.O.M.");
-                        window.location.href = 'escuadrones_operativos.html';
-                    });
+                    alert("DENIEGO: El nombre del escuadrón ya está registrado.");
+                    resetUI(btn, status);
+                    return;
                 }
-            });
+
+                // 2. ENVIAR A GOOGLE SHEETS (Pestaña escuadrones)
+                // Enviamos action=addSquad para que el script sepa a qué pestaña ir
+                const qs = `?nombre=${encodeURIComponent(nombre)}&escudo=${encodeURIComponent(escudo)}&foto=${encodeURIComponent(foto)}&action=addSquad`;
+                
+                const sheetRes = await fetch(scriptURL + qs, { method: 'GET', mode: 'cors' });
+                const resJson = await sheetRes.json();
+
+                if(resJson.status === "success") {
+                    // 3. SI SHEETS OK, GUARDAR EN FIREBASE PARA LA WEB
+                    await db.ref('equipos').push({
+                        nombre: nombre,
+                        escudo: escudo,
+                        foto: foto,
+                        fecha: new Date().toLocaleDateString()
+                    });
+
+                    alert("ALTA EXITOSA.\nEscuadrón sincronizado en Base de Datos.");
+                    window.location.href = 'escuadrones_operativos.html';
+                } else {
+                    throw new Error("Error en Planilla Central");
+                }
+
+            } catch (e) {
+                console.error(e);
+                alert("ERROR DE SINCRONIZACIÓN. Verifique conexión.");
+                resetUI(btn, status);
+            }
+        }
+
+        function resetUI(btn, status) {
+            btn.disabled = false;
+            status.innerText = "";
         }
     </script>
 </body>
