@@ -74,17 +74,24 @@
         #chat-messages { height: 120px; overflow-y: auto; font-size: 11px; margin-bottom: 10px; border-bottom: 1px solid #222; }
         #chat-input { width: 100%; background: #000; border: 1px solid var(--p); color: var(--p); padding: 10px; box-sizing: border-box; font-family: monospace; }
 
-        #setup-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        #setup-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .setup-content { border: 2px solid var(--p); padding: 25px; background: #050505; width: 100%; max-width: 400px; box-sizing: border-box; }
         input, select { width: 100%; background: #000; border: 1px solid var(--p); color: var(--p); padding: 14px; margin-bottom: 12px; box-sizing: border-box; font-size: 16px; }
         .btn-main { background: var(--p); color: #000; font-weight: bold; border: none; padding: 15px; width: 100%; cursor: pointer; text-transform: uppercase; }
+        
+        /* BOTÓN VOLVER */
+        .btn-back { 
+            background: transparent; border: 1px solid #444; color: #666; 
+            padding: 10px 20px; margin-top: 20px; cursor: pointer; 
+            font-family: monospace; font-size: 12px; text-transform: uppercase;
+        }
+        .btn-back:hover { border-color: var(--p); color: var(--p); }
 
         @media (min-width: 768px) { #chat-container { left: auto; width: 300px; } }
     </style>
 </head>
 <body>
 
-    <!-- AVISO DE INICIO -->
     <div id="mission-alert">
         <div id="alert-text">MISION INICIADA<br>COMENZAR DESPLIEGUE</div>
     </div>
@@ -98,6 +105,7 @@
             <button class="btn-main" onclick="validarYEntrar()">AUTORIZAR DESPLIEGUE</button>
             <div id="status-log" style="font-size: 10px; text-align: center; margin-top: 10px;"></div>
         </div>
+        <button class="btn-back" onclick="window.location.href='index.html'">« Volver a Inicio</button>
     </div>
 
     <button class="menu-toggle" onclick="toggleMenu()">☰</button>
@@ -177,7 +185,6 @@
                     myCallsign = call;
                     myMisionId = misId;
                     
-                    // Inscripción en la misión para que el admin nos vea
                     await fetch(`${scriptURL}?action=joinMission&callsign=${call}&misionId=${misId}`);
 
                     document.getElementById('op-label').innerText = myCallsign;
@@ -185,25 +192,20 @@
                     
                     initMap();
                     escucharChat();
-                    escucharEstadoMision(); // LISTENER DE LANZAMIENTO
+                    escucharEstadoMision();
                 } else { alert("CREDENCIALES INVÁLIDAS"); }
             } catch (e) { alert("ERROR DE CONEXIÓN"); }
         }
 
-        // --- FUNCIONALIDAD DE LANZAMIENTO Y CRONÓMETRO ---
         function escucharEstadoMision() {
             db.ref(`operaciones/${myMisionId}/estado`).on('value', snap => {
                 const estado = snap.val();
                 if (estado && estado.activo) {
-                    // 1. Mostrar aviso rojo pulsante por 10 seg
                     const aviso = document.getElementById('mission-alert');
                     aviso.style.display = 'flex';
                     setTimeout(() => { aviso.style.display = 'none'; }, 10000);
-
-                    // 2. Iniciar cronómetro basado en el tiempo de inicio del admin
                     iniciarCronometroMision(estado.startTime);
                 } else {
-                    // Si el admin aborta o detiene
                     document.getElementById('mission-timer').style.display = 'none';
                     clearInterval(cronometroPartidaInterval);
                 }
@@ -213,16 +215,13 @@
         function iniciarCronometroMision(startTime) {
             const display = document.getElementById('mission-timer');
             display.style.display = 'block';
-            
             clearInterval(cronometroPartidaInterval);
             cronometroPartidaInterval = setInterval(() => {
                 const diff = Date.now() - startTime;
-                if(diff < 0) return; // Por si hay desajuste de reloj
-
+                if(diff < 0) return;
                 const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
                 const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
                 const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                
                 display.innerText = `OP. TIME: ${h}:${m}:${s}`;
             }, 1000);
         }
@@ -236,7 +235,6 @@
             }, 1000);
         }
 
-        // Lógica de chat y menús (Se mantienen)
         function toggleMenu() { document.getElementById('side-menu').classList.toggle('open'); }
         function toggleChat() {
             const chat = document.getElementById('chat-container');
