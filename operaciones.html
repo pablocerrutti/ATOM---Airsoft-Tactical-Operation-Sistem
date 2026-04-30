@@ -2,282 +2,195 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> A.T.O.M. - Despliegue Operativo </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A.T.O.M. - Misiones Operativas</title>
+    
+    <link rel="icon" type="image/png" href="favicon.png">
+
     <style>
         :root { 
             --p: #00ff00; 
             --f: #050505; 
-            --red: #ff3333; 
-            --blue: #33aaff; 
-            --glass: rgba(0, 20, 0, 0.95);
-        }
-        
-        body { margin: 0; font-family: 'Courier New', monospace; background: var(--f); color: var(--p); height: 100vh; overflow: hidden; }
-        
-        #map { position: absolute; inset: 0; z-index: 1; }
-
-        #header { 
-            position: absolute; top: 0; left: 0; right: 0; height: 60px; 
-            background: rgba(0,0,0,0.8); border-bottom: 1px solid var(--p); 
-            display: flex; align-items: center; padding: 0 15px; 
-            justify-content: space-between; z-index: 10; backdrop-filter: blur(5px);
+            --accent: #00ffff;
+            --error: #ff0000;
         }
 
-        /* AVISO DE MISIÓN INICIADA */
-        #mission-alert {
-            position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
-            z-index: 9999; background: rgba(0,0,0,0.6); pointer-events: none;
-        }
-        #alert-text {
-            color: var(--red); font-size: 2rem; font-weight: bold; text-align: center;
-            text-shadow: 0 0 20px var(--red); animation: blinker 0.8s linear infinite;
-        }
-
-        @keyframes blinker { 50% { opacity: 0; } }
-
-        /* CRONÓMETRO DE PARTIDA */
-        #mission-timer {
-            color: gold; font-size: 14px; font-weight: bold; 
-            display: none; border: 1px solid gold; padding: 2px 5px; margin-top: 2px;
+        body { 
+            background: var(--f); 
+            color: var(--p); 
+            font-family: 'Courier New', monospace; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        #side-menu {
-            position: fixed; top: 0; left: -280px; width: 280px; height: 100%;
-            background: var(--glass); border-right: 2px solid var(--p);
-            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000;
-            padding: 70px 20px 20px 20px; box-sizing: border-box;
-            display: flex; flex-direction: column; gap: 15px;
-        }
-        #side-menu.open { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.8); }
-
-        .menu-toggle {
-            position: fixed; top: 70px; left: 15px; width: 50px; height: 50px;
-            background: var(--f); border: 2px solid var(--p); color: var(--p);
-            border-radius: 5px; z-index: 1001; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; font-size: 24px;
+        /* Encabezado Táctico */
+        header {
+            width: 100%;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--p);
+            background: rgba(0, 255, 0, 0.05);
         }
 
-        .menu-btn {
-            background: rgba(0,255,0,0.1); border: 1px solid var(--p);
-            color: var(--p); padding: 15px; text-align: left;
-            text-transform: uppercase; font-weight: bold; cursor: pointer;
-            font-family: monospace; font-size: 13px;
+        .status-bar {
+            font-size: 0.7rem;
+            margin-top: 10px;
+            letter-spacing: 2px;
+            color: var(--accent);
         }
-        .btn-danger { border-color: var(--red); color: var(--red); }
 
-        #chat-container {
-            position: fixed; bottom: 20px; right: 15px; left: 15px;
-            max-width: 400px; background: var(--glass); border: 1px solid var(--p);
-            z-index: 1002; display: none; padding: 10px;
+        /* Contenedor de Misiones */
+        #operaciones-container {
+            display: none; /* Se activa tras validar conexión */
+            width: 90%;
+            max-width: 600px;
+            margin-top: 20px;
+            flex-direction: column;
+            gap: 20px;
         }
-        #chat-messages { height: 120px; overflow-y: auto; font-size: 11px; margin-bottom: 10px; border-bottom: 1px solid #222; }
-        #chat-input { width: 100%; background: #000; border: 1px solid var(--p); color: var(--p); padding: 10px; box-sizing: border-box; font-family: monospace; }
 
-        #setup-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .setup-content { border: 2px solid var(--p); padding: 25px; background: #050505; width: 100%; max-width: 400px; box-sizing: border-box; }
-        input, select { width: 100%; background: #000; border: 1px solid var(--p); color: var(--p); padding: 14px; margin-bottom: 12px; box-sizing: border-box; font-size: 16px; }
-        .btn-main { background: var(--p); color: #000; font-weight: bold; border: none; padding: 15px; width: 100%; cursor: pointer; text-transform: uppercase; }
-        
-        /* BOTÓN VOLVER */
-        .btn-back { 
-            background: transparent; border: 1px solid #444; color: #666; 
-            padding: 10px 20px; margin-top: 20px; cursor: pointer; 
-            font-family: monospace; font-size: 12px; text-transform: uppercase;
+        .mision-card {
+            border: 1px solid var(--p);
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            position: relative;
         }
-        .btn-back:hover { border-color: var(--p); color: var(--p); }
 
-        @media (min-width: 768px) { #chat-container { left: auto; width: 300px; } }
+        .mision-card::before {
+            content: "OBJETIVO ACTIVO";
+            position: absolute;
+            top: -10px;
+            left: 10px;
+            background: var(--f);
+            padding: 0 5px;
+            font-size: 0.6rem;
+            color: var(--p);
+        }
+
+        /* Pantalla de Carga/Error */
+        #loading-overlay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 60vh;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--p);
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .btn-retry {
+            margin-top: 20px;
+            padding: 10px 20px;
+            border: 1px solid var(--p);
+            background: transparent;
+            color: var(--p);
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .btn-back {
+            margin-top: 30px;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.8rem;
+        }
+
+        /* Efecto de monitor antiguo */
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 1px, transparent 1px, transparent 2px);
+            pointer-events: none;
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
 
-    <div id="mission-alert">
-        <div id="alert-text">MISION INICIADA<br>COMENZAR DESPLIEGUE</div>
+    <header>
+        <div style="font-weight: bold; font-size: 1.2rem;">SISTEMA A.T.O.M.</div>
+        <div id="status-display" class="status-bar">INICIALIZANDO ENLACE...</div>
+    </header>
+
+    <div id="loading-overlay">
+        <div id="loader" class="spinner"></div>
+        <div id="connection-msg">Buscando señal de Comando Central...</div>
+        <button id="retry-btn" class="btn-retry" style="display: none;" onclick="intentarConexion()">Reintentar Enlace</button>
+        <a href="index.html" class="btn-back">← Volver al Menú Principal</a>
     </div>
 
-    <div id="setup-screen">
-        <div class="setup-content">
-            <h2 style="text-align: center; letter-spacing: 3px;">A.T.O.M. LOGIN</h2>
-            <select id="select-mision"><option>CARGANDO MISIONES...</option></select>
-            <input type="text" id="user-callsign" placeholder="CALLSIGN" autocomplete="off">
-            <input type="password" id="user-pass" placeholder="PASSWORD">
-            <button class="btn-main" onclick="validarYEntrar()">AUTORIZAR DESPLIEGUE</button>
-            <div id="status-log" style="font-size: 10px; text-align: center; margin-top: 10px;"></div>
+    <main id="operaciones-container">
+        <div class="mision-card">
+            <h3>Operación: "Alpha Florida"</h3>
+            <p>Estado: En curso</p>
+            <p style="font-size: 0.8rem; opacity: 0.8;">Localización: Sector Norte - Zona de monte.</p>
         </div>
-        <button class="btn-back" onclick="window.location.href='index.html'">« Volver a Inicio</button>
-    </div>
 
-    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
-
-    <div id="side-menu">
-        <div style="font-size: 10px; border-bottom: 1px solid var(--p); padding-bottom: 10px; margin-bottom: 10px;">
-            OPERADOR: <span id="op-label">---</span><br>
-            BANDO: <span id="team-label">---</span>
+        <div class="mision-card" style="border-color: var(--accent);">
+            <h3 style="color: var(--accent);">Reconocimiento de Perímetro</h3>
+            <p>Objetivo: Identificar puntos de inserción de escuadrones enemigos.</p>
+            <p style="font-size: 0.8rem; opacity: 0.8;">Prioridad: Alta</p>
         </div>
-        <button class="menu-btn" onclick="notificarHQ('MEDIC')">🚑 SOLICITAR MÉDICO</button>
-        <button class="menu-btn btn-danger" onclick="notificarHQ('KIA')">💀 INFORMAR BAJA (KIA)</button>
-        <button class="menu-btn" onclick="toggleChat()" style="border-color: var(--blue); color: var(--blue);">📡 COMUNICACIONES</button>
-        <button class="menu-btn" onclick="activarModoMarcado()" id="btn-marcar" style="border-color: gold; color: gold;">🎯 MARCAR ENEMIGO</button>
-        <div style="flex-grow: 1;"></div>
-        <button class="menu-btn" onclick="location.reload()" style="background: transparent; border-color: #444; color: #666;">SALIR DE MISIÓN</button>
-    </div>
-
-    <div id="header">
-        <div style="display: flex; flex-direction: column;">
-            <span id="op-active-name" style="font-size: 12px; font-weight: bold;">SISTEMA A.T.O.M.</span>
-            <div id="mission-timer">OP. TIME: 00:00:00</div>
-        </div>
-        <div id="clock" style="font-size: 11px; opacity: 0.7;">00:00:00</div>
-    </div>
-
-    <div id="map"></div>
-
-    <div id="chat-container">
-        <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 5px;">
-            <span>CANAL DE EQUIPO</span>
-            <span onclick="toggleChat()" style="cursor:pointer;">[X]</span>
-        </div>
-        <div id="chat-messages"></div>
-        <input type="text" id="chat-input" placeholder="ENVIAR MENSAJE..." onkeypress="handleChatKey(event)">
-    </div>
-
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    </main>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-            authDomain: "atom--airsoft.firebaseapp.com",
-            databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-            projectId: "atom--airsoft"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const scriptURL = "https://script.google.com/macros/s/AKfycbxMl0gTLiakSD4Za7Kefpktq5H6OQliXqnEWSoDGg9E_93zJniqXk2isxm_AexY1MfF/exec";
+        const statusDisplay = document.getElementById('status-display');
+        const connectionMsg = document.getElementById('connection-msg');
+        const loader = document.getElementById('loader');
+        const retryBtn = document.getElementById('retry-btn');
+        const mainContent = document.getElementById('operaciones-container');
+        const loadingOverlay = document.getElementById('loading-overlay');
 
-        let map, myCallsign, myTeam = "PENDIENTE", myMisionId, modoMarcado = false;
-        let cronometroPartidaInterval;
+        function intentarConexion() {
+            // Reiniciar interfaz
+            retryBtn.style.display = "none";
+            loader.style.display = "block";
+            connectionMsg.style.color = "var(--p)";
+            connectionMsg.innerText = "Sincronizando con la base de datos...";
+            statusDisplay.innerText = "ESTABLECIENDO ENLACE TÁCTICO...";
 
-        // Cargar misiones
-        db.ref('operaciones').on('value', snap => {
-            const sel = document.getElementById('select-mision');
-            const actualValue = sel.value;
-            sel.innerHTML = "";
-            snap.forEach(m => { sel.innerHTML += `<option value="${m.key}">${m.val().nombre}</option>`; });
-            if(actualValue) sel.value = actualValue;
-        });
+            // Simulación de validación de datos (Backend Logic)
+            // Aquí es donde conectarías con Firebase o tu API en el futuro.
+            setTimeout(() => {
+                const simulacionFalla = Math.random() > 0.85; // 15% de probabilidad de error de red
 
-        async function validarYEntrar() {
-            const call = document.getElementById('user-callsign').value.trim().toUpperCase();
-            const pass = document.getElementById('user-pass').value.trim();
-            const misId = document.getElementById('select-mision').value;
-            const log = document.getElementById('status-log');
-
-            if(!call || !pass) return alert("COMPLETE CREDENCIALES");
-
-            log.innerText = "VERIFICANDO...";
-            try {
-                const res = await fetch(`${scriptURL}?action=login&callsign=${call}&pass=${pass}`);
-                const data = await res.json();
-
-                if (data.status === "success") {
-                    myCallsign = call;
-                    myMisionId = misId;
-                    
-                    await fetch(`${scriptURL}?action=joinMission&callsign=${call}&misionId=${misId}`);
-
-                    document.getElementById('op-label').innerText = myCallsign;
-                    document.getElementById('setup-screen').style.display = 'none';
-                    
-                    initMap();
-                    escucharChat();
-                    escucharEstadoMision();
-                } else { alert("CREDENCIALES INVÁLIDAS"); }
-            } catch (e) { alert("ERROR DE CONEXIÓN"); }
-        }
-
-        function escucharEstadoMision() {
-            db.ref(`operaciones/${myMisionId}/estado`).on('value', snap => {
-                const estado = snap.val();
-                if (estado && estado.activo) {
-                    const aviso = document.getElementById('mission-alert');
-                    aviso.style.display = 'flex';
-                    setTimeout(() => { aviso.style.display = 'none'; }, 10000);
-                    iniciarCronometroMision(estado.startTime);
+                if (simulacionFalla) {
+                    // ERROR DE CONEXIÓN
+                    loader.style.display = "none";
+                    retryBtn.style.display = "block";
+                    connectionMsg.style.color = "var(--error)";
+                    connectionMsg.innerText = "ERROR: No se pudo establecer conexión con el satélite.";
+                    statusDisplay.innerText = "ENLACE FALLIDO";
                 } else {
-                    document.getElementById('mission-timer').style.display = 'none';
-                    clearInterval(cronometroPartidaInterval);
+                    // CONEXIÓN EXITOSA
+                    statusDisplay.innerText = "ENLACE ESTABLECIDO - SECTOR FLORIDA";
+                    loadingOverlay.style.display = "none";
+                    mainContent.style.display = "flex";
+                    
+                    // Guardamos rastro de conexión exitosa
+                    console.log("A.T.O.M. System: Connection verified.");
                 }
-            });
+            }, 2500); // 2.5 segundos de carga para efecto visual
         }
 
-        function iniciarCronometroMision(startTime) {
-            const display = document.getElementById('mission-timer');
-            display.style.display = 'block';
-            clearInterval(cronometroPartidaInterval);
-            cronometroPartidaInterval = setInterval(() => {
-                const diff = Date.now() - startTime;
-                if(diff < 0) return;
-                const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-                const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                display.innerText = `OP. TIME: ${h}:${m}:${s}`;
-            }, 1000);
-        }
-
-        function initMap() {
-            map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 17, mapTypeId: 'satellite', disableDefaultUI: true
-            });
-            setInterval(() => {
-                document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-            }, 1000);
-        }
-
-        function toggleMenu() { document.getElementById('side-menu').classList.toggle('open'); }
-        function toggleChat() {
-            const chat = document.getElementById('chat-container');
-            chat.style.display = (chat.style.display === 'block') ? 'none' : 'block';
-            if(chat.style.display === 'block') toggleMenu();
-        }
-
-        function handleChatKey(e) {
-            if(e.key === 'Enter') {
-                const input = document.getElementById('chat-input');
-                const texto = input.value.trim();
-                if(texto) {
-                    db.ref(`chats/${myMisionId}/${myTeam}`).push({
-                        sender: myCallsign, text: texto, time: Date.now()
-                    });
-                    input.value = "";
-                }
-            }
-        }
-
-        function escucharChat() {
-            db.ref(`chats/${myMisionId}/${myTeam}`).limitToLast(10).on('child_added', snap => {
-                const data = snap.val();
-                const container = document.getElementById('chat-messages');
-                container.innerHTML += `<div class="msg"><span class="msg-sender">[${data.sender}]</span>: ${data.text}</div>`;
-                container.scrollTop = container.scrollHeight;
-            });
-        }
-
-        function notificarHQ(tipo) {
-            alert("HQ NOTIFICADO: " + tipo);
-            toggleMenu();
-        }
-
-        function activarModoMarcado() {
-            modoMarcado = !modoMarcado;
-            const btn = document.getElementById('btn-marcar');
-            btn.style.background = modoMarcado ? "gold" : "transparent";
-            btn.style.color = modoMarcado ? "#000" : "gold";
-            toggleMenu();
-            alert("TOCA EL PUNTO EN EL MAPA PARA MARCAR");
-        }
+        // Iniciar proceso automáticamente al cargar
+        window.onload = intentarConexion;
     </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58" defer></script>
 </body>
 </html>
