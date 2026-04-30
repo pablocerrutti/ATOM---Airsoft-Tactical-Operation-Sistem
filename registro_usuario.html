@@ -2,80 +2,145 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Sistema A.T.O.M. - Enrolamiento </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title> A.T.O.M. - Registro de Operadores </title>
     <style>
-        :root { --p: #00ff00; --f: #050505; }
+        :root { 
+            --p: #00ff00; 
+            --f: #050505; 
+            --red: #ff4444;
+            --glass: rgba(0, 20, 0, 0.6);
+        }
+
         body { 
             background: var(--f); 
             color: var(--p); 
-            font-family: monospace; 
+            font-family: 'Courier New', monospace; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
             justify-content: center; 
             min-height: 100vh; 
             margin: 0; 
+            padding: 15px;
+            box-sizing: border-box;
         }
+
+        /* Contenedor Principal Adaptable */
         .form-box { 
             border: 2px solid var(--p); 
-            padding: 25px; 
-            width: 85%; 
-            max-width: 350px; 
-            background: rgba(0,20,0,0.3); 
-            box-shadow: 0 0 20px rgba(0,255,0,0.1); 
+            padding: 30px; 
+            width: 100%;
+            max-width: 400px; /* Ancho ideal para PC */
+            background: var(--glass); 
+            box-shadow: 0 0 25px rgba(0,255,0,0.15); 
+            backdrop-filter: blur(8px);
+            border-radius: 2px;
+            box-sizing: border-box;
         }
+
+        h2 { 
+            text-align: center; 
+            margin-top: 0; 
+            letter-spacing: 5px; 
+            font-size: clamp(1.2rem, 5vw, 1.6rem); /* Tamaño de fuente fluido */
+            text-shadow: 0 0 10px var(--p);
+        }
+
+        .input-group { margin-bottom: 15px; }
+
+        label { 
+            display: block; 
+            font-size: 10px; 
+            margin-bottom: 5px; 
+            text-transform: uppercase; 
+            opacity: 0.8;
+        }
+
         input { 
-            background: #000; 
+            background: rgba(0,0,0,0.9); 
             border: 1px solid var(--p); 
             color: var(--p); 
-            padding: 12px; 
-            margin: 10px 0; 
+            padding: 14px; 
             width: 100%; 
             box-sizing: border-box; 
             outline: none; 
+            font-size: 16px; /* Evita zoom automático en móviles */
+            font-family: monospace;
+            transition: all 0.3s;
         }
+
+        input:focus {
+            box-shadow: 0 0 10px rgba(0,255,0,0.3);
+            border-color: #fff;
+        }
+
         button { 
             background: var(--p); 
             color: #000; 
             border: none; 
-            padding: 12px; 
+            padding: 16px; 
             width: 100%; 
             font-weight: bold; 
             cursor: pointer; 
             text-transform: uppercase; 
             margin-top: 10px; 
+            font-size: 14px;
+            transition: 0.3s;
         }
+
+        button:hover { 
+            background: #fff; 
+            box-shadow: 0 0 20px var(--p);
+        }
+
         button:disabled { 
             background: #004400; 
             color: #555; 
+            cursor: not-allowed;
         }
+
         #status-msg { 
-            font-size: 10px; 
+            font-size: 11px; 
             text-align: center; 
-            margin-top: 10px; 
-            color: #888; 
-            height: 15px; 
+            margin-top: 20px; 
+            min-height: 20px; 
+            letter-spacing: 1px;
+        }
+
+        /* Ajustes para Tablets y Móviles */
+        @media (max-width: 600px) {
+            .form-box { padding: 20px; }
+            button { padding: 14px; }
         }
     </style>
 </head>
 <body>
 
     <div class="form-box">
-        <h2 style="text-align: center; margin-top: 0; letter-spacing: 2px;">ENROLAMIENTO</h2>
+        <h2>A.T.O.M. HQ</h2>
+        <p style="text-align: center; font-size: 9px; color: #666; margin-bottom: 25px; margin-top: -10px;">REGISTRO CENTRAL DE OPERADORES</p>
         
-        <input type="text" id="callsign" placeholder="CALLSIGN (APODO)">
-        <input type="password" id="pass" placeholder="PASSWORD DE ACCESO">
+        <div class="input-group">
+            <label>Callsign / Identificador</label>
+            <input type="text" id="callsign" placeholder="EJ: SNIPER_U1" autocomplete="off">
+        </div>
+
+        <div class="input-group">
+            <label>Master Key de Acceso</label>
+            <input type="password" id="pass" placeholder="********">
+        </div>
         
-        <button id="btn-reg" onclick="registrar()">REGISTRAR OPERADOR</button>
-        <button onclick="window.location.href='index.html'" style="background: transparent; color: #666; border: 1px solid #444; font-size: 10px;">VOLVER</button>
+        <button id="btn-reg" onclick="registrar()">ENROLAR OPERADOR</button>
+        
+        <button onclick="window.location.href='index.html'" style="background: transparent; color: #444; border: 1px solid #333; font-size: 9px; margin-top: 20px; padding: 8px;">CANCELAR CONEXIÓN</button>
         
         <div id="status-msg"></div>
     </div>
 
     <script>
-        // URL de tu Google Apps Script que gestiona la Base de Datos ATOM
-        const scriptURL = "https://script.google.com/macros/s/AKfycbxdmW1h9AToSME5sjuj_OjwdpflJUgtHSA6jEd9CnlqvDfCdwUU8E2t0Q0eDVQQ-mT0/exec";
+        // URL Actualizada según tu requerimiento
+        const scriptURL = "https://script.google.com/macros/s/AKfycbxMl0gTLiakSD4Za7Kefpktq5H6OQliXqnEWSoDGg9E_93zJniqXk2isxm_AexY1MfF/exec";
 
         async function registrar() {
             const nick = document.getElementById('callsign').value.trim(); 
@@ -84,49 +149,51 @@
             const status = document.getElementById('status-msg');
 
             if(!nick || !pw) {
-                alert("ERROR: Debe ingresar Callsign y Contraseña.");
+                updateStatus("ERROR: CAMPOS VACÍOS", "var(--red)");
                 return;
             }
 
-            // Bloqueo de interfaz
+            // UI Lockdown
             btn.disabled = true;
-            btn.innerText = "PROCESANDO...";
-            status.innerText = "Conectando con la Planilla Central...";
+            btn.innerText = "TRANSFERIENDO DATOS...";
+            updateStatus("CONECTANDO CON PLANILLA CENTRAL...", "gold");
 
             try {
-                // Enviamos los datos directamente al Google Apps Script
-                // El Script debe estar configurado para recibir los parámetros y agregarlos a la hoja
-                const qs = `?callsign=${encodeURIComponent(nick)}&pass=${encodeURIComponent(pw)}&status=ALFA&action=register`;
+                // Se envía el parámetro action=register para que el Script sepa qué hacer
+                const qs = `?callsign=${encodeURIComponent(nick)}&pass=${encodeURIComponent(pw)}&action=register`;
                 
-                // Usamos modo 'no-cors' para envíos simples o manejamos la respuesta JSON si el Script lo permite
                 const response = await fetch(scriptURL + qs, {
                     method: 'GET',
-                    mode: 'cors' // Cambiar a 'no-cors' solo si el script no devuelve JSON
+                    mode: 'cors'
                 });
 
                 const result = await response.json();
 
                 if (result.status === "success") {
-                    alert("REGISTRO EXITOSO.\nOperador '" + nick + "' dado de alta en el sistema.");
+                    updateStatus("REGISTRO EXITOSO", "var(--p)");
+                    alert("SISTEMA: Operador registrado correctamente.");
                     window.location.href = 'index.html';
                 } else {
-                    alert("DENIEGO: " + (result.message || "Error desconocido."));
-                    resetBtn(btn, status);
+                    updateStatus(result.message.toUpperCase(), "var(--red)");
+                    resetBtn(btn);
                 }
 
             } catch (e) {
-                // Nota: Si el Script usa 'no-cors', no podremos leer la respuesta, 
-                // pero el registro se realizará igual.
-                console.error("Error de conexión:", e);
-                alert("Sincronización completada con la Planilla Central.");
-                window.location.href = 'index.html';
+                console.error("Error de red:", e);
+                updateStatus("ERROR DE ENLACE - HQ FUERA DE LÍNEA", "var(--red)");
+                resetBtn(btn);
             }
         }
 
-        function resetBtn(btn, status) {
+        function updateStatus(msg, color) {
+            const status = document.getElementById('status-msg');
+            status.style.color = color;
+            status.innerText = ">> " + msg;
+        }
+
+        function resetBtn(btn) {
             btn.disabled = false;
-            btn.innerText = "REGISTRAR OPERADOR";
-            status.innerText = "";
+            btn.innerText = "ENROLAR OPERADOR";
         }
     </script>
 </body>
