@@ -3,31 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Sistema A.T.O.M. - Uruguay </title>
+    <title>Sistema A.T.O.M. - Uruguay</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://drive.google.com/uc?export=view&id=1JA1wi7btS6oWQ-_9LX9oceW4X0FPlEXf">
+
     <style>
-        :root { --p: #00ff00; --f: #050505; }
-        body { background: var(--f); color: var(--p); font-family: monospace; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; }
+        :root { 
+            --p: #00ff00; 
+            --f: #050505; 
+            --glitch-img: url('https://drive.google.com/uc?export=view&id=1fteR0yjH8hI7NLHt78IySHBA_-OiVq-V');
+        }
+
+        body { 
+            background: var(--f); 
+            color: var(--p); 
+            font-family: monospace; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            overflow: hidden; 
+        }
+
+        /* Pantalla de Carga / Animación Glitch */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .glitch-logo {
+            width: 300px;
+            height: 300px;
+            background: var(--glitch-img) no-repeat center;
+            background-size: contain;
+            position: relative;
+            animation: start-glitch 0.2s steps(2, end) infinite;
+        }
+
+        .glitch-logo::before, .glitch-logo::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--glitch-img) no-repeat center;
+            background-size: contain;
+            opacity: 0.8;
+        }
+
+        .glitch-logo::before {
+            left: 3px;
+            text-shadow: -2px 0 #ff00c1;
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim 2s infinite linear alternate-reverse;
+        }
+
+        .glitch-logo::after {
+            left: -3px;
+            text-shadow: -2px 0 #00fff9;
+            clip: rect(100px, 450px, 120px, 0);
+            animation: glitch-anim-2 1s infinite linear alternate-reverse;
+        }
+
+        /* Contenido Principal (Oculto al inicio) */
+        #main-content {
+            display: none;
+            opacity: 0;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            animation: fadeIn 1s forwards;
+        }
+
         .glitch-wrapper { text-align: center; margin-bottom: 30px; }
         .main-title { font-size: 2.2rem; font-weight: bold; animation: glitch 500ms infinite; letter-spacing: 3px; }
         .grid-container { display: grid; grid-template-columns: 1fr; gap: 15px; width: 90%; max-width: 380px; }
         .module-card { border: 2px solid var(--p); background: transparent; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; text-decoration: none; color: var(--p); display: block; text-transform: uppercase; }
         .module-card:hover { background: var(--p); color: var(--f); box-shadow: 0 0 20px var(--p); font-weight: bold; }
-        @keyframes glitch { 0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 100% { transform: translate(0); } }
+
+        /* Animaciones */
+        @keyframes start-glitch {
+            0% { transform: scale(1); filter: hue-rotate(0deg); }
+            50% { transform: scale(1.02); filter: hue-rotate(90deg) brightness(1.5); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(10px, 9999px, 40px, 0); }
+            100% { clip: rect(80px, 9999px, 100px, 0); }
+        }
+
+        @keyframes glitch-anim-2 {
+            0% { clip: rect(50px, 9999px, 70px, 0); }
+            100% { clip: rect(10px, 9999px, 30px, 0); }
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        @keyframes glitch { 
+            0% { transform: translate(0); } 
+            20% { transform: translate(-2px, 2px); } 
+            40% { transform: translate(-2px, -2px); } 
+            60% { transform: translate(2px, 2px); } 
+            100% { transform: translate(0); } 
+        }
+
         body::before { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%); z-index: -1; background-size: 100% 2px; pointer-events: none; }
     </style>
 </head>
 <body>
-    <div class="glitch-wrapper">
-        <div class="main-title">SISTEMA A.T.O.M. URUGUAY</div>
-        <p style="font-size: 0.8rem; opacity: 0.7;">AIRSOFT TACTICAL OPERATION MAPS</p>
-        <p style="font-size: 0.8rem; opacity: 0.7;">Creado por: Pablo Cerrutti - Florida, Uruguay</p>
+
+    <!-- Pantalla de Inicio -->
+    <div id="splash-screen">
+        <div class="glitch-logo"></div>
     </div>
-    <div class="grid-container">
-        <a href="comunidad.html" class="module-card" style="border-color: #00ffff; color: #00ffff;">Tropas / Escuadrones Operativos</a>
-        <a href="registro_usuario.html" class="module-card">Alta de Usuario</a>
-        <a href="escuadrones.html" class="module-card">Alta de Escuadron</a>
-        <a href="operaciones.html" class="module-card" style="border-width: 4px;">Misiones Operativas</a>
-        <a href="admin.html" class="module-card" style="border-color: #444; opacity: 0.7;">Comando Central</a>
+
+    <!-- Contenido del Index -->
+    <div id="main-content">
+        <div class="glitch-wrapper">
+            <div class="main-title">SISTEMA A.T.O.M. URUGUAY</div>
+            <p style="font-size: 0.8rem; opacity: 0.7;">AIRSOFT TACTICAL OPERATION MAPS</p>
+            <p style="font-size: 0.8rem; opacity: 0.7;">Creado por: Pablo Cerrutti - Florida, Uruguay</p>
+        </div>
+        <div class="grid-container">
+            <a href="comunidad.html" class="module-card" style="border-color: #00ffff; color: #00ffff;">Tropas / Escuadrones Operativos</a>
+            <a href="registro_usuario.html" class="module-card">Alta de Usuario</a>
+            <a href="escuadrones.html" class="module-card">Alta de Escuadron</a>
+            <a href="operaciones.html" class="module-card" style="border-width: 4px;">Misiones Operativas</a>
+            <a href="admin.html" class="module-card" style="border-color: #444; opacity: 0.7;">Comando Central</a>
+        </div>
     </div>
+
+    <script>
+        // Simulación de carga y transición
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                const content = document.getElementById('main-content');
+                
+                splash.style.opacity = '0';
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                    content.style.display = 'flex';
+                }, 500);
+            }, 2500); // Duración de la animación glitch: 2.5 segundos
+        });
+    </script>
 </body>
 </html>
