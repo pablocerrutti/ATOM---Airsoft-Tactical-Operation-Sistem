@@ -5,40 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title> A.T.O.M. - HQ Mando Central </title>
     <style>
-        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --glass: rgba(0,0,0,0.9); }
+        :root { --p: #00ff00; --f: #0b0b0b; --red: #ff3333; --blue: #33aaff; --glass: rgba(0,0,0,0.95); }
         
         body { margin: 0; font-family: 'Courier New', monospace; background: var(--f); color: var(--p); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* HEADER RESPONSIVO */
         #header-admin { 
             background: #000; border-bottom: 2px solid var(--p); padding: 10px 15px;
             display: flex; justify-content: space-between; align-items: center; z-index: 1001;
         }
 
-        /* CONTENEDOR PRINCIPAL */
         #main-container { display: flex; flex-grow: 1; position: relative; overflow: hidden; }
 
-        /* MENÚ DESPLEGABLE IZQUIERDO (HERRAMIENTAS) */
         #side-panel { 
             position: absolute; left: -350px; top: 0; bottom: 0; width: 320px; 
             background: var(--glass); border-right: 2px solid var(--p); padding: 20px;
-            transition: 0.3s ease; z-index: 1000; overflow-y: auto;
+            transition: 0.3s ease; z-index: 1000; overflow-y: auto; box-sizing: border-box;
         }
         #side-panel.open { left: 0; }
 
-        /* LISTADO DERECHO (USUARIOS) */
         #user-panel { 
-            position: absolute; right: -300px; top: 0; bottom: 0; width: 280px; 
+            position: absolute; right: -320px; top: 0; bottom: 0; width: 300px; 
             background: var(--glass); border-left: 2px solid var(--p); padding: 15px;
-            transition: 0.3s ease; z-index: 1000; overflow-y: auto;
+            transition: 0.3s ease; z-index: 1000; overflow-y: auto; box-sizing: border-box;
         }
         #user-panel.open { right: 0; }
 
         #map { flex-grow: 1; height: 100%; background: #111; }
 
-        /* BOTONES Y ESTILOS */
         .control-group { border: 1px solid #333; padding: 12px; border-radius: 4px; background: #050505; margin-bottom: 10px; }
-        h3 { margin: 0 0 10px 0; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #333; }
+        h3 { margin: 0 0 10px 0; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #333; color: gold; }
         
         button, input, select { 
             width: 100%; background: #111; border: 1px solid var(--p); color: var(--p); 
@@ -48,30 +43,26 @@
         
         .btn-launch { background: var(--red); color: white; font-weight: bold; border: none; animation: pulse-red 2s infinite; }
         .btn-new { background: #222; border-color: #555; color: #aaa; }
+        .btn-back { border-color: #444; color: #666; font-size: 10px; margin-top: 20px; }
 
-        /* CRONÓMETRO */
+        .user-item { padding: 8px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+        
         #timer-display {
             position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.8); border: 1px solid var(--p); padding: 5px 20px;
             font-size: 20px; font-weight: bold; z-index: 999; display: none;
         }
 
-        /* TOGGLES */
-        .panel-toggle {
-            position: fixed; top: 70px; background: #000; border: 1px solid var(--p);
-            color: var(--p); padding: 10px; cursor: pointer; z-index: 1002;
-        }
-
-        /* PANTALLA BLOQUEO */
         #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
 
-        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        /* RESPONSIVIDAD */
-        @media (max-width: 768px) {
-            #side-panel { width: 85%; }
-            #user-panel { width: 85%; }
+        /* Modal para agregar operadores */
+        #modal-operadores {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000;
+            display: none; align-items: center; justify-content: center;
         }
+        .modal-content { background: #050505; border: 2px solid var(--p); padding: 20px; width: 80%; max-width: 300px; max-height: 70vh; overflow-y: auto; }
+
+        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -85,7 +76,7 @@
     </div>
 
     <div id="header-admin">
-        <button onclick="togglePanel('side-panel')" style="width: auto; padding: 5px 15px;">⚒ MENÚ</button>
+        <button onclick="togglePanel('side-panel')" style="width: auto; padding: 5px 15px;">⚒ CONFIG</button>
         <div id="timer-display">00:00:00</div>
         <button onclick="togglePanel('user-panel')" style="width: auto; padding: 5px 15px;">👥 TROPAS</button>
     </div>
@@ -95,36 +86,43 @@
             <button class="btn-new" onclick="resetForNewMission()">+ CREAR NUEVA MISIÓN</button>
             
             <div class="control-group">
-                <h3>Editar Misión Existente</h3>
+                <h3>Misiones en Base de Datos</h3>
                 <select id="select-misiones-existentes" onchange="seleccionarMision(this.value)">
-                    <option value="">-- SELECCIONE MISIÓN --</option>
+                    <option value="">-- SELECCIONE --</option>
                 </select>
             </div>
 
             <div id="panel-editor" class="control-group">
                 <input type="text" id="op-name" placeholder="NOMBRE DE LA OPERACIÓN">
-                <div id="controles-dibujo">
-                    <button onclick="setMode('polygon', 'zona_juego')">DIBUJAR LÍMITES</button>
-                    <button style="color:var(--red)" onclick="setMode('marker', 'respawn_rojo')">SET SPAWN ROJO</button>
-                    <button style="color:var(--blue)" onclick="setMode('marker', 'respawn_azul')">SET SPAWN AZUL</button>
-                    <button style="color:gold" onclick="setMode('marker', 'objetivo')">AÑADIR OBJETIVO</button>
-                </div>
-                <button id="btn-save-mission" style="background: var(--p); color:#000; font-weight:bold;" onclick="guardarMision()">GUARDAR CONFIGURACIÓN</button>
+                <button onclick="setMode('polygon', 'zona_juego')">DIBUJAR LÍMITES</button>
+                <button style="color:var(--red)" onclick="setMode('marker', 'respawn_rojo')">SET SPAWN ROJO</button>
+                <button style="color:var(--blue)" onclick="setMode('marker', 'respawn_azul')">SET SPAWN AZUL</button>
+                <button style="color:gold" onclick="setMode('marker', 'objetivo')">AÑADIR OBJETIVO</button>
+                <button style="background: var(--p); color:#000; margin-top:10px;" onclick="guardarMision()">GUARDAR CAMBIOS</button>
             </div>
 
             <button id="btn-lanzar" class="btn-launch" style="display:none;" onclick="lanzarMision()">🚀 LANZAR MISIÓN</button>
-            <button onclick="finalizarMision()" style="border-color:var(--red); color:var(--red); margin-top:20px;">ABORTAR MISIÓN</button>
+            <button onclick="finalizarMision()" style="border-color:var(--red); color:var(--red); margin-top:10px;">ABORTAR</button>
+            
+            <button class="btn-back" onclick="window.location.href='index.html'">VOLVER A INICIO</button>
         </div>
 
         <div id="map"></div>
 
         <div id="user-panel">
-            <h3>Operadores Alistados</h3>
-            <div id="lista-inscritos" style="font-size: 11px;">
-                <p style="color:#444">Seleccione una misión para ver alistados...</p>
-            </div>
-            <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
-            <button class="btn-small" onclick="autoBalancear()">BALANCEAR EQUIPOS</button>
+            <h3>Operadores en Misión</h3>
+            <div id="lista-inscritos"></div>
+            <button style="margin-top:15px; border-color: gold; color: gold;" onclick="abrirModalOperadores()">+ AGREGAR OPERADOR</button>
+            <button style="margin-top:10px;" onclick="autoBalancear()">BALANCEO INTELIGENTE</button>
+        </div>
+    </div>
+
+    <!-- Modal para buscar usuarios -->
+    <div id="modal-operadores">
+        <div class="modal-content">
+            <h3 style="text-align: center;">USUARIOS REGISTRADOS</h3>
+            <div id="lista-usuarios-db"></div>
+            <button onclick="document.getElementById('modal-operadores').style.display='none'" style="border-color:#555; color:#555;">CERRAR</button>
         </div>
     </div>
 
@@ -144,19 +142,17 @@
         let map, drawingManager, currentMisionId = null;
         let allShapes = [];
         let currentRole = 'zona_juego';
-        let startTime, timerInterval;
+        let timerInterval;
 
         function checkAuth() {
             if(document.getElementById('master-key').value === "Ik3rc3rru771") {
                 document.getElementById('lock-screen').style.display = 'none';
                 initMap();
                 cargarListadoMisiones();
-            } else { alert("ACCESO DENEGADO"); }
+            } else { alert("KEY INCORRECTA"); }
         }
 
-        function togglePanel(id) {
-            document.getElementById(id).classList.toggle('open');
-        }
+        function togglePanel(id) { document.getElementById(id).classList.toggle('open'); }
 
         function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
@@ -166,7 +162,7 @@
 
             drawingManager = new google.maps.drawing.DrawingManager({
                 drawingControl: false,
-                polygonOptions: { fillOpacity: 0.2, strokeWeight: 2, editable: true }
+                polygonOptions: { fillOpacity: 0.2, strokeWeight: 2, editable: true, clickable: true }
             });
             drawingManager.setMap(map);
 
@@ -175,14 +171,20 @@
                 shape.role = currentRole;
                 shape.type = event.type;
                 allShapes.push(shape);
+                
+                google.maps.event.addListener(shape, 'click', () => {
+                    if(confirm("¿Eliminar este elemento?")) {
+                        shape.setMap(null);
+                        allShapes = allShapes.filter(s => s !== shape);
+                    }
+                });
             });
         }
 
-        // CARGAR MISIONES EN EL SELECT
         function cargarListadoMisiones() {
             db.ref('operaciones').on('value', snap => {
                 const select = document.getElementById('select-misiones-existentes');
-                select.innerHTML = '<option value="">-- EDITAR MISIÓN --</option>';
+                select.innerHTML = '<option value="">-- SELECCIONE --</option>';
                 snap.forEach(child => {
                     select.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
                 });
@@ -193,82 +195,132 @@
             if(!id) return;
             currentMisionId = id;
             limpiarMapa();
+            
             db.ref(`operaciones/${id}`).once('value', snap => {
                 const m = snap.val();
                 document.getElementById('op-name').value = m.nombre;
-                // Dibujar formas guardadas... (lógica de renderizado similar a la anterior)
+                
+                const bounds = new google.maps.LatLngBounds();
+
+                if(m.zonas) {
+                    m.zonas.forEach(z => {
+                        let shape;
+                        if(z.type === 'polygon') {
+                            shape = new google.maps.Polygon({
+                                path: z.path, 
+                                map: map, 
+                                fillOpacity: 0.2, 
+                                strokeColor: getRoleColor(z.role),
+                                fillColor: getRoleColor(z.role)
+                            });
+                            z.path.forEach(p => bounds.extend(p));
+                        } else {
+                            shape = new google.maps.Marker({
+                                position: {lat: z.lat, lng: z.lng}, 
+                                map: map,
+                                label: z.role === 'objetivo' ? "OBJ" : "S"
+                            });
+                            bounds.extend({lat: z.lat, lng: z.lng});
+                        }
+                        shape.role = z.role;
+                        shape.type = z.type;
+                        allShapes.push(shape);
+                    });
+                    map.fitBounds(bounds);
+                }
+                
                 document.getElementById('btn-lanzar').style.display = 'block';
                 escucharInscritos(id);
-                togglePanel('side-panel');
             });
         }
 
-        function resetForNewMission() {
-            currentMisionId = null;
-            document.getElementById('op-name').value = "";
-            document.getElementById('select-misiones-existentes').value = "";
-            document.getElementById('btn-lanzar').style.display = 'none';
-            limpiarMapa();
-            alert("MAPA LIMPIO. INICIE NUEVA CREACIÓN.");
+        function getRoleColor(role) {
+            if(role === 'respawn_rojo') return '#ff3333';
+            if(role === 'respawn_azul') return '#33aaff';
+            if(role === 'objetivo') return 'gold';
+            return '#00ff00';
         }
 
         function escucharInscritos(misionId) {
-            // Filtrar solo usuarios que eligieron esta misión en "Operaciones"
             db.ref('inscripciones').orderByChild('mision').equalTo(misionId).on('value', snap => {
                 const list = document.getElementById('lista-inscritos');
                 list.innerHTML = "";
                 snap.forEach(pSnap => {
                     const p = pSnap.val();
                     list.innerHTML += `
-                        <div style="padding:5px; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:${p.equipo === 'EQUIPO_ROJO' ? 'var(--red)' : (p.equipo === 'EQUIPO_AZUL' ? 'var(--blue)' : '#fff')}">${p.callsign}</span>
+                        <div class="user-item">
+                            <span style="color:${p.equipo === 'EQUIPO_ROJO' ? 'var(--red)' : (p.equipo === 'EQUIPO_AZUL' ? 'var(--blue)' : '#666')}">${p.callsign}</span>
                             <div>
                                 <button onclick="asignarEquipo('${pSnap.key}', 'EQUIPO_ROJO')" style="width:25px; padding:2px; color:var(--red)">R</button>
                                 <button onclick="asignarEquipo('${pSnap.key}', 'EQUIPO_AZUL')" style="width:25px; padding:2px; color:var(--blue)">A</button>
+                                <button onclick="eliminarDeMision('${pSnap.key}')" style="width:25px; padding:2px; color:white; border-color:#444">X</button>
                             </div>
                         </div>`;
                 });
             });
         }
 
-        function asignarEquipo(uid, equipo) {
-            db.ref(`inscripciones/${uid}`).update({ equipo: equipo });
-        }
-
-        function lanzarMision() {
-            if(!currentMisionId) return;
-            const t = Date.now();
-            db.ref(`operaciones/${currentMisionId}/estado`).set({
-                activo: true,
-                startTime: t
+        function abrirModalOperadores() {
+            if(!currentMisionId) return alert("SELECCIONE UNA MISIÓN PRIMERO");
+            document.getElementById('modal-operadores').style.display = 'flex';
+            db.ref('usuarios').once('value', snap => {
+                const list = document.getElementById('lista-usuarios-db');
+                list.innerHTML = "";
+                snap.forEach(u => {
+                    list.innerHTML += `
+                        <div class="user-item">
+                            <span>${u.val().callsign}</span>
+                            <button onclick="invitarAMision('${u.val().callsign}')" style="width:auto; padding:5px 10px;">ADD</button>
+                        </div>`;
+                });
             });
-            iniciarCronometroLocal(t);
-            alert("ORDEN DE LANZAMIENTO ENVIADA");
         }
 
-        function iniciarCronometroLocal(start) {
-            document.getElementById('timer-display').style.display = 'block';
-            clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                const diff = Date.now() - start;
-                const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-                const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                document.getElementById('timer-display').innerText = `${h}:${m}:${s}`;
-            }, 1000);
+        function invitarAMision(callsign) {
+            db.ref('inscripciones').push({
+                callsign: callsign,
+                mision: currentMisionId,
+                equipo: "PENDIENTE",
+                estado: "ALISTADO"
+            });
+            alert(callsign + " AGREGADO");
+        }
+
+        function asignarEquipo(uid, equipo) { db.ref(`inscripciones/${uid}`).update({ equipo: equipo }); }
+        
+        function eliminarDeMision(uid) { if(confirm("¿Eliminar operador?")) db.ref(`inscripciones/${uid}`).remove(); }
+
+        function autoBalancear() {
+            db.ref('inscripciones').orderByChild('mision').equalTo(currentMisionId).once('value', snap => {
+                let operadores = [];
+                snap.forEach(s => { operadores.push({id: s.key}); });
+                
+                // Mezclar array aleatoriamente
+                operadores.sort(() => Math.random() - 0.5);
+                
+                const mitad = Math.ceil(operadores.length / 2);
+                
+                operadores.forEach((op, index) => {
+                    let equipo = (index < mitad) ? "EQUIPO_ROJO" : "EQUIPO_AZUL";
+                    db.ref(`inscripciones/${op.id}`).update({ equipo: equipo });
+                });
+                alert("EQUIPOS BALANCEADOS");
+            });
         }
 
         function guardarMision() {
             const nombre = document.getElementById('op-name').value;
-            if(!nombre) return alert("FALTA NOMBRE");
+            if(!nombre) return alert("NOMBRE NECESARIO");
             const zonas = allShapes.map(s => extraerDatos(s));
             
             if(currentMisionId) {
                 db.ref(`operaciones/${currentMisionId}`).update({ nombre, zonas });
             } else {
-                db.ref('operaciones').push({ nombre, zonas, estado: { activo: false } });
+                const newRef = db.ref('operaciones').push();
+                newRef.set({ nombre, zonas, estado: { activo: false } });
+                currentMisionId = newRef.key;
             }
-            alert("MISIÓN SINCRONIZADA");
+            alert("MISIÓN GUARDADA");
         }
 
         function extraerDatos(s) {
@@ -278,9 +330,26 @@
             return d;
         }
 
-        function limpiarMapa() { allShapes.forEach(s => s.setMap(null)); allShapes = []; }
-        function setMode(m, r) { currentRole = r; drawingManager.setDrawingMode(m === 'marker' ? google.maps.drawing.OverlayType.MARKER : google.maps.drawing.OverlayType.POLYGON); }
+        function lanzarMision() {
+            const t = Date.now();
+            db.ref(`operaciones/${currentMisionId}/estado`).set({ activo: true, startTime: t });
+            document.getElementById('timer-display').style.display = 'block';
+            alert("MISIÓN EN CURSO");
+        }
 
+        function finalizarMision() {
+            if(confirm("¿ABORTAR OPERACIÓN?")) {
+                db.ref(`operaciones/${currentMisionId}/estado`).set({ activo: false });
+                location.reload();
+            }
+        }
+
+        function limpiarMapa() { allShapes.forEach(s => s.setMap(null)); allShapes = []; }
+        function setMode(m, r) { 
+            currentRole = r; 
+            drawingManager.setDrawingMode(m === 'marker' ? google.maps.drawing.OverlayType.MARKER : google.maps.drawing.OverlayType.POLYGON); 
+        }
+        function resetForNewMission() { location.reload(); }
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing" defer></script>
 </body>
