@@ -3,194 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.O.M. - Misiones Operativas</title>
+    <title>A.T.O.M. - Operaciones</title>
     
     <link rel="icon" type="image/png" href="favicon.png">
 
     <style>
-        :root { 
-            --p: #00ff00; 
-            --f: #050505; 
-            --accent: #00ffff;
-            --error: #ff0000;
-        }
-
+        :root { --p: #00ff00; --f: #050505; --accent: #00ffff; }
         body { 
-            background: var(--f); 
-            color: var(--p); 
-            font-family: 'Courier New', monospace; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            min-height: 100vh;
-            overflow-x: hidden;
+            background: var(--f); color: var(--p); font-family: monospace; 
+            margin: 0; display: flex; flex-direction: column; align-items: center; 
+            min-height: 100vh; overflow-x: hidden;
         }
-
-        /* Encabezado Táctico */
-        header {
-            width: 100%;
-            padding: 20px;
-            text-align: center;
-            border-bottom: 1px solid var(--p);
-            background: rgba(0, 255, 0, 0.05);
+        header { 
+            width: 100%; padding: 20px; text-align: center; 
+            border-bottom: 1px solid var(--p); background: rgba(0, 255, 0, 0.05); 
         }
-
-        .status-bar {
-            font-size: 0.7rem;
-            margin-top: 10px;
-            letter-spacing: 2px;
-            color: var(--accent);
+        #status-display { font-size: 0.7rem; margin-top: 10px; color: var(--accent); letter-spacing: 1px; }
+        
+        /* Lista de Misiones */
+        #misiones-list { 
+            width: 90%; max-width: 600px; margin-top: 20px; 
+            display: none; flex-direction: column; gap: 15px; 
         }
-
-        /* Contenedor de Misiones */
-        #operaciones-container {
-            display: none; /* Se activa tras validar conexión */
-            width: 90%;
-            max-width: 600px;
-            margin-top: 20px;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .mision-card {
-            border: 1px solid var(--p);
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.02);
+        
+        .mision-card { 
+            border: 1px solid var(--p); padding: 18px; 
+            background: rgba(0, 255, 0, 0.02); 
             position: relative;
         }
 
-        .mision-card::before {
-            content: "OBJETIVO ACTIVO";
-            position: absolute;
-            top: -10px;
-            left: 10px;
-            background: var(--f);
-            padding: 0 5px;
-            font-size: 0.6rem;
-            color: var(--p);
-        }
+        .mision-card h3 { margin: 0 0 10px 0; color: var(--accent); text-transform: uppercase; }
+        .mision-card p { margin: 5px 0; font-size: 0.9rem; line-height: 1.4; }
 
-        /* Pantalla de Carga/Error */
-        #loading-overlay {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 60vh;
-            text-align: center;
-        }
-
+        /* Pantalla de Carga */
+        #loader-overlay { margin-top: 100px; text-align: center; }
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid var(--p);
-            border-top: 3px solid transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
+            width: 40px; height: 40px; border: 3px solid var(--p);
+            border-top: 3px solid transparent; border-radius: 50%;
+            animation: spin 1s linear infinite; margin: 0 auto 20px;
         }
-
         @keyframes spin { to { transform: rotate(360deg); } }
-
+        
         .btn-retry {
-            margin-top: 20px;
-            padding: 10px 20px;
-            border: 1px solid var(--p);
-            background: transparent;
-            color: var(--p);
-            cursor: pointer;
-            text-transform: uppercase;
+            background: transparent; color: var(--p); border: 1px solid var(--p);
+            padding: 10px 20px; cursor: pointer; text-transform: uppercase;
+            margin-top: 20px; display: none;
         }
 
-        .btn-back {
-            margin-top: 30px;
-            color: var(--accent);
-            text-decoration: none;
-            font-size: 0.8rem;
-        }
-
-        /* Efecto de monitor antiguo */
+        .btn-back { margin-top: 40px; color: var(--accent); text-decoration: none; font-size: 0.8rem; }
+        
+        /* Efecto de monitor */
         body::after {
-            content: "";
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 1px, transparent 1px, transparent 2px);
-            pointer-events: none;
-            z-index: 100;
+            pointer-events: none; z-index: 100;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <div style="font-weight: bold; font-size: 1.2rem;">SISTEMA A.T.O.M.</div>
-        <div id="status-display" class="status-bar">INICIALIZANDO ENLACE...</div>
+        <div style="font-weight: bold; font-size: 1.3rem; letter-spacing: 3px;">SISTEMA A.T.O.M.</div>
+        <div id="status-display">VERIFICANDO CREDENCIALES...</div>
     </header>
 
-    <div id="loading-overlay">
-        <div id="loader" class="spinner"></div>
-        <div id="connection-msg">Buscando señal de Comando Central...</div>
-        <button id="retry-btn" class="btn-retry" style="display: none;" onclick="intentarConexion()">Reintentar Enlace</button>
-        <a href="index.html" class="btn-back">← Volver al Menú Principal</a>
+    <div id="loader-overlay">
+        <div id="loader-icon" class="spinner"></div>
+        <p id="loader-text">Sincronizando con satélite de comando...</p>
+        <button id="retry-btn" class="btn-retry" onclick="conectarFirebase()">Reintentar Conexión</button>
     </div>
 
-    <main id="operaciones-container">
-        <div class="mision-card">
-            <h3>Operación: "Alpha Florida"</h3>
-            <p>Estado: En curso</p>
-            <p style="font-size: 0.8rem; opacity: 0.8;">Localización: Sector Norte - Zona de monte.</p>
-        </div>
+    <main id="misiones-list"></main>
 
-        <div class="mision-card" style="border-color: var(--accent);">
-            <h3 style="color: var(--accent);">Reconocimiento de Perímetro</h3>
-            <p>Objetivo: Identificar puntos de inserción de escuadrones enemigos.</p>
-            <p style="font-size: 0.8rem; opacity: 0.8;">Prioridad: Alta</p>
-        </div>
-    </main>
+    <a href="index.html" class="btn-back">← VOLVER AL MENÚ PRINCIPAL</a>
 
     <script>
-        const statusDisplay = document.getElementById('status-display');
-        const connectionMsg = document.getElementById('connection-msg');
-        const loader = document.getElementById('loader');
-        const retryBtn = document.getElementById('retry-btn');
-        const mainContent = document.getElementById('operaciones-container');
-        const loadingOverlay = document.getElementById('loading-overlay');
+        // CONFIGURACIÓN RECUPERADA DE FIREBASE
+        // Reemplaza esta URL por la de tu base de datos de Firebase
+        const FIREBASE_OPERACIONES_URL = "https://atom-airsoft-tactical-default-rtdb.firebaseio.com/misiones.json";
 
-        function intentarConexion() {
-            // Reiniciar interfaz
+        async function conectarFirebase() {
+            const listado = document.getElementById('misiones-list');
+            const loaderOverlay = document.getElementById('loader-overlay');
+            const loaderText = document.getElementById('loader-text');
+            const loaderIcon = document.getElementById('loader-icon');
+            const retryBtn = document.getElementById('retry-btn');
+            const status = document.getElementById('status-display');
+
+            // Reset de interfaz para reintento
+            listado.innerHTML = "";
+            listado.style.display = "none";
+            loaderOverlay.style.display = "block";
+            loaderIcon.style.display = "block";
             retryBtn.style.display = "none";
-            loader.style.display = "block";
-            connectionMsg.style.color = "var(--p)";
-            connectionMsg.innerText = "Sincronizando con la base de datos...";
-            statusDisplay.innerText = "ESTABLECIENDO ENLACE TÁCTICO...";
+            loaderText.innerText = "Sincronizando con satélite de comando...";
+            status.innerText = "ENLAZANDO CON BASE DE DATOS...";
 
-            // Simulación de validación de datos (Backend Logic)
-            // Aquí es donde conectarías con Firebase o tu API en el futuro.
-            setTimeout(() => {
-                const simulacionFalla = Math.random() > 0.85; // 15% de probabilidad de error de red
+            try {
+                // Petición a la base de datos de Google Firebase
+                const response = await fetch(FIREBASE_OPERACIONES_URL);
+                
+                if (!response.ok) throw new Error("Fallo de red");
 
-                if (simulacionFalla) {
-                    // ERROR DE CONEXIÓN
-                    loader.style.display = "none";
-                    retryBtn.style.display = "block";
-                    connectionMsg.style.color = "var(--error)";
-                    connectionMsg.innerText = "ERROR: No se pudo establecer conexión con el satélite.";
-                    statusDisplay.innerText = "ENLACE FALLIDO";
-                } else {
-                    // CONEXIÓN EXITOSA
-                    statusDisplay.innerText = "ENLACE ESTABLECIDO - SECTOR FLORIDA";
-                    loadingOverlay.style.display = "none";
-                    mainContent.style.display = "flex";
-                    
-                    // Guardamos rastro de conexión exitosa
-                    console.log("A.T.O.M. System: Connection verified.");
+                const misionesData = await response.json();
+
+                if (!misionesData) {
+                    loaderIcon.style.display = "none";
+                    loaderText.innerText = "NO HAY MISIONES ACTIVAS EN EL SECTOR.";
+                    status.innerText = "SECTOR DESPEJADO";
+                    return;
                 }
-            }, 2500); // 2.5 segundos de carga para efecto visual
+
+                // Si hay datos, ocultamos el loader y mostramos la lista
+                loaderOverlay.style.display = "none";
+                listado.style.display = "flex";
+                status.innerText = "ENLACE ESTABLECIDO - DATOS ACTUALIZADOS";
+
+                // Renderizado dinámico de misiones reales
+                Object.keys(misionesData).forEach(id => {
+                    const m = misionesData[id];
+                    const card = document.createElement('div');
+                    card.className = 'mision-card';
+                    card.innerHTML = `
+                        <h3>${m.nombre || 'MISIÓN CLASIFICADA'}</h3>
+                        <p>${m.descripcion || 'Sin detalles adicionales del Comando Central.'}</p>
+                        <div style="font-size: 0.7rem; color: var(--accent); margin-top: 10px;">
+                            COORDINADAS: ${m.coordenadas || 'No especificadas'} | ESTADO: ${m.estado || 'ACTIVA'}
+                        </div>
+                    `;
+                    listado.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error("Error de conexión A.T.O.M.:", error);
+                loaderIcon.style.display = "none";
+                retryBtn.style.display = "block";
+                loaderText.innerText = "ERROR CRÍTICO: No se pudo verificar la conexión.";
+                loaderText.style.color = "#ff0000";
+                status.innerText = "ERROR DE COMUNICACIÓN";
+            }
         }
 
-        // Iniciar proceso automáticamente al cargar
-        window.onload = intentarConexion;
+        // Inicio automático al cargar
+        window.onload = conectarFirebase;
     </script>
 </body>
 </html>
