@@ -118,15 +118,15 @@
         <label>Identificación de la Unidad</label>
         <input type="text" id="nombreEquipo" placeholder="NOMBRE DEL EQUIPO" autocomplete="off">
         
-        <label>Link del Escudo</label>
+        <label>Link del Escudo - la imagen debe estar en un enlace publico</label>
         <div class="hint">URL pública de la imagen (PNG/JPG)</div>
         <input type="url" id="escudoLink" placeholder="https://...">
 
         <label>Foto de Unidad</label>
-        <div class="hint">Imagen del equipo operativa</div>
+        <div class="hint">Imagen del equipo operativa - la imagen debe estar en un enlace publico</div>
         <input type="url" id="fotoLink" placeholder="https://...">
 
-        <button id="btnReg" onclick="registrarEquipo()">DAR DE ALTA EN HQ</button>
+        <button id="btnReg" onclick="registrarEquipo()">DAR DE ALTA EN A.T.O.M. - SISTEM</button>
         <button onclick="window.location.href='index.html'" style="background: transparent; color: #666; border: 1px solid #333; font-size: 10px; margin-top: 15px; padding: 10px;">VOLVER</button>
 
         <div id="status-msg"></div>
@@ -162,7 +162,7 @@
             }
 
             btn.disabled = true;
-            status.innerText = "SINCRONIZANDO CON HQ Y PLANILLA...";
+            status.innerText = "SINCRONIZANDO CON A.T.O.M. - SISTEM Y PLANILLA...";
 
             try {
                 // 1. VERIFICAR Y GUARDAR EN FIREBASE
