@@ -12,7 +12,6 @@
         :root { 
             --p: #00ff00; 
             --f: #050505; 
-            --glitch-img: url('https://drive.google.com/uc?export=view&id=1fteR0yjH8hI7NLHt78IySHBA_-OiVq-V');
         }
 
         body { 
@@ -28,94 +27,79 @@
             overflow: hidden; 
         }
 
-        /* Pantalla de Carga / Animación Glitch */
+        /* Pantalla de Carga */
         #splash-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: black;
+            background: #000;
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
-            transition: opacity 0.5s ease-out;
+            z-index: 9999;
+            transition: opacity 0.8s ease-in-out;
         }
 
-        .glitch-logo {
+        .logo-container {
+            position: relative;
             width: 300px;
             height: 300px;
-            background: var(--glitch-img) no-repeat center;
-            background-size: contain;
-            position: relative;
-            animation: start-glitch 0.2s steps(2, end) infinite;
         }
 
-        .glitch-logo::before, .glitch-logo::after {
+        .glitch-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 5px var(--p));
+            animation: main-glitch 3s infinite;
+        }
+
+        /* Efecto de líneas de interferencia sobre el logo */
+        .logo-container::after {
             content: "";
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: var(--glitch-img) no-repeat center;
-            background-size: contain;
-            opacity: 0.8;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.2) 0px,
+                rgba(0, 0, 0, 0.2) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
         }
 
-        .glitch-logo::before {
-            left: 3px;
-            text-shadow: -2px 0 #ff00c1;
-            clip: rect(44px, 450px, 56px, 0);
-            animation: glitch-anim 2s infinite linear alternate-reverse;
-        }
-
-        .glitch-logo::after {
-            left: -3px;
-            text-shadow: -2px 0 #00fff9;
-            clip: rect(100px, 450px, 120px, 0);
-            animation: glitch-anim-2 1s infinite linear alternate-reverse;
-        }
-
-        /* Contenido Principal (Oculto al inicio) */
+        /* Contenido Principal */
         #main-content {
-            display: none;
+            display: none; /* Se activa por JS */
             opacity: 0;
             flex-direction: column;
             align-items: center;
             width: 100%;
-            animation: fadeIn 1s forwards;
+            z-index: 1;
         }
 
         .glitch-wrapper { text-align: center; margin-bottom: 30px; }
-        .main-title { font-size: 2.2rem; font-weight: bold; animation: glitch 500ms infinite; letter-spacing: 3px; }
+        .main-title { font-size: 2.2rem; font-weight: bold; animation: text-glitch 500ms infinite; letter-spacing: 3px; }
         .grid-container { display: grid; grid-template-columns: 1fr; gap: 15px; width: 90%; max-width: 380px; }
         .module-card { border: 2px solid var(--p); background: transparent; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; text-decoration: none; color: var(--p); display: block; text-transform: uppercase; }
         .module-card:hover { background: var(--p); color: var(--f); box-shadow: 0 0 20px var(--p); font-weight: bold; }
 
         /* Animaciones */
-        @keyframes start-glitch {
-            0% { transform: scale(1); filter: hue-rotate(0deg); }
-            50% { transform: scale(1.02); filter: hue-rotate(90deg) brightness(1.5); }
-            100% { transform: scale(1); }
+        @keyframes main-glitch {
+            0% { transform: translate(0); filter: hue-rotate(0deg); }
+            5% { transform: translate(-5px, 2px); filter: hue-rotate(90deg) brightness(1.2); }
+            10% { transform: translate(5px, -2px); }
+            15% { transform: translate(0); filter: hue-rotate(0deg); }
+            100% { transform: translate(0); }
         }
 
-        @keyframes glitch-anim {
-            0% { clip: rect(10px, 9999px, 40px, 0); }
-            100% { clip: rect(80px, 9999px, 100px, 0); }
-        }
-
-        @keyframes glitch-anim-2 {
-            0% { clip: rect(50px, 9999px, 70px, 0); }
-            100% { clip: rect(10px, 9999px, 30px, 0); }
-        }
-
-        @keyframes fadeIn {
-            to { opacity: 1; }
-        }
-
-        @keyframes glitch { 
+        @keyframes text-glitch { 
             0% { transform: translate(0); } 
             20% { transform: translate(-2px, 2px); } 
             40% { transform: translate(-2px, -2px); } 
@@ -123,17 +107,36 @@
             100% { transform: translate(0); } 
         }
 
-        body::before { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%); z-index: -1; background-size: 100% 2px; pointer-events: none; }
+        @keyframes fadeInEffect {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        body::before { 
+            content: " "; 
+            display: block; 
+            position: absolute; 
+            top: 0; left: 0; bottom: 0; right: 0; 
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%); 
+            z-index: 2; 
+            background-size: 100% 4px; 
+            pointer-events: none; 
+        }
     </style>
 </head>
 <body>
 
-    <!-- Pantalla de Inicio -->
+    <!-- Pantalla de Inicio (Splash) -->
     <div id="splash-screen">
-        <div class="glitch-logo"></div>
+        <div class="logo-container">
+            <img src="https://drive.google.com/uc?export=view&id=1fteR0yjH8hI7NLHt78IySHBA_-OiVq-V" 
+                 alt="Logo ATOM" 
+                 class="glitch-img"
+                 onerror="this.src='https://via.placeholder.com/300/000000/00ff00?text=A.T.O.M.+Cargando...'">
+        </div>
     </div>
 
-    <!-- Contenido del Index -->
+    <!-- Contenido Principal -->
     <div id="main-content">
         <div class="glitch-wrapper">
             <div class="main-title">SISTEMA A.T.O.M. URUGUAY</div>
@@ -150,18 +153,20 @@
     </div>
 
     <script>
-        // Simulación de carga y transición
         window.addEventListener('load', () => {
+            const splash = document.getElementById('splash-screen');
+            const content = document.getElementById('main-content');
+            
+            // Tiempo de espera para que se vea el efecto glitch (3 segundos)
             setTimeout(() => {
-                const splash = document.getElementById('splash-screen');
-                const content = document.getElementById('main-content');
-                
                 splash.style.opacity = '0';
+                
                 setTimeout(() => {
                     splash.style.display = 'none';
                     content.style.display = 'flex';
-                }, 500);
-            }, 2500); // Duración de la animación glitch: 2.5 segundos
+                    content.style.animation = 'fadeInEffect 1s forwards';
+                }, 800); // Espera a que termine el fade out de la pantalla negra
+            }, 3000); 
         });
     </script>
 </body>
