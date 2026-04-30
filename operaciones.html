@@ -15,18 +15,33 @@
         
         body { margin: 0; font-family: 'Courier New', monospace; background: var(--f); color: var(--p); height: 100vh; overflow: hidden; }
         
-        /* MAPA */
         #map { position: absolute; inset: 0; z-index: 1; }
 
-        /* HEADER */
         #header { 
-            position: absolute; top: 0; left: 0; right: 0; height: 50px; 
-            background: rgba(0,0,0,0.7); border-bottom: 1px solid var(--p); 
+            position: absolute; top: 0; left: 0; right: 0; height: 60px; 
+            background: rgba(0,0,0,0.8); border-bottom: 1px solid var(--p); 
             display: flex; align-items: center; padding: 0 15px; 
             justify-content: space-between; z-index: 10; backdrop-filter: blur(5px);
         }
 
-        /* MENU LATERAL DESPLEGABLE */
+        /* AVISO DE MISIÓN INICIADA */
+        #mission-alert {
+            position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+            z-index: 9999; background: rgba(0,0,0,0.6); pointer-events: none;
+        }
+        #alert-text {
+            color: var(--red); font-size: 2rem; font-weight: bold; text-align: center;
+            text-shadow: 0 0 20px var(--red); animation: blinker 0.8s linear infinite;
+        }
+
+        @keyframes blinker { 50% { opacity: 0; } }
+
+        /* CRONÓMETRO DE PARTIDA */
+        #mission-timer {
+            color: gold; font-size: 14px; font-weight: bold; 
+            display: none; border: 1px solid gold; padding: 2px 5px; margin-top: 2px;
+        }
+
         #side-menu {
             position: fixed; top: 0; left: -280px; width: 280px; height: 100%;
             background: var(--glass); border-right: 2px solid var(--p);
@@ -36,50 +51,43 @@
         }
         #side-menu.open { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.8); }
 
-        /* BOTÓN DE CONTROL DEL MENÚ */
         .menu-toggle {
-            position: fixed; top: 60px; left: 15px; width: 50px; height: 50px;
+            position: fixed; top: 70px; left: 15px; width: 50px; height: 50px;
             background: var(--f); border: 2px solid var(--p); color: var(--p);
             border-radius: 5px; z-index: 1001; cursor: pointer;
             display: flex; align-items: center; justify-content: center; font-size: 24px;
         }
 
-        /* BOTONES DE ACCIÓN */
         .menu-btn {
             background: rgba(0,255,0,0.1); border: 1px solid var(--p);
             color: var(--p); padding: 15px; text-align: left;
             text-transform: uppercase; font-weight: bold; cursor: pointer;
             font-family: monospace; font-size: 13px;
         }
-        .menu-btn:active { background: var(--p); color: #000; }
         .btn-danger { border-color: var(--red); color: var(--red); }
 
-        /* CHAT DE EQUIPO */
         #chat-container {
             position: fixed; bottom: 20px; right: 15px; left: 15px;
             max-width: 400px; background: var(--glass); border: 1px solid var(--p);
             z-index: 1002; display: none; padding: 10px;
         }
         #chat-messages { height: 120px; overflow-y: auto; font-size: 11px; margin-bottom: 10px; border-bottom: 1px solid #222; }
-        .msg { margin-bottom: 5px; }
-        .msg-sender { font-weight: bold; color: gold; }
-        #chat-input { 
-            width: 100%; background: #000; border: 1px solid var(--p); 
-            color: var(--p); padding: 10px; box-sizing: border-box; font-family: monospace;
-        }
+        #chat-input { width: 100%; background: #000; border: 1px solid var(--p); color: var(--p); padding: 10px; box-sizing: border-box; font-family: monospace; }
 
-        /* PANTALLA DE LOGIN (Mantenida del anterior) */
         #setup-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; }
         .setup-content { border: 2px solid var(--p); padding: 25px; background: #050505; width: 100%; max-width: 400px; box-sizing: border-box; }
         input, select { width: 100%; background: #000; border: 1px solid var(--p); color: var(--p); padding: 14px; margin-bottom: 12px; box-sizing: border-box; font-size: 16px; }
         .btn-main { background: var(--p); color: #000; font-weight: bold; border: none; padding: 15px; width: 100%; cursor: pointer; text-transform: uppercase; }
 
-        @media (min-width: 768px) {
-            #chat-container { left: auto; width: 300px; }
-        }
+        @media (min-width: 768px) { #chat-container { left: auto; width: 300px; } }
     </style>
 </head>
 <body>
+
+    <!-- AVISO DE INICIO -->
+    <div id="mission-alert">
+        <div id="alert-text">MISION INICIADA<br>COMENZAR DESPLIEGUE</div>
+    </div>
 
     <div id="setup-screen">
         <div class="setup-content">
@@ -107,6 +115,16 @@
         <button class="menu-btn" onclick="location.reload()" style="background: transparent; border-color: #444; color: #666;">SALIR DE MISIÓN</button>
     </div>
 
+    <div id="header">
+        <div style="display: flex; flex-direction: column;">
+            <span id="op-active-name" style="font-size: 12px; font-weight: bold;">SISTEMA A.T.O.M.</span>
+            <div id="mission-timer">OP. TIME: 00:00:00</div>
+        </div>
+        <div id="clock" style="font-size: 11px; opacity: 0.7;">00:00:00</div>
+    </div>
+
+    <div id="map"></div>
+
     <div id="chat-container">
         <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 5px;">
             <span>CANAL DE EQUIPO</span>
@@ -115,13 +133,6 @@
         <div id="chat-messages"></div>
         <input type="text" id="chat-input" placeholder="ENVIAR MENSAJE..." onkeypress="handleChatKey(event)">
     </div>
-
-    <div id="header">
-        <span id="op-active-name" style="font-size: 12px; font-weight: bold;">SISTEMA A.T.O.M.</span>
-        <div id="clock" style="font-size: 12px;">00:00:00</div>
-    </div>
-
-    <div id="map"></div>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -138,21 +149,16 @@
         const scriptURL = "https://script.google.com/macros/s/AKfycbxMl0gTLiakSD4Za7Kefpktq5H6OQliXqnEWSoDGg9E_93zJniqXk2isxm_AexY1MfF/exec";
 
         let map, myCallsign, myTeam = "PENDIENTE", myMisionId, modoMarcado = false;
+        let cronometroPartidaInterval;
 
         // Cargar misiones
-        db.ref('operaciones').once('value', snap => {
+        db.ref('operaciones').on('value', snap => {
             const sel = document.getElementById('select-mision');
+            const actualValue = sel.value;
             sel.innerHTML = "";
             snap.forEach(m => { sel.innerHTML += `<option value="${m.key}">${m.val().nombre}</option>`; });
+            if(actualValue) sel.value = actualValue;
         });
-
-        function toggleMenu() { document.getElementById('side-menu').classList.toggle('open'); }
-
-        function toggleChat() {
-            const chat = document.getElementById('chat-container');
-            chat.style.display = (chat.style.display === 'block') ? 'none' : 'block';
-            if(chat.style.display === 'block') toggleMenu();
-        }
 
         async function validarYEntrar() {
             const call = document.getElementById('user-callsign').value.trim().toUpperCase();
@@ -170,40 +176,81 @@
                 if (data.status === "success") {
                     myCallsign = call;
                     myMisionId = misId;
-                    // Simulación de bando (Esto debería venir de tu lógica de admin)
-                    myTeam = "ALFA"; 
-                    document.getElementById('op-label').innerText = myCallsign;
-                    document.getElementById('team-label').innerText = myTeam;
                     
+                    // Inscripción en la misión para que el admin nos vea
+                    await fetch(`${scriptURL}?action=joinMission&callsign=${call}&misionId=${misId}`);
+
+                    document.getElementById('op-label').innerText = myCallsign;
                     document.getElementById('setup-screen').style.display = 'none';
+                    
                     initMap();
                     escucharChat();
-                } else {
-                    alert("CREDENCIALES INVÁLIDAS");
-                }
+                    escucharEstadoMision(); // LISTENER DE LANZAMIENTO
+                } else { alert("CREDENCIALES INVÁLIDAS"); }
             } catch (e) { alert("ERROR DE CONEXIÓN"); }
+        }
+
+        // --- FUNCIONALIDAD DE LANZAMIENTO Y CRONÓMETRO ---
+        function escucharEstadoMision() {
+            db.ref(`operaciones/${myMisionId}/estado`).on('value', snap => {
+                const estado = snap.val();
+                if (estado && estado.activo) {
+                    // 1. Mostrar aviso rojo pulsante por 10 seg
+                    const aviso = document.getElementById('mission-alert');
+                    aviso.style.display = 'flex';
+                    setTimeout(() => { aviso.style.display = 'none'; }, 10000);
+
+                    // 2. Iniciar cronómetro basado en el tiempo de inicio del admin
+                    iniciarCronometroMision(estado.startTime);
+                } else {
+                    // Si el admin aborta o detiene
+                    document.getElementById('mission-timer').style.display = 'none';
+                    clearInterval(cronometroPartidaInterval);
+                }
+            });
+        }
+
+        function iniciarCronometroMision(startTime) {
+            const display = document.getElementById('mission-timer');
+            display.style.display = 'block';
+            
+            clearInterval(cronometroPartidaInterval);
+            cronometroPartidaInterval = setInterval(() => {
+                const diff = Date.now() - startTime;
+                if(diff < 0) return; // Por si hay desajuste de reloj
+
+                const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+                const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                
+                display.innerText = `OP. TIME: ${h}:${m}:${s}`;
+            }, 1000);
         }
 
         function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 17, mapTypeId: 'satellite', disableDefaultUI: true
             });
-            // Reloj táctico
             setInterval(() => {
                 document.getElementById('clock').innerText = new Date().toLocaleTimeString();
             }, 1000);
         }
 
-        // LÓGICA DE CHAT
+        // Lógica de chat y menús (Se mantienen)
+        function toggleMenu() { document.getElementById('side-menu').classList.toggle('open'); }
+        function toggleChat() {
+            const chat = document.getElementById('chat-container');
+            chat.style.display = (chat.style.display === 'block') ? 'none' : 'block';
+            if(chat.style.display === 'block') toggleMenu();
+        }
+
         function handleChatKey(e) {
             if(e.key === 'Enter') {
                 const input = document.getElementById('chat-input');
                 const texto = input.value.trim();
                 if(texto) {
                     db.ref(`chats/${myMisionId}/${myTeam}`).push({
-                        sender: myCallsign,
-                        text: texto,
-                        time: Date.now()
+                        sender: myCallsign, text: texto, time: Date.now()
                     });
                     input.value = "";
                 }
@@ -214,10 +261,7 @@
             db.ref(`chats/${myMisionId}/${myTeam}`).limitToLast(10).on('child_added', snap => {
                 const data = snap.val();
                 const container = document.getElementById('chat-messages');
-                container.innerHTML += `
-                    <div class="msg">
-                        <span class="msg-sender">[${data.sender}]</span>: ${data.text}
-                    </div>`;
+                container.innerHTML += `<div class="msg"><span class="msg-sender">[${data.sender}]</span>: ${data.text}</div>`;
                 container.scrollTop = container.scrollHeight;
             });
         }
