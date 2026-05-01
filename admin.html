@@ -10,6 +10,7 @@
 
 body { margin:0; font-family: monospace; background:var(--f); color:var(--p); display:flex; }
 
+/* PANEL */
 #panel {
     width:320px;
     background:#050505;
@@ -17,26 +18,75 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); di
     padding:10px;
     overflow:auto;
     height:100vh;
+    z-index:1000;
 }
 
+/* MAPA */
 #map { flex:1; }
 
+/* BOTÓN TOGGLE */
+#toggleMenu {
+    position:fixed;
+    top:10px;
+    left:10px;
+    z-index:1001;
+    background:#000;
+    border:1px solid var(--p);
+    color:var(--p);
+    padding:10px;
+    width:auto;
+}
+
+/* INPUTS Y BOTONES */
 button, select, input {
     width:100%;
-    margin-top:5px;
+    margin-top:6px;
     background:#111;
     color:var(--p);
     border:1px solid var(--p);
-    padding:8px;
+    padding:12px;
+    font-size:14px;
 }
 
-.user { display:flex; justify-content:space-between; font-size:12px; border-bottom:1px solid #222; padding:5px;}
+.user { 
+    display:flex; 
+    justify-content:space-between; 
+    font-size:12px; 
+    border-bottom:1px solid #222; 
+    padding:6px;
+}
 
 .stat { font-size:12px; margin-top:5px; }
+
+/* 📱 RESPONSIVE */
+@media (max-width: 768px) {
+
+    body {
+        flex-direction: column;
+    }
+
+    #panel {
+        width:100% !important;
+        height:auto;
+        position:fixed;
+        bottom:0;
+        top:auto;
+        border-right:none;
+        border-top:2px solid var(--p);
+        max-height:50vh;
+    }
+
+    #map {
+        height:100vh;
+        width:100%;
+    }
+}
 </style>
 </head>
 
 <body>
+
+<button id="toggleMenu" onclick="toggleMenu()">☰</button>
 
 <div id="panel">
 
@@ -96,6 +146,11 @@ let map, currentId=null;
 let shapes=[];
 let playerMarkers={};
 let objetivos={};
+
+function toggleMenu(){
+ let panel = document.getElementById("panel");
+ panel.style.display = (panel.style.display === "none") ? "block" : "none";
+}
 
 function initMap(){
  map=new google.maps.Map(document.getElementById("map"),{
@@ -304,7 +359,6 @@ function actualizarStats(){
  AZUL: ${window.totalA||0} | BAJAS: ${bajas.azul}
  `;
 
- // FIN EXTERMINIO
  if(document.getElementById("modo").value==="EXTERMINIO"){
   if(bajas.rojo>=window.totalR){
    alert("AZUL GANA");
