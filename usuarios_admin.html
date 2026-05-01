@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.T.O.M - Control de Operadores</title>
+
+<style>
+:root { --p:#00ff00; --f:#050505; --red:#ff3333; }
+
+body {
+ background:var(--f);
+ color:var(--p);
+ font-family:monospace;
+ margin:0;
+ padding:10px;
+}
+
+h2 { text-align:center; }
+
+.user {
+ border-bottom:1px solid #222;
+ padding:10px;
+ display:flex;
+ flex-direction:column;
+ margin-bottom:10px;
+ background:#000;
+}
+
+.row {
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ flex-wrap:wrap;
+}
+
+button, select {
+ margin-top:5px;
+ padding:8px;
+ background:#111;
+ border:1px solid var(--p);
+ color:var(--p);
+ cursor:pointer;
+}
+
+button:hover {
+ background:var(--p);
+ color:#000;
+}
+
+.danger {
+ border-color:var(--red);
+ color:var(--red);
+}
+</style>
+</head>
+
+<body>
+
+<h2>CONTROL DE OPERADORES</h2>
+
+<div id="lista"></div>
+
+<button onclick="volver()">VOLVER</button>
+
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+ apiKey:"TU_API_KEY",
+ authDomain:"TU_PROJECT.firebaseapp.com",
+ databaseURL:"https://TU_PROJECT-default-rtdb.firebaseio.com"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.database();
+
+// 🔒 PROTECCIÓN
+auth.onAuthStateChanged(user=>{
+ if(!user){
+  location.href="login.html";
+  return;
+ }
+
+ db.ref("usuarios/"+user.uid).once("value")
+ .then(snap=>{
+  let data=snap.val();
+
+  if(!data || data.rol !== "ADMIN"){
+   alert("ACCESO DENEGADO");
+   location.href="misiones.html";
+   return;
+  }
+
+  cargarUsuarios();
+ });
+});
+
+// 📋 LISTADO
+function cargarUsuarios(){
+ db.ref("usuarios").on("value",snap=>{
+  let cont=document.getElementById("lista");
+  cont.innerHTML="";
+
+  snap.forEach(s=>{
+   let u=s.val();
+   let id=s.key;
+
+   cont.innerHTML += `
+   <div class="user">
+     <div class="row">
+       <b>${u.callsign || "SIN CALLSIGN"}</b>
+       <span>${u.email || ""}</span>
+     </div>
+
+     <div class="row">
+       <select onchange="cambiarRol('${id}', this.value)">
+         <option ${u.rol==="JUGADOR"?"selected":""}>JUGADOR</option>
+         <option ${u.rol==="EDITOR"?"selected":""}>EDITOR</option>
+         <option ${u.rol==="ADMIN"?"selected":""}>ADMIN</option>
+       </select>
+
+       <button class="danger" onclick="eliminar('${id}')">ELIMINAR</button>
+     </div>
+   </div>
+   `;
+  });
+ });
+}
+
+// 🎖 CAMBIAR ROL
+function cambiarRol(id,rol){
+ db.ref("usuarios/"+id).update({rol:rol});
+}
+
+// ❌ ELIMINAR (solo DB)
+function eliminar(id){
+ if(confirm("¿Eliminar usuario de la base?")){
+  db.ref("usuarios/"+id).remove();
+ }
+}
+
+// VOLVER
+function volver(){
+ location.href="admin.html";
+}
+</script>
+
+</body>
+</html>
