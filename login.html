@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.T.O.M. - Acceso</title>
+
+<style>
+:root { --p: #00ff00; --f: #0b0b0b; }
+
+body {
+    margin: 0;
+    font-family: 'Courier New', monospace;
+    background: var(--f);
+    color: var(--p);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+.container {
+    border: 2px solid var(--p);
+    padding: 25px;
+    width: 300px;
+    background: #050505;
+}
+
+h1 {
+    text-align: center;
+    font-size: 18px;
+    letter-spacing: 3px;
+}
+
+input, button {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    background: #111;
+    border: 1px solid var(--p);
+    color: var(--p);
+}
+
+button:hover {
+    background: var(--p);
+    color: black;
+}
+
+.toggle {
+    text-align: center;
+    font-size: 12px;
+    margin-top: 10px;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>A.T.O.M.</h1>
+
+    <input type="text" id="callsign" placeholder="CALLSIGN">
+    <input type="email" id="email" placeholder="EMAIL">
+    <input type="password" id="password" placeholder="PASSWORD">
+
+    <button onclick="login()">INGRESAR</button>
+    <button onclick="registro()">REGISTRARSE</button>
+
+    <div class="toggle" onclick="limpiar()">LIMPIAR</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+    authDomain: "atom--airsoft.firebaseapp.com",
+    databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+    projectId: "atom--airsoft"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+
+// 🔐 LOGIN
+function login() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    if(!email || !password) return alert("FALTAN DATOS");
+
+    db.ref('usuarios').once('value', snap => {
+        let encontrado = false;
+
+        snap.forEach(userSnap => {
+            const u = userSnap.val();
+
+            if(u.email === email && u.password === password) {
+                encontrado = true;
+
+                const usuario = {
+                    id: userSnap.key,
+                    callsign: u.callsign,
+                    rol: u.rol || "jugador"
+                };
+
+                localStorage.setItem("usuario", JSON.stringify(usuario));
+
+                redirigirPorRol(usuario);
+            }
+        });
+
+        if(!encontrado) alert("USUARIO O PASSWORD INCORRECTO");
+    });
+}
+
+
+// 📍 REDIRECCIÓN INTELIGENTE
+function redirigirPorRol(user) {
+    if(user.rol === "admin" || user.rol === "editor") {
+        window.location.href = "admin.html";
+    } else {
+        window.location.href = "misiones.html";
+    }
+}
+
+
+// 🧾 REGISTRO
+function registro() {
+    const callsign = document.getElementById('callsign').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    if(!callsign || !email || !password) {
+        return alert("COMPLETAR TODOS LOS CAMPOS");
+    }
+
+    db.ref('usuarios').once('value', snap => {
+        let existe = false;
+
+        snap.forEach(userSnap => {
+            if(userSnap.val().email === email) {
+                existe = true;
+            }
+        });
+
+        if(existe) return alert("EMAIL YA REGISTRADO");
+
+        db.ref('usuarios').push({
+            callsign,
+            email,
+            password,
+            rol: "jugador", // 🔥 siempre jugador por defecto
+            creado: Date.now()
+        });
+
+        alert("USUARIO REGISTRADO");
+    });
+}
+
+
+// 🧹 LIMPIAR
+function limpiar() {
+    document.getElementById('callsign').value = "";
+    document.getElementById('email').value = "";
+    document.getElementById('password').value = "";
+}
+
+
+// 🔁 AUTO LOGIN
+window.onload = () => {
+    const user = JSON.parse(localStorage.getItem("usuario"));
+
+    if(user) {
+        redirigirPorRol(user);
+    }
+};
+</script>
+
+</body>
+</html>
