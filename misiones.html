@@ -126,6 +126,7 @@ input {
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
 <script>
@@ -135,15 +136,62 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
 const db = firebase.database();
 
-let user = JSON.parse(localStorage.getItem("usuario"));
-if(!user) location.href="login.html";
+/* 🔒 BLINDAJE */
+const ROLES_PERMITIDOS = ["ADMIN","EDITOR","JUGADOR"];
+
+let user = null;
+
+auth.onAuthStateChanged(u => {
+
+ if(!u){
+  location.href="login.html";
+  return;
+ }
+
+ db.ref("usuarios/"+u.uid).once("value").then(snap=>{
+  const data = snap.val();
+
+  if(!data){
+   alert("Usuario inválido");
+   auth.signOut();
+   return;
+  }
+
+  if(!ROLES_PERMITIDOS.includes(data.rol)){
+   alert("ACCESO DENEGADO");
+   location.href="index.html";
+   return;
+  }
+
+  user = {
+   id: u.uid,
+   callsign: data.callsign,
+   rol: data.rol
+  };
+
+  localStorage.setItem("usuario", JSON.stringify(user));
+
+  iniciarApp();
+ });
+
+});
+
+/* ===== APP ===== */
 
 let map, myMarker, zona=null;
 let currentMisionId=null;
 let markers={}, objetivos=[];
 let medicoCount=0;
+
+function iniciarApp(){
+ document.getElementById("info").innerText = user.callsign;
+ initMap();
+ obtenerEquipo();
+}
 
 /* TOGGLE MENU */
 function toggleMenu(){
@@ -151,14 +199,7 @@ function toggleMenu(){
  menu.style.display = (menu.style.display === "none") ? "block" : "none";
 }
 
-// INIT
-window.onload = ()=>{
- document.getElementById("info").innerText = user.callsign;
- initMap();
- obtenerEquipo();
-};
-
-// MAP
+/* MAP */
 function initMap(){
  map = new google.maps.Map(document.getElementById("map"),{
   zoom:17,
@@ -170,7 +211,7 @@ function initMap(){
  iniciarGPS();
 }
 
-// EQUIPO
+/* EQUIPO */
 function obtenerEquipo(){
  db.ref("inscripciones").orderByChild("uid").equalTo(user.id).once("value",snap=>{
   snap.forEach(s=>{
@@ -182,7 +223,7 @@ function obtenerEquipo(){
  });
 }
 
-// MISION
+/* MISION */
 function cargarMision(){
  db.ref("operaciones").once("value",snap=>{
   snap.forEach(s=>{
@@ -222,7 +263,7 @@ function cargarMision(){
  });
 }
 
-// TIMER
+/* TIMER */
 function iniciarTimer(t){
  setInterval(()=>{
   let d=Date.now()-t;
@@ -234,7 +275,7 @@ function iniciarTimer(t){
  },1000);
 }
 
-// GPS
+/* GPS */
 function iniciarGPS(){
  navigator.geolocation.watchPosition(pos=>{
   let lat=pos.coords.latitude;
@@ -253,7 +294,7 @@ function iniciarGPS(){
  });
 }
 
-// JUGADORES
+/* JUGADORES */
 function escucharJugadores(){
  db.ref("posiciones").on("value",snap=>{
   snap.forEach(s=>{
@@ -278,7 +319,7 @@ function escucharJugadores(){
  });
 }
 
-// CAPTURA
+/* CAPTURA */
 function iniciarCaptura(){
  setInterval(()=>{
 
@@ -289,14 +330,12 @@ function iniciarCaptura(){
   objetivos.forEach(obj=>{
 
    let aliados=0;
-   let enemigos=0;
 
    Object.values(markers).forEach(m=>{
     let d=google.maps.geometry.spherical.computeDistanceBetween(
      m.getPosition(),
      new google.maps.LatLng(obj.lat,obj.lng)
     );
-
     if(d<25) aliados++;
    });
 
@@ -307,10 +346,8 @@ function iniciarCaptura(){
 
    if(d<25) aliados++;
 
-   if(aliados>0 && enemigos===0){
+   if(aliados>0){
     obj.progreso+=aliados;
-   } else if(enemigos>0){
-    obj.progreso=0;
    }
 
    if(obj.progreso>=180){
@@ -326,16 +363,15 @@ function iniciarCaptura(){
  },1000);
 }
 
-// COLOR
+/* COLOR */
 function actualizarColor(obj){
  let c="#ffff00";
  if(obj.owner==="EQUIPO_ROJO") c="#ff0000";
  if(obj.owner==="EQUIPO_AZUL") c="#0000ff";
-
  obj.circle.setOptions({fillColor:c,strokeColor:c});
 }
 
-// SYNC OBJ
+/* SYNC OBJ */
 function escucharObjetivos(){
  db.ref("objetivos").on("value",snap=>{
   snap.forEach(s=>{
@@ -349,22 +385,22 @@ function escucharObjetivos(){
  });
 }
 
-// MÉDICO
+/* MÉDICO */
 function pedirMedico(){
  medicoCount++;
  db.ref("eventos").push({tipo:"medico",user:user.callsign});
  if(medicoCount>=2){
   alert("BAJA");
-  db.ref("eventos").push({tipo:"baja",user:user.callsign});
+  db.ref("eventos").push({tipo:"baja",user:user.callsign,equipo:user.equipo});
  }
 }
 
-// ENEMIGO
+/* ENEMIGO */
 function marcarEnemigo(){
  db.ref("eventos").push({tipo:"enemigo",user:user.callsign});
 }
 
-// CHAT
+/* CHAT */
 function enviarMsg(){
  let msg=document.getElementById("msg").value;
  if(!msg) return;
@@ -377,16 +413,19 @@ db.ref("chat").on("child_added",snap=>{
  document.getElementById("chat").innerHTML+=`<div><b>${c.user}:</b> ${c.msg}</div>`;
 });
 
-// UTILS
+/* UTILS */
 function getBounds(path){
  let b=new google.maps.LatLngBounds();
  path.forEach(p=>b.extend(p));
  return b;
 }
 
+/* LOGOUT */
 function logout(){
- localStorage.removeItem("usuario");
- location.href="login.html";
+ auth.signOut().then(()=>{
+  localStorage.removeItem("usuario");
+  location.href="login.html";
+ });
 }
 
 </script>
