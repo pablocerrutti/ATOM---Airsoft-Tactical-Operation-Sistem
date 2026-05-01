@@ -125,12 +125,14 @@ button, select, input {
 <div class="stat" id="stats"></div>
 
 <button onclick="lanzar()">🚀 LANZAR</button>
+<button onclick="logout()" style="border-color:#ff3333;color:#ff3333;">CERRAR SESIÓN</button>
 
 </div>
 
 <div id="map"></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
 <script>
@@ -140,8 +142,61 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
 const db = firebase.database();
 
+/* 🔒 BLINDAJE */
+const ROLES_PERMITIDOS = ["ADMIN","EDITOR"];
+
+auth.onAuthStateChanged(user => {
+
+ if(!user){
+  location.href = "login.html";
+  return;
+ }
+
+ db.ref("usuarios/" + user.uid).once("value")
+ .then(snap => {
+
+  const data = snap.val();
+
+  if(!data){
+   alert("Usuario sin perfil");
+   auth.signOut();
+   return;
+  }
+
+  const usuario = {
+   id: user.uid,
+   email: user.email,
+   callsign: data.callsign,
+   rol: data.rol
+  };
+
+  localStorage.setItem("usuario", JSON.stringify(usuario));
+
+  if(!ROLES_PERMITIDOS.includes(data.rol)){
+   alert("ACCESO DENEGADO");
+   location.href = "misiones.html";
+   return;
+  }
+
+  console.log("ACCESO OK:", data.rol);
+
+ });
+
+});
+
+/* LOGOUT */
+function logout(){
+ auth.signOut().then(()=>{
+  localStorage.removeItem("usuario");
+  location.href="login.html";
+ });
+}
+
+/* APP ORIGINAL */
 let map, currentId=null;
 let shapes=[];
 let playerMarkers={};
@@ -318,7 +373,6 @@ function escucharObjetivos(){
  });
 }
 
-// 💀 BAJAS + EVENTOS
 let bajas={rojo:0,azul:0};
 
 function escucharEventos(){
