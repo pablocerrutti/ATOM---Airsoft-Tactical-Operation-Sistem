@@ -7,39 +7,12 @@
 
 <style>
 :root { --p:#00ff00; --f:#0b0b0b; --red:#ff3333; --blue:#33aaff; }
-
 body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
-
 #map { height:100vh; width:100%; }
-
-#hud {
-    position:fixed; top:10px; left:50%;
-    transform:translateX(-50%);
-    background:#000; padding:5px 15px;
-    border:1px solid var(--p);
-}
-
-#menu {
-    position:fixed; right:0; top:0;
-    width:260px; height:100%;
-    background:#050505;
-    border-left:2px solid var(--p);
-    padding:10px;
-    overflow:auto;
-}
-
-button {
-    width:100%; margin-top:5px;
-    background:#111; color:var(--p);
-    border:1px solid var(--p);
-    padding:8px;
-}
-
-.chat {
-    height:150px; overflow:auto;
-    border:1px solid #333; margin-top:10px;
-    font-size:11px;
-}
+#hud { position:fixed; top:10px; left:50%; transform:translateX(-50%); background:#000; padding:5px 15px; border:1px solid var(--p);}
+#menu { position:fixed; right:0; top:0; width:260px; height:100%; background:#050505; border-left:2px solid var(--p); padding:10px; overflow:auto;}
+button { width:100%; margin-top:5px; background:#111; color:var(--p); border:1px solid var(--p); padding:8px;}
+.chat { height:150px; overflow:auto; border:1px solid #333; margin-top:10px; font-size:11px;}
 </style>
 </head>
 
@@ -49,19 +22,17 @@ button {
 <div id="hud">00:00:00</div>
 
 <div id="menu">
-    <h3>COMANDO</h3>
+<h3>COMANDO</h3>
+<div id="info"></div>
 
-    <div id="info"></div>
+<button onclick="pedirMedico()">🩺 MÉDICO</button>
+<button onclick="marcarEnemigo()">⚠ ENEMIGO</button>
 
-    <button onclick="pedirMedico()">🩺 SOLICITAR MÉDICO</button>
-    <button onclick="marcarEnemigo()">⚠ ENEMIGO DETECTADO</button>
+<input id="msg" placeholder="mensaje">
+<button onclick="enviarMsg()">ENVIAR</button>
 
-    <input id="msg" placeholder="mensaje">
-    <button onclick="enviarMsg()">ENVIAR</button>
-
-    <div class="chat" id="chat"></div>
-
-    <button onclick="logout()">CERRAR SESIÓN</button>
+<div class="chat" id="chat"></div>
+<button onclick="logout()">SALIR</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -81,217 +52,247 @@ if(!user) location.href="login.html";
 
 let map, myMarker, zona=null;
 let currentMisionId=null;
-let markers={};
+let markers={}, objetivos=[];
 let medicoCount=0;
 
 // INIT
-window.onload = () => {
-    document.getElementById("info").innerText = "CALLSIGN: " + user.callsign;
-    initMap();
-    obtenerMiEquipo();
+window.onload = ()=>{
+ document.getElementById("info").innerText = user.callsign;
+ initMap();
+ obtenerEquipo();
 };
 
-// MAPA
+// MAP
 function initMap(){
-    map = new google.maps.Map(document.getElementById("map"),{
-        zoom:17,
-        center:{lat:-34.09,lng:-56.21},
-        mapTypeId:"satellite"
-    });
+ map = new google.maps.Map(document.getElementById("map"),{
+  zoom:17,
+  center:{lat:-34.09,lng:-56.21},
+  mapTypeId:"satellite"
+ });
 
-    cargarMisionActiva();
-    iniciarGPS();
+ cargarMision();
+ iniciarGPS();
 }
 
-// OBTENER EQUIPO
-function obtenerMiEquipo(){
-    db.ref("inscripciones")
-    .orderByChild("uid")
-    .equalTo(user.id)
-    .once("value", snap => {
-
-        snap.forEach(s => {
-            let ins = s.val();
-            currentMisionId = ins.mision;
-            user.equipo = ins.equipo;
-
-            escucharJugadores();
-        });
-
-    });
+// EQUIPO
+function obtenerEquipo(){
+ db.ref("inscripciones").orderByChild("uid").equalTo(user.id).once("value",snap=>{
+  snap.forEach(s=>{
+   let ins=s.val();
+   currentMisionId=ins.mision;
+   user.equipo=ins.equipo;
+   escucharJugadores();
+  });
+ });
 }
 
-// CARGAR MISIÓN
-function cargarMisionActiva(){
-    db.ref("operaciones").once("value", snap=>{
-        snap.forEach(s=>{
-            let m = s.val();
+// MISION
+function cargarMision(){
+ db.ref("operaciones").once("value",snap=>{
+  snap.forEach(s=>{
+   let m=s.val();
+   if(m.estado && m.estado.activo){
 
-            if(m.estado && m.estado.activo){
+    if(m.zonas){
+     m.zonas.forEach(z=>{
 
-                if(m.zonas){
-                    m.zonas.forEach(z=>{
+      if(z.type==="polygon"){
+       zona=new google.maps.Polygon({paths:z.path,map:map,fillOpacity:0.1});
+       map.fitBounds(getBounds(z.path));
+      }
 
-                        if(z.type==="polygon"){
-                            zona = new google.maps.Polygon({
-                                paths:z.path,
-                                map:map,
-                                fillOpacity:0.1,
-                                strokeColor:"#00ff00"
-                            });
+      if(z.role==="objetivo"){
+       let marker=new google.maps.Marker({position:{lat:z.lat,lng:z.lng},map:map});
+       let circle=new google.maps.Circle({map:map,center:{lat:z.lat,lng:z.lng},radius:25,fillOpacity:0.1});
 
-                            map.fitBounds(getBounds(z.path));
-                        }
+       objetivos.push({
+        id:"obj_"+Math.random(),
+        lat:z.lat,lng:z.lng,
+        marker:marker,
+        circle:circle,
+        owner:"NEUTRAL",
+        progreso:0
+       });
+      }
 
-                        if(z.role==="objetivo"){
-                            new google.maps.Marker({
-                                position:{lat:z.lat,lng:z.lng},
-                                map:map,
-                                icon:"http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
-                            });
-                        }
+     });
+    }
 
-                    });
-                }
-
-                iniciarTimer(m.estado.startTime);
-            }
-        });
-    });
+    iniciarTimer(m.estado.startTime);
+    iniciarCaptura();
+    escucharObjetivos();
+   }
+  });
+ });
 }
 
 // TIMER
 function iniciarTimer(t){
-    setInterval(()=>{
-        let diff = Date.now()-t;
-        let s = Math.floor(diff/1000)%60;
-        let m = Math.floor(diff/60000)%60;
-        let h = Math.floor(diff/3600000);
-
-        document.getElementById("hud").innerText =
-        `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
-    },1000);
+ setInterval(()=>{
+  let d=Date.now()-t;
+  let s=Math.floor(d/1000)%60;
+  let m=Math.floor(d/60000)%60;
+  let h=Math.floor(d/3600000);
+  document.getElementById("hud").innerText=
+  `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+ },1000);
 }
 
 // GPS
 function iniciarGPS(){
-    navigator.geolocation.watchPosition(pos=>{
-        let lat = pos.coords.latitude;
-        let lng = pos.coords.longitude;
+ navigator.geolocation.watchPosition(pos=>{
+  let lat=pos.coords.latitude;
+  let lng=pos.coords.longitude;
 
-        let p = {lat,lng};
+  if(!myMarker){
+   myMarker=new google.maps.Marker({position:{lat,lng},map:map,icon:"http://maps.google.com/mapfiles/ms/icons/green-dot.png"});
+  } else myMarker.setPosition({lat,lng});
 
-        if(!myMarker){
-            myMarker = new google.maps.Marker({
-                position:p,
-                map:map,
-                icon:"http://maps.google.com/mapfiles/ms/icons/green-dot.png"
-            });
-        }else{
-            myMarker.setPosition(p);
-        }
+  db.ref("posiciones/"+user.id).set({lat,lng,equipo:user.equipo,mision:currentMisionId});
 
-        if(user.equipo && currentMisionId){
-            db.ref("posiciones/"+user.id).set({
-                lat,lng,
-                equipo:user.equipo,
-                mision:currentMisionId
-            });
-        }
-
-        if(zona && !google.maps.geometry.poly.containsLocation(
-            new google.maps.LatLng(lat,lng), zona
-        )){
-            alert("⚠ FUERA DE ZONA!");
-        }
-
-    });
+  if(zona && !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(lat,lng), zona)){
+   alert("FUERA DE ZONA");
+  }
+ });
 }
 
-// VER COMPAÑEROS
+// JUGADORES
 function escucharJugadores(){
-    db.ref("posiciones").on("value", snap=>{
-        snap.forEach(s=>{
-            let p = s.val();
-            let id = s.key;
+ db.ref("posiciones").on("value",snap=>{
+  snap.forEach(s=>{
+   let p=s.val(); let id=s.key;
 
-            if(p.mision !== currentMisionId) return;
-            if(p.equipo !== user.equipo) return;
-            if(id === user.id) return;
+   if(p.mision!==currentMisionId) return;
+   if(p.equipo!==user.equipo) return;
+   if(id===user.id) return;
 
-            let pos = {lat:p.lat, lng:p.lng};
+   let pos={lat:p.lat,lng:p.lng};
 
-            if(!markers[id]){
-                markers[id] = new google.maps.Marker({
-                    position: pos,
-                    map: map,
-                    icon: user.equipo === "EQUIPO_ROJO"
-                        ? "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
-                        : "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-                });
-            } else {
-                markers[id].setPosition(pos);
-            }
-        });
+   if(!markers[id]){
+    markers[id]=new google.maps.Marker({
+     position:pos,
+     map:map,
+     icon:user.equipo==="EQUIPO_ROJO"?
+     "http://maps.google.com/mapfiles/ms/icons/red-dot.png":
+     "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
     });
+   } else markers[id].setPosition(pos);
+  });
+ });
+}
+
+// CAPTURA AVANZADA
+function iniciarCaptura(){
+ setInterval(()=>{
+
+  if(!myMarker) return;
+
+  let pos=myMarker.getPosition();
+
+  objetivos.forEach(obj=>{
+
+   let aliados=0;
+   let enemigos=0;
+
+   Object.values(markers).forEach(m=>{
+    let d=google.maps.geometry.spherical.computeDistanceBetween(
+     m.getPosition(),
+     new google.maps.LatLng(obj.lat,obj.lng)
+    );
+
+    if(d<25) aliados++;
+   });
+
+   let d=google.maps.geometry.spherical.computeDistanceBetween(
+    pos,
+    new google.maps.LatLng(obj.lat,obj.lng)
+   );
+
+   if(d<25) aliados++;
+
+   // enemigos (simplificado global)
+   // (para mejorar luego con query de otros equipos)
+
+   if(aliados>0 && enemigos===0){
+    obj.progreso+=aliados;
+   } else if(enemigos>0){
+    obj.progreso=0;
+   }
+
+   if(obj.progreso>=180){
+    obj.owner=user.equipo;
+    obj.progreso=0;
+
+    db.ref("objetivos/"+obj.id).set({owner:obj.owner});
+   }
+
+   actualizarColor(obj);
+
+  });
+
+ },1000);
+}
+
+// COLOR
+function actualizarColor(obj){
+ let c="#ffff00";
+ if(obj.owner==="EQUIPO_ROJO") c="#ff0000";
+ if(obj.owner==="EQUIPO_AZUL") c="#0000ff";
+
+ obj.circle.setOptions({fillColor:c,strokeColor:c});
+}
+
+// SYNC OBJ
+function escucharObjetivos(){
+ db.ref("objetivos").on("value",snap=>{
+  snap.forEach(s=>{
+   let data=s.val();
+   let obj=objetivos.find(o=>o.id===s.key);
+   if(obj){
+    obj.owner=data.owner;
+    actualizarColor(obj);
+   }
+  });
+ });
 }
 
 // MÉDICO
 function pedirMedico(){
-    medicoCount++;
-
-    db.ref("eventos").push({
-        tipo:"medico",
-        user:user.callsign
-    });
-
-    if(medicoCount>=2){
-        alert("🚫 BAJA - VOLVER A RESPAWN");
-
-        db.ref("eventos").push({
-            tipo:"baja",
-            user:user.callsign
-        });
-    }
+ medicoCount++;
+ db.ref("eventos").push({tipo:"medico",user:user.callsign});
+ if(medicoCount>=2){
+  alert("BAJA");
+  db.ref("eventos").push({tipo:"baja",user:user.callsign});
+ }
 }
 
 // ENEMIGO
 function marcarEnemigo(){
-    db.ref("eventos").push({
-        tipo:"enemigo",
-        user:user.callsign
-    });
+ db.ref("eventos").push({tipo:"enemigo",user:user.callsign});
 }
 
 // CHAT
 function enviarMsg(){
-    let msg = document.getElementById("msg").value;
-
-    db.ref("chat").push({
-        user:user.callsign,
-        msg:msg
-    });
-
-    document.getElementById("msg").value="";
+ let msg=document.getElementById("msg").value;
+ db.ref("chat").push({user:user.callsign,msg:msg});
+ document.getElementById("msg").value="";
 }
 
-db.ref("chat").on("child_added", snap=>{
-    let c = snap.val();
-
-    document.getElementById("chat").innerHTML +=
-    `<div><b>${c.user}:</b> ${c.msg}</div>`;
+db.ref("chat").on("child_added",snap=>{
+ let c=snap.val();
+ document.getElementById("chat").innerHTML+=`<div><b>${c.user}:</b> ${c.msg}</div>`;
 });
 
 // UTILS
 function getBounds(path){
-    let b = new google.maps.LatLngBounds();
-    path.forEach(p=>b.extend(p));
-    return b;
+ let b=new google.maps.LatLngBounds();
+ path.forEach(p=>b.extend(p));
+ return b;
 }
 
 function logout(){
-    localStorage.removeItem("usuario");
-    location.href="login.html";
+ localStorage.removeItem("usuario");
+ location.href="login.html";
 }
 
 </script>
