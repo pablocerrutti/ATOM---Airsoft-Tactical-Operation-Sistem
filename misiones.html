@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.T.O.M. - Misiones</title>
+
+<style>
+:root { --p: #00ff00; --f: #0b0b0b; --red:#ff3333; --blue:#33aaff; }
+
+body {
+    margin: 0;
+    font-family: 'Courier New', monospace;
+    background: var(--f);
+    color: var(--p);
+}
+
+header {
+    background: #000;
+    border-bottom: 2px solid var(--p);
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.container {
+    padding: 15px;
+}
+
+.mision {
+    border: 1px solid #333;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #050505;
+}
+
+button {
+    background: #111;
+    border: 1px solid var(--p);
+    color: var(--p);
+    padding: 8px;
+    cursor: pointer;
+    margin-top: 5px;
+}
+
+button:hover {
+    background: var(--p);
+    color: black;
+}
+
+.estado {
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+    <div id="user-info">...</div>
+    <button onclick="logout()">CERRAR SESIÓN</button>
+</header>
+
+<div class="container">
+    <h3>MISIONES DISPONIBLES</h3>
+    <div id="lista-misiones"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+    authDomain: "atom--airsoft.firebaseapp.com",
+    databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+    projectId: "atom--airsoft"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let usuario = null;
+
+// 🔐 PROTEGER ACCESO
+window.onload = () => {
+    usuario = JSON.parse(localStorage.getItem("usuario"));
+
+    if(!usuario) {
+        window.location.href = "login.html";
+        return;
+    }
+
+    document.getElementById("user-info").innerText = "CALLSIGN: " + usuario.callsign;
+
+    cargarMisiones();
+};
+
+
+// 📦 CARGAR MISIONES
+function cargarMisiones() {
+    db.ref('operaciones').on('value', snap => {
+        const contenedor = document.getElementById('lista-misiones');
+        contenedor.innerHTML = "";
+
+        snap.forEach(mSnap => {
+            const m = mSnap.val();
+            const id = mSnap.key;
+
+            contenedor.innerHTML += `
+                <div class="mision">
+                    <strong>${m.nombre}</strong><br>
+                    <span>Estado: ${m.estado && m.estado.activo ? 'EN CURSO' : 'DISPONIBLE'}</span><br>
+                    <button onclick="inscribirse('${id}')">INSCRIBIRSE</button>
+                    <div id="estado-${id}" class="estado"></div>
+                </div>
+            `;
+
+            verificarEstado(id);
+        });
+    });
+}
+
+
+// 🧾 INSCRIPCIÓN
+function inscribirse(misionId) {
+
+    db.ref('inscripciones').once('value', snap => {
+        let yaInscripto = false;
+
+        snap.forEach(i => {
+            const ins = i.val();
+
+            if(ins.mision === misionId && ins.callsign === usuario.callsign) {
+                yaInscripto = true;
+            }
+        });
+
+        if(yaInscripto) {
+            alert("YA ESTÁS INSCRIPTO");
+            return;
+        }
+
+        db.ref('inscripciones').push({
+            uid: usuario.id,
+            callsign: usuario.callsign,
+            mision: misionId,
+            equipo: "PENDIENTE",
+            estado: "ALISTADO"
+        });
+
+        alert("INSCRIPCIÓN EXITOSA");
+    });
+}
+
+
+// 🔍 VERIFICAR ESTADO DEL USUARIO EN ESA MISIÓN
+function verificarEstado(misionId) {
+
+    db.ref('inscripciones').on('value', snap => {
+
+        let estadoTexto = "";
+
+        snap.forEach(i => {
+            const ins = i.val();
+
+            if(ins.mision === misionId && ins.callsign === usuario.callsign) {
+                estadoTexto = `INSCRIPTO | EQUIPO: ${ins.equipo}`;
+            }
+        });
+
+        document.getElementById("estado-" + misionId).innerText = estadoTexto;
+    });
+}
+
+
+// 🚪 LOGOUT
+function logout() {
+    localStorage.removeItem("usuario");
+    window.location.href = "login.html";
+}
+
+</script>
+
+</body>
+</html>
