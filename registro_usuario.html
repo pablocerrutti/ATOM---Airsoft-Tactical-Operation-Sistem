@@ -91,7 +91,6 @@ button:hover {
  0% {top:0;}
  100% {top:100%;}
 }
-
 </style>
 </head>
 
@@ -108,7 +107,7 @@ button:hover {
 <input id="email" placeholder="EMAIL">
 <input id="pass" type="password" placeholder="CLAVE">
 
-<button onclick="registrar()">REGISTRAR</button>
+<button onclick="registrar()" id="btn">REGISTRAR</button>
 
 <div id="status"></div>
 
@@ -122,19 +121,21 @@ button:hover {
 
 <script>
 const firebaseConfig = {
-  apiKey: "TU_API_KEY_REAL",
-  authDomain: "atom--airsoft.firebaseapp.com",
-  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-  projectId: "atom--airsoft",
-  storageBucket: "atom--airsoft.appspot.com",
-  messagingSenderId: "310010107781",
-  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
+ apiKey: "TU_API_KEY_REAL_AQUI",
+ authDomain: "atom--airsoft.firebaseapp.com",
+ databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+ projectId: "atom--airsoft",
+ storageBucket: "atom--airsoft.appspot.com",
+ messagingSenderId: "310010107781",
+ appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
 };
 
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 const db = firebase.database();
+
+let isRegistering = false;
 
 function setStatus(text,color){
  let s=document.getElementById("status");
@@ -143,6 +144,10 @@ function setStatus(text,color){
 }
 
 function registrar(){
+
+ if(isRegistering) return;
+
+ let btn = document.getElementById("btn");
 
  let callsign=document.getElementById("callsign").value.trim();
  let email=document.getElementById("email").value.trim();
@@ -158,6 +163,9 @@ function registrar(){
   return;
  }
 
+ isRegistering = true;
+ btn.disabled = true;
+
  setStatus("CREANDO OPERADOR...","var(--p)");
 
  auth.createUserWithEmailAndPassword(email, pass)
@@ -166,23 +174,29 @@ function registrar(){
   const uid = userCredential.user.uid;
 
   return db.ref("usuarios/" + uid).set({
-    callsign: callsign.toUpperCase(),
-    email: email,
-    rol: "JUGADOR",
-    fecha: Date.now()
+   callsign: callsign.toUpperCase(),
+   email: email,
+   rol: "JUGADOR",
+   fecha: Date.now()
   });
 
  })
  .then(() => {
+
   setStatus("OPERADOR REGISTRADO ✔","#00ff00");
 
   setTimeout(() => {
    window.location.href = "login.html";
-  }, 1000);
+  }, 1200);
 
  })
  .catch(err => {
+
   setStatus("ERROR: " + err.message, "#ff3333");
+
+  isRegistering = false;
+  btn.disabled = false;
+
  });
 
 }
