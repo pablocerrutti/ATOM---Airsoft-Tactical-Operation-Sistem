@@ -20,7 +20,6 @@ body {
  overflow:hidden;
 }
 
-/* SCAN EFFECT */
 body::before {
  content:"";
  position:absolute;
@@ -30,7 +29,6 @@ body::before {
  pointer-events:none;
 }
 
-/* BOX */
 #box {
  border:2px solid var(--p);
  padding:25px;
@@ -41,15 +39,12 @@ body::before {
  box-shadow:0 0 20px #00ff0033;
 }
 
-/* TITLE */
 .title {
  font-size:18px;
  letter-spacing:2px;
  margin-bottom:10px;
- animation: glitch 0.5s infinite;
 }
 
-/* INPUTS */
 input {
  width:100%;
  padding:10px;
@@ -60,7 +55,6 @@ input {
  text-align:center;
 }
 
-/* BUTTON */
 button {
  width:100%;
  margin-top:15px;
@@ -76,21 +70,12 @@ button:hover {
  color:#000;
 }
 
-/* STATUS */
 #status {
  margin-top:10px;
  font-size:12px;
  height:15px;
 }
 
-/* ANIM */
-@keyframes glitch {
- 0% {transform:translate(0);}
- 50% {transform:translate(1px,-1px);}
- 100% {transform:translate(0);}
-}
-
-/* SCAN LINE */
 #scan {
  position:absolute;
  top:0;
@@ -137,14 +122,13 @@ button:hover {
 
 <script>
 const firebaseConfig = {
-apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+  apiKey: "TU_API_KEY_REAL",
   authDomain: "atom--airsoft.firebaseapp.com",
   databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
   projectId: "atom--airsoft",
-  storageBucket: "atom--airsoft.firebasestorage.app",
+  storageBucket: "atom--airsoft.appspot.com",
   messagingSenderId: "310010107781",
-  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
-  measurementId: "G-3X2C87MPPV"
+  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -176,28 +160,29 @@ function registrar(){
 
  setStatus("CREANDO OPERADOR...","var(--p)");
 
- auth.createUserWithEmailAndPassword(email,pass)
- .then(userCredential=>{
+ auth.createUserWithEmailAndPassword(email, pass)
+ .then(userCredential => {
 
-  let uid=userCredential.user.uid;
+  const uid = userCredential.user.uid;
 
-  return db.ref("usuarios/"+uid).set({
-   callsign: callsign.toUpperCase(),
-   email: email,
-   rol: "JUGADOR",
-   fecha: Date.now()
+  return db.ref("usuarios/" + uid).set({
+    callsign: callsign.toUpperCase(),
+    email: email,
+    rol: "JUGADOR",
+    fecha: Date.now()
   });
 
  })
- .then(()=>{
+ .then(() => {
   setStatus("OPERADOR REGISTRADO ✔","#00ff00");
 
-  setTimeout(()=>{
-   window.location.href="login.html";
-  },1000);
+  setTimeout(() => {
+   window.location.href = "login.html";
+  }, 1000);
+
  })
- .catch(err=>{
-  setStatus("ERROR: "+err.message,"var(--red)");
+ .catch(err => {
+  setStatus("ERROR: " + err.message, "#ff3333");
  });
 
 }
@@ -205,7 +190,6 @@ function registrar(){
 function volver(){
  window.location.href="index.html";
 }
-
 </script>
 
 </body>
