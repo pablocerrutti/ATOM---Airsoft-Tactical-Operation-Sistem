@@ -10,7 +10,6 @@
 
 body { margin:0; font-family: monospace; background:var(--f); color:var(--p); display:flex; }
 
-/* PANEL */
 #panel {
     width:320px;
     background:#050505;
@@ -21,10 +20,8 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); di
     z-index:1000;
 }
 
-/* MAPA */
 #map { flex:1; }
 
-/* BOTÓN TOGGLE */
 #toggleMenu {
     position:fixed;
     top:10px;
@@ -34,10 +31,8 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); di
     border:1px solid var(--p);
     color:var(--p);
     padding:10px;
-    width:auto;
 }
 
-/* INPUTS Y BOTONES */
 button, select, input {
     width:100%;
     margin-top:6px;
@@ -58,27 +53,15 @@ button, select, input {
 
 .stat { font-size:12px; margin-top:5px; }
 
-/* 📱 RESPONSIVE */
 @media (max-width: 768px) {
-
-    body {
-        flex-direction: column;
-    }
-
+    body { flex-direction: column; }
     #panel {
         width:100% !important;
         height:auto;
         position:fixed;
         bottom:0;
-        top:auto;
-        border-right:none;
         border-top:2px solid var(--p);
         max-height:50vh;
-    }
-
-    #map {
-        height:100vh;
-        width:100%;
     }
 }
 </style>
@@ -146,18 +129,19 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-/* 🔒 BLINDAJE */
+/* 🔒 CONFIG SEGURIDAD */
 const ROLES_PERMITIDOS = ["ADMIN","EDITOR"];
+const ACTION_COOLDOWN = 3000;
 
+let currentUser = null;
+let lastAction = 0;
+
+/* 🔒 AUTH */
 auth.onAuthStateChanged(user => {
 
- if(!user){
-  location.href = "login.html";
-  return;
- }
+ if(!user) return location.href="login.html";
 
- db.ref("usuarios/" + user.uid).once("value")
- .then(snap => {
+ db.ref("usuarios/" + user.uid).once("value").then(snap => {
 
   const data = snap.val();
 
@@ -167,26 +151,31 @@ auth.onAuthStateChanged(user => {
    return;
   }
 
-  const usuario = {
-   id: user.uid,
-   email: user.email,
-   callsign: data.callsign,
-   rol: data.rol
-  };
-
-  localStorage.setItem("usuario", JSON.stringify(usuario));
-
   if(!ROLES_PERMITIDOS.includes(data.rol)){
    alert("ACCESO DENEGADO");
    location.href = "misiones.html";
    return;
   }
 
-  console.log("ACCESO OK:", data.rol);
+  currentUser = {
+   id:user.uid,
+   rol:data.rol,
+   callsign:data.callsign
+  };
+
+  iniciarApp();
 
  });
 
 });
+
+/* 🔒 RATE LIMIT */
+function canAct(){
+ let now = Date.now();
+ if(now - lastAction < ACTION_COOLDOWN) return false;
+ lastAction = now;
+ return true;
+}
 
 /* LOGOUT */
 function logout(){
@@ -196,11 +185,16 @@ function logout(){
  });
 }
 
-/* APP ORIGINAL */
+/* APP */
 let map, currentId=null;
 let shapes=[];
 let playerMarkers={};
 let objetivos={};
+
+function iniciarApp(){
+ initMap();
+ cargarListado();
+}
 
 function toggleMenu(){
  let panel = document.getElementById("panel");
@@ -235,9 +229,18 @@ function nuevaMision(){
  shapes=[]; currentId=null;
 }
 
+/* 🔒 SANITIZE */
+function clean(str){
+ return str.replace(/[<>]/g,"");
+}
+
 function guardarMision(){
- let nombre=document.getElementById("nombre").value;
+ if(!canAct()) return;
+
+ let nombre=clean(document.getElementById("nombre").value);
  let modo=document.getElementById("modo").value;
+
+ if(!nombre) return alert("Nombre requerido");
 
  if(currentId){
   db.ref("operaciones/"+currentId).update({nombre,modo,zonas:shapes});
@@ -247,6 +250,13 @@ function guardarMision(){
   currentId=ref.key;
  }
  cargarListado();
+}
+
+function eliminarMision(){
+ if(!canAct()) return;
+ if(!confirm("Eliminar misión?")) return;
+
+ db.ref("operaciones/"+currentId).remove();
 }
 
 function cargarListado(){
@@ -267,22 +277,6 @@ function cargarMision(id){
 
   document.getElementById("nombre").value=m.nombre;
   document.getElementById("modo").value=m.modo;
-
-  if(m.zonas){
-   m.zonas.forEach(z=>{
-    if(z.role==="objetivo"){
-     let circle=new google.maps.Circle({
-      map:map,
-      center:{lat:z.lat,lng:z.lng},
-      radius:25,
-      fillOpacity:0.2,
-      strokeColor:"#ffff00"
-     });
-     objetivos["obj_"+Math.random()]=circle;
-    }
-   });
-  }
-
  });
 
  cargarJugadores();
@@ -290,10 +284,6 @@ function cargarMision(id){
  escucharObjetivos();
  escucharEventos();
  contarEquipos();
-}
-
-function eliminarMision(){
- db.ref("operaciones/"+currentId).remove();
 }
 
 function cargarJugadores(){
@@ -316,16 +306,21 @@ function cargarJugadores(){
 }
 
 function equipo(id,e){
+ if(!canAct()) return;
  db.ref("inscripciones/"+id).update({equipo:e});
 }
 
 function balancear(){
+ if(!canAct()) return;
+
  db.ref("inscripciones").orderByChild("mision").equalTo(currentId)
  .once("value",snap=>{
   let arr=[];
   snap.forEach(s=>arr.push(s.key));
+
   arr.sort(()=>Math.random()-0.5);
   let mitad=Math.ceil(arr.length/2);
+
   arr.forEach((id,i)=>{
    db.ref("inscripciones/"+id).update({
     equipo:i<mitad?"EQUIPO_ROJO":"EQUIPO_AZUL"
@@ -334,9 +329,21 @@ function balancear(){
  });
 }
 
+/* 🚀 LANZAR PROTEGIDO */
 function lanzar(){
- db.ref("operaciones/"+currentId+"/estado")
- .set({activo:true,startTime:Date.now()});
+ if(!canAct()) return;
+
+ db.ref("operaciones/"+currentId+"/estado").once("value",snap=>{
+  let estado = snap.val();
+
+  if(estado && estado.activo){
+   alert("YA ACTIVA");
+   return;
+  }
+
+  db.ref("operaciones/"+currentId+"/estado")
+  .set({activo:true,startTime:Date.now()});
+ });
 }
 
 function escucharJugadores(){
@@ -346,13 +353,9 @@ function escucharJugadores(){
    if(p.mision!==currentId) return;
 
    let pos={lat:p.lat,lng:p.lng};
-   let color="http://maps.google.com/mapfiles/ms/icons/green-dot.png";
-
-   if(p.equipo==="EQUIPO_ROJO") color="http://maps.google.com/mapfiles/ms/icons/red-dot.png";
-   if(p.equipo==="EQUIPO_AZUL") color="http://maps.google.com/mapfiles/ms/icons/blue-dot.png";
 
    if(!playerMarkers[id]){
-    playerMarkers[id]=new google.maps.Marker({position:pos,map:map,icon:color});
+    playerMarkers[id]=new google.maps.Marker({position:pos,map:map});
    } else playerMarkers[id].setPosition(pos);
   });
  });
@@ -370,7 +373,6 @@ function escucharObjetivos(){
     circle.setOptions({fillColor:c,strokeColor:c});
    }
   });
- });
 }
 
 let bajas={rojo:0,azul:0};
@@ -414,18 +416,10 @@ function actualizarStats(){
  `;
 
  if(document.getElementById("modo").value==="EXTERMINIO"){
-  if(bajas.rojo>=window.totalR){
-   alert("AZUL GANA");
-  }
-  if(bajas.azul>=window.totalA){
-   alert("ROJO GANA");
-  }
+  if(bajas.rojo>=window.totalR) alert("AZUL GANA");
+  if(bajas.azul>=window.totalA) alert("ROJO GANA");
  }
 }
-
-initMap();
-cargarListado();
-
 </script>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58" async defer></script>
