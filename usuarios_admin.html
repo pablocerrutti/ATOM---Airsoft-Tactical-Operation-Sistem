@@ -69,9 +69,9 @@ button:hover {
 
 <script>
 const firebaseConfig = {
- apiKey:"TU_API_KEY",
- authDomain:"TU_PROJECT.firebaseapp.com",
- databaseURL:"https://TU_PROJECT-default-rtdb.firebaseio.com"
+ apiKey:"AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+ authDomain:"atom--airsoft.firebaseapp.com",
+ databaseURL:"https://atom--airsoft-default-rtdb.firebaseio.com"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -79,16 +79,20 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-// 🔒 PROTECCIÓN
-auth.onAuthStateChanged(user=>{
+let currentUser = null;
+
+// 🔐 PROTECCIÓN TOTAL
+auth.onAuthStateChanged(async (user)=>{
  if(!user){
   location.href="login.html";
   return;
  }
 
- db.ref("usuarios/"+user.uid).once("value")
- .then(snap=>{
-  let data=snap.val();
+ currentUser = user;
+
+ try{
+  const snap = await db.ref("usuarios/"+user.uid).once("value");
+  const data = snap.val();
 
   if(!data || data.rol !== "ADMIN"){
    alert("ACCESO DENEGADO");
@@ -97,7 +101,11 @@ auth.onAuthStateChanged(user=>{
   }
 
   cargarUsuarios();
- });
+
+ }catch(err){
+  console.error(err);
+  alert("ERROR DE SEGURIDAD");
+ }
 });
 
 // 📋 LISTADO
@@ -119,9 +127,9 @@ function cargarUsuarios(){
 
      <div class="row">
        <select onchange="cambiarRol('${id}', this.value)">
-         <option ${u.rol==="JUGADOR"?"selected":""}>JUGADOR</option>
-         <option ${u.rol==="EDITOR"?"selected":""}>EDITOR</option>
-         <option ${u.rol==="ADMIN"?"selected":""}>ADMIN</option>
+         <option value="JUGADOR" ${u.rol==="JUGADOR"?"selected":""}>JUGADOR</option>
+         <option value="EDITOR" ${u.rol==="EDITOR"?"selected":""}>EDITOR</option>
+         <option value="ADMIN" ${u.rol==="ADMIN"?"selected":""}>ADMIN</option>
        </select>
 
        <button class="danger" onclick="eliminar('${id}')">ELIMINAR</button>
@@ -132,16 +140,40 @@ function cargarUsuarios(){
  });
 }
 
-// 🎖 CAMBIAR ROL
+// 🎖 CAMBIAR ROL (PROTEGIDO)
 function cambiarRol(id,rol){
- db.ref("usuarios/"+id).update({rol:rol});
+
+ if(id === currentUser.uid){
+  alert("NO PUEDES CAMBIAR TU PROPIO ROL");
+  return;
+ }
+
+ if(!confirm("¿Cambiar rol del usuario?")) return;
+
+ db.ref("usuarios/"+id).update({rol:rol})
+ .then(()=> alert("ROL ACTUALIZADO"))
+ .catch(err=>{
+  console.error(err);
+  alert("ERROR AL CAMBIAR ROL");
+ });
 }
 
-// ❌ ELIMINAR (solo DB)
+// ❌ ELIMINAR (PROTEGIDO)
 function eliminar(id){
- if(confirm("¿Eliminar usuario de la base?")){
-  db.ref("usuarios/"+id).remove();
+
+ if(id === currentUser.uid){
+  alert("NO PUEDES ELIMINARTE A TI MISMO");
+  return;
  }
+
+ if(!confirm("⚠ ELIMINAR USUARIO DE LA BASE DE DATOS?")) return;
+
+ db.ref("usuarios/"+id).remove()
+ .then(()=> alert("USUARIO ELIMINADO"))
+ .catch(err=>{
+  console.error(err);
+  alert("ERROR AL ELIMINAR");
+ });
 }
 
 // VOLVER
