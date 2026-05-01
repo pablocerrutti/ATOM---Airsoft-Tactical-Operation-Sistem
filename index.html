@@ -1,174 +1,222 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema A.T.O.M. - Uruguay</title>
-    
-    <!-- Favicon local -->
-    <link rel="icon" type="image/png" href="favicon.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema A.T.O.M. - Uruguay</title>
 
-    <style>
-        :root { 
-            --p: #00ff00; 
-            --f: #050505; 
-        }
+<link rel="icon" type="image/png" href="favicon.png">
 
-        body { 
-            background: var(--f); 
-            color: var(--p); 
-            font-family: monospace; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            min-height: 100vh; 
-            overflow: hidden; 
-        }
+<style>
+:root { --p:#00ff00; --f:#050505; }
 
-        /* Pantalla de Carga */
-        #splash-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            transition: opacity 0.8s ease-in-out;
-        }
+body {
+ background: var(--f);
+ color: var(--p);
+ font-family: monospace;
+ margin:0;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ min-height:100vh;
+ overflow:hidden;
+}
 
-        .logo-container {
-            position: relative;
-            width: 300px;
-            height: 300px;
-        }
+/* SPLASH */
+#splash-screen {
+ position:fixed;
+ inset:0;
+ background:#000;
+ z-index:9999;
+ display:flex;
+ flex-direction:column;
+ justify-content:center;
+ align-items:center;
+ padding:20px;
+}
 
-        .glitch-img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            filter: drop-shadow(0 0 5px var(--p));
-            animation: main-glitch 3s infinite;
-        }
+/* TERMINAL */
+#boot-text {
+ width:100%;
+ max-width:500px;
+ font-size:12px;
+ line-height:18px;
+ height:200px;
+ overflow:hidden;
+ white-space:pre-line;
+}
 
-        /* Efecto de líneas de interferencia sobre el logo */
-        .logo-container::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(0, 0, 0, 0.2) 0px,
-                rgba(0, 0, 0, 0.2) 1px,
-                transparent 1px,
-                transparent 2px
-            );
-            pointer-events: none;
-        }
+/* PROGRESS BAR */
+#progress {
+ width:100%;
+ max-width:500px;
+ height:10px;
+ border:1px solid var(--p);
+ margin-top:10px;
+}
 
-        /* Contenido Principal */
-        #main-content {
-            display: none; /* Se activa por JS */
-            opacity: 0;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            z-index: 1;
-        }
+#bar {
+ height:100%;
+ width:0%;
+ background:var(--p);
+}
 
-        .glitch-wrapper { text-align: center; margin-bottom: 30px; }
-        .main-title { font-size: 2.2rem; font-weight: bold; animation: text-glitch 500ms infinite; letter-spacing: 3px; }
-        .grid-container { display: grid; grid-template-columns: 1fr; gap: 15px; width: 90%; max-width: 380px; }
-        .module-card { border: 2px solid var(--p); background: transparent; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; text-decoration: none; color: var(--p); display: block; text-transform: uppercase; }
-        .module-card:hover { background: var(--p); color: var(--f); box-shadow: 0 0 20px var(--p); font-weight: bold; }
+/* LOGO */
+.logo-container {
+ width:200px;
+ height:200px;
+ margin-top:20px;
+}
 
-        /* Animaciones */
-        @keyframes main-glitch {
-            0% { transform: translate(0); filter: hue-rotate(0deg); }
-            5% { transform: translate(-5px, 2px); filter: hue-rotate(90deg) brightness(1.2); }
-            10% { transform: translate(5px, -2px); }
-            15% { transform: translate(0); filter: hue-rotate(0deg); }
-            100% { transform: translate(0); }
-        }
+.glitch-img {
+ width:100%;
+ filter:drop-shadow(0 0 5px var(--p));
+ animation: glitch 2s infinite;
+}
 
-        @keyframes text-glitch { 
-            0% { transform: translate(0); } 
-            20% { transform: translate(-2px, 2px); } 
-            40% { transform: translate(-2px, -2px); } 
-            60% { transform: translate(2px, 2px); } 
-            100% { transform: translate(0); } 
-        }
+/* MAIN */
+#main-content {
+ display:none;
+ opacity:0;
+ flex-direction:column;
+ align-items:center;
+ width:100%;
+}
 
-        @keyframes fadeInEffect {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+.main-title {
+ font-size:2rem;
+ letter-spacing:3px;
+ animation: text-glitch 500ms infinite;
+}
 
-        body::before { 
-            content: " "; 
-            display: block; 
-            position: absolute; 
-            top: 0; left: 0; bottom: 0; right: 0; 
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%); 
-            z-index: 2; 
-            background-size: 100% 4px; 
-            pointer-events: none; 
-        }
-    </style>
+.grid-container {
+ display:grid;
+ grid-template-columns:1fr;
+ gap:15px;
+ width:90%;
+ max-width:380px;
+}
+
+.module-card {
+ border:2px solid var(--p);
+ padding:20px;
+ text-align:center;
+ text-decoration:none;
+ color:var(--p);
+ text-transform:uppercase;
+}
+
+.module-card:hover {
+ background:var(--p);
+ color:#000;
+}
+
+/* FX */
+@keyframes glitch {
+ 0% {transform:translate(0);}
+ 20% {transform:translate(-2px,2px);}
+ 40% {transform:translate(2px,-2px);}
+ 100% {transform:translate(0);}
+}
+
+@keyframes text-glitch {
+ 0% {transform:translate(0);}
+ 50% {transform:translate(1px,-1px);}
+ 100% {transform:translate(0);}
+}
+
+@keyframes fadeIn {
+ from {opacity:0; transform:translateY(10px);}
+ to {opacity:1; transform:translateY(0);}
+}
+
+body::before {
+ content:"";
+ position:absolute;
+ inset:0;
+ background:linear-gradient(rgba(0,0,0,0) 50%, rgba(0,0,0,0.3) 50%);
+ background-size:100% 4px;
+ pointer-events:none;
+}
+</style>
 </head>
+
 <body>
 
-    <!-- Pantalla de Inicio (Splash) -->
-    <div id="splash-screen">
-        <div class="logo-container">
-            <!-- Imagen local en el mismo repositorio -->
-            <img src="logo_atom.png" 
-                 alt="Logo ATOM" 
-                 class="glitch-img"
-                 onerror="this.src='https://via.placeholder.com/300/000000/00ff00?text=A.T.O.M.+Cargando...'">
-        </div>
-    </div>
+<!-- SPLASH -->
+<div id="splash-screen">
 
-    <!-- Contenido Principal -->
-    <div id="main-content">
-        <div class="glitch-wrapper">
-            <div class="main-title">SISTEMA A.T.O.M. URUGUAY</div>
-            <p style="font-size: 0.8rem; opacity: 0.7;">AIRSOFT TACTICAL OPERATION MAPS</p>
-            <p style="font-size: 0.8rem; opacity: 0.7;">Creado por: Pablo Cerrutti - Florida, Uruguay</p>
-        </div>
-        <div class="grid-container">
-            <a href="comunidad.html" class="module-card" style="border-color: #00ffff; color: #00ffff;">Tropas / Escuadrones Operativos</a>
-            <a href="registro_usuario.html" class="module-card">Alta de Usuario</a>
-            <a href="escuadrones.html" class="module-card">Alta de Escuadron</a>
-            <a href="operaciones.html" class="module-card" style="border-width: 4px;">Misiones Operativas</a>
-            <a href="admin.html" class="module-card" style="border-color: #444; opacity: 0.7;">Comando Central</a>
-        </div>
-    </div>
+<div id="boot-text"></div>
 
-    <script>
-        window.addEventListener('load', () => {
-            const splash = document.getElementById('splash-screen');
-            const content = document.getElementById('main-content');
-            
-            // Tiempo de espera para que se vea el efecto glitch (3 segundos)
-            setTimeout(() => {
-                splash.style.opacity = '0';
-                
-                setTimeout(() => {
-                    splash.style.display = 'none';
-                    content.style.display = 'flex';
-                    content.style.animation = 'fadeInEffect 1s forwards';
-                }, 800); // Espera a que termine el fade out de la pantalla negra
-            }, 3000); 
-        });
-    </script>
+<div id="progress">
+<div id="bar"></div>
+</div>
+
+<div class="logo-container">
+<img src="logo_atom.png" class="glitch-img">
+</div>
+
+</div>
+
+<!-- MAIN -->
+<div id="main-content">
+
+<div class="main-title">A.T.O.M SYSTEM</div>
+<p style="opacity:0.7;font-size:12px;">AIRSOFT TACTICAL OPERATION MAPS</p>
+
+<div class="grid-container">
+<a href="registro_usuario.html" class="module-card">ALTA USUARIO</a>
+<a href="escuadrones.html" class="module-card">ESCUADRONES</a>
+<a href="operaciones.html" class="module-card">MISIONES</a>
+<a href="admin.html" class="module-card" style="border-color:#444;opacity:0.7;">COMANDO CENTRAL</a>
+</div>
+
+</div>
+
+<script>
+
+const bootLines = [
+"> BOOTING A.T.O.M SYSTEM...",
+"> CHECKING MODULES...",
+"> GPS MODULE ........ OK",
+"> DATABASE LINK ..... OK",
+"> ENCRYPTION LAYER .. OK",
+"> AUTH SYSTEM ....... OK",
+"> LOADING TACTICAL MAPS...",
+"> CONNECTING OPERATORS...",
+"> SYSTEM READY"
+];
+
+let i = 0;
+let textEl = document.getElementById("boot-text");
+let bar = document.getElementById("bar");
+
+function typeLine(){
+ if(i < bootLines.length){
+  textEl.innerHTML += bootLines[i] + "\n";
+  i++;
+  bar.style.width = (i / bootLines.length * 100) + "%";
+  setTimeout(typeLine, 300);
+ } else {
+  setTimeout(startMain, 800);
+ }
+}
+
+function startMain(){
+ document.getElementById("splash-screen").style.opacity = "0";
+
+ setTimeout(()=>{
+  document.getElementById("splash-screen").style.display = "none";
+  let main = document.getElementById("main-content");
+  main.style.display = "flex";
+  main.style.animation = "fadeIn 1s forwards";
+ },800);
+}
+
+window.onload = typeLine;
+
+</script>
+
 </body>
 </html>
