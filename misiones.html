@@ -7,16 +7,106 @@
 
 <style>
 :root { --p:#00ff00; --f:#0b0b0b; --red:#ff3333; --blue:#33aaff; }
+
 body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
+
 #map { height:100vh; width:100%; }
-#hud { position:fixed; top:10px; left:50%; transform:translateX(-50%); background:#000; padding:5px 15px; border:1px solid var(--p);}
-#menu { position:fixed; right:0; top:0; width:260px; height:100%; background:#050505; border-left:2px solid var(--p); padding:10px; overflow:auto;}
-button { width:100%; margin-top:5px; background:#111; color:var(--p); border:1px solid var(--p); padding:8px;}
-.chat { height:150px; overflow:auto; border:1px solid #333; margin-top:10px; font-size:11px;}
+
+/* HUD */
+#hud {
+ position:fixed;
+ top:10px;
+ left:50%;
+ transform:translateX(-50%);
+ background:#000;
+ padding:6px 18px;
+ border:1px solid var(--p);
+ font-size:16px;
+ z-index:1000;
+}
+
+/* MENÚ */
+#menu {
+ position:fixed;
+ right:0;
+ top:0;
+ width:260px;
+ height:100%;
+ background:#050505;
+ border-left:2px solid var(--p);
+ padding:10px;
+ overflow:auto;
+ z-index:1000;
+}
+
+/* BOTÓN TOGGLE */
+#toggleMenu {
+ position:fixed;
+ top:10px;
+ left:10px;
+ z-index:1001;
+ background:#000;
+ border:1px solid var(--p);
+ color:var(--p);
+ padding:10px;
+ width:auto;
+}
+
+/* BOTONES */
+button {
+ width:100%;
+ margin-top:6px;
+ background:#111;
+ color:var(--p);
+ border:1px solid var(--p);
+ padding:12px;
+ font-size:14px;
+}
+
+/* INPUT */
+input {
+ width:100%;
+ padding:10px;
+ margin-top:5px;
+ background:#111;
+ color:var(--p);
+ border:1px solid var(--p);
+}
+
+/* CHAT */
+.chat {
+ height:150px;
+ overflow:auto;
+ border:1px solid #333;
+ margin-top:10px;
+ font-size:12px;
+ padding:5px;
+}
+
+/* 📱 RESPONSIVE */
+@media (max-width: 768px) {
+
+ #menu {
+  width:100% !important;
+  height:auto;
+  bottom:0;
+  top:auto;
+  border-left:none;
+  border-top:2px solid var(--p);
+  max-height:50vh;
+ }
+
+ #map {
+  height:100vh;
+ }
+
+}
 </style>
 </head>
 
 <body>
+
+<button id="toggleMenu" onclick="toggleMenu()">☰</button>
 
 <div id="map"></div>
 <div id="hud">00:00:00</div>
@@ -54,6 +144,12 @@ let map, myMarker, zona=null;
 let currentMisionId=null;
 let markers={}, objetivos=[];
 let medicoCount=0;
+
+/* TOGGLE MENU */
+function toggleMenu(){
+ let menu = document.getElementById("menu");
+ menu.style.display = (menu.style.display === "none") ? "block" : "none";
+}
 
 // INIT
 window.onload = ()=>{
@@ -150,7 +246,8 @@ function iniciarGPS(){
 
   db.ref("posiciones/"+user.id).set({lat,lng,equipo:user.equipo,mision:currentMisionId});
 
-  if(zona && !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(lat,lng), zona)){
+  if(zona && google.maps.geometry && google.maps.geometry.poly &&
+     !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(lat,lng), zona)){
    alert("FUERA DE ZONA");
   }
  });
@@ -181,7 +278,7 @@ function escucharJugadores(){
  });
 }
 
-// CAPTURA AVANZADA
+// CAPTURA
 function iniciarCaptura(){
  setInterval(()=>{
 
@@ -210,9 +307,6 @@ function iniciarCaptura(){
 
    if(d<25) aliados++;
 
-   // enemigos (simplificado global)
-   // (para mejorar luego con query de otros equipos)
-
    if(aliados>0 && enemigos===0){
     obj.progreso+=aliados;
    } else if(enemigos>0){
@@ -222,7 +316,6 @@ function iniciarCaptura(){
    if(obj.progreso>=180){
     obj.owner=user.equipo;
     obj.progreso=0;
-
     db.ref("objetivos/"+obj.id).set({owner:obj.owner});
    }
 
@@ -274,6 +367,7 @@ function marcarEnemigo(){
 // CHAT
 function enviarMsg(){
  let msg=document.getElementById("msg").value;
+ if(!msg) return;
  db.ref("chat").push({user:user.callsign,msg:msg});
  document.getElementById("msg").value="";
 }
