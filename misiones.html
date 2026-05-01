@@ -6,12 +6,13 @@
 <title>A.T.O.M. - Operación</title>
 
 <style>
-:root { --p:#00ff00; --f:#0b0b0b; --red:#ff3333; --blue:#33aaff; }
+:root { --p:#00ff00; --f:#0b0b0b; }
 
 body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
 
 #map { height:100vh; width:100%; }
 
+/* HUD */
 #hud {
  position:fixed;
  top:10px;
@@ -20,10 +21,10 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
  background:#000;
  padding:6px 18px;
  border:1px solid var(--p);
- font-size:16px;
  z-index:1000;
 }
 
+/* MENÚ */
 #menu {
  position:fixed;
  right:0;
@@ -37,37 +38,28 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
  z-index:1000;
 }
 
-#toggleMenu {
- position:fixed;
- top:10px;
- left:10px;
- z-index:1001;
- background:#000;
- border:1px solid var(--p);
- color:var(--p);
- padding:10px;
- width:auto;
+/* BOTÓN PTT */
+#ptt {
+ position: fixed;
+ bottom: 20px;
+ left: 50%;
+ transform: translateX(-50%);
+ width: 120px;
+ height: 120px;
+ border-radius: 50%;
+ background: #000;
+ border: 3px solid #00ff00;
+ color: #00ff00;
+ font-size: 16px;
+ z-index: 2000;
+ box-shadow: 0 0 20px #00ff00;
+}
+#ptt.active {
+ background:#00ff00;
+ color:#000;
 }
 
-button {
- width:100%;
- margin-top:6px;
- background:#111;
- color:var(--p);
- border:1px solid var(--p);
- padding:12px;
- font-size:14px;
-}
-
-input {
- width:100%;
- padding:10px;
- margin-top:5px;
- background:#111;
- color:var(--p);
- border:1px solid var(--p);
-}
-
+/* CHAT */
 .chat {
  height:150px;
  overflow:auto;
@@ -76,34 +68,19 @@ input {
  font-size:12px;
  padding:5px;
 }
-
-@media (max-width: 768px) {
- #menu {
-  width:100% !important;
-  height:auto;
-  bottom:0;
-  top:auto;
-  border-left:none;
-  border-top:2px solid var(--p);
-  max-height:50vh;
- }
-}
 </style>
 </head>
 
 <body>
 
-<button id="toggleMenu" onclick="toggleMenu()">☰</button>
-
 <div id="map"></div>
 <div id="hud">00:00:00</div>
+
+<button id="ptt">🎤 RADIO</button>
 
 <div id="menu">
 <h3>COMANDO</h3>
 <div id="info"></div>
-
-<button onclick="pedirMedico()">🩺 MÉDICO</button>
-<button onclick="marcarEnemigo()">⚠ ENEMIGO</button>
 
 <input id="msg" placeholder="mensaje">
 <button onclick="enviarMsg()">ENVIAR</button>
@@ -118,8 +95,8 @@ input {
 
 <script>
 const firebaseConfig = {
- apiKey:"AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
- databaseURL:"https://atom--airsoft-default-rtdb.firebaseio.com"
+ apiKey:"TU_API_KEY",
+ databaseURL:"TU_DB_URL"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -127,268 +104,172 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-/* 🔒 CONFIG ANTI CHEAT */
-const MAX_SPEED = 15; // m/s (~54 km/h)
-const MAX_DISTANCE_JUMP = 100; // metros
-const ACTION_COOLDOWN = 3000;
+/* ====== VARIABLES ====== */
+let user=null;
+let currentMisionId=null;
+let localStream, micTrack;
+let peers={};
 
-let lastPosition = null;
-let lastTime = 0;
-let lastActionTime = 0;
+const rtcConfig = {
+ iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+};
 
-/* 🔒 AUTH */
-let user = null;
+/* ====== LOGIN SEGURO ====== */
+auth.onAuthStateChanged(async u=>{
+ if(!u){ location.href="login.html"; return; }
 
-auth.onAuthStateChanged(u => {
- if(!u) return location.href="login.html";
+ const snap = await db.ref("usuarios/"+u.uid).once("value");
+ const data = snap.val();
 
- db.ref("usuarios/"+u.uid).once("value").then(snap=>{
-  let data = snap.val();
-  if(!data) return auth.signOut();
+ user = {
+  id:u.uid,
+  callsign:data.callsign,
+  rol:data.rol
+ };
 
-  user = {
-   id:u.uid,
-   callsign:data.callsign,
-   rol:data.rol
-  };
+ document.getElementById("info").innerText=user.callsign;
 
-  iniciarApp();
- });
+ await iniciarAudio();
+ obtenerEquipo();
 });
 
-/* ===== APP ===== */
-
-let map, myMarker, zona=null;
-let currentMisionId=null;
-let markers={}, objetivos=[];
-let medicoCount=0;
-
-function iniciarApp(){
- document.getElementById("info").innerText = user.callsign;
- initMap();
- obtenerEquipo();
+/* ====== AUDIO ====== */
+async function iniciarAudio(){
+ localStream = await navigator.mediaDevices.getUserMedia({audio:true});
+ micTrack = localStream.getAudioTracks()[0];
+ micTrack.enabled=false;
 }
 
-function toggleMenu(){
- let menu = document.getElementById("menu");
- menu.style.display = (menu.style.display === "none") ? "block" : "none";
-}
-
-function initMap(){
- map = new google.maps.Map(document.getElementById("map"),{
-  zoom:17,
-  center:{lat:-34.09,lng:-56.21},
-  mapTypeId:"satellite"
- });
-
- cargarMision();
- iniciarGPS();
-}
-
+/* ====== EQUIPO ====== */
 function obtenerEquipo(){
  db.ref("inscripciones").orderByChild("uid").equalTo(user.id).once("value",snap=>{
   snap.forEach(s=>{
    let ins=s.val();
    currentMisionId=ins.mision;
    user.equipo=ins.equipo;
-   escucharJugadores();
+
+   registrarRadio();
   });
  });
 }
 
-function cargarMision(){
- db.ref("operaciones").once("value",snap=>{
-  snap.forEach(s=>{
-   let m=s.val();
-   if(m.estado && m.estado.activo){
+/* ====== REGISTRO RADIO ====== */
+function registrarRadio(){
+ const path=`webrtc/${currentMisionId}/${user.equipo}/${user.id}`;
 
-    if(m.zonas){
-     m.zonas.forEach(z=>{
+ db.ref(path).set({online:true});
 
-      if(z.type==="polygon"){
-       zona=new google.maps.Polygon({paths:z.path,map:map,fillOpacity:0.1});
-       map.fitBounds(getBounds(z.path));
-      }
-
-      if(z.role==="objetivo"){
-       let id = "obj_"+z.lat+"_"+z.lng;
-
-       let marker=new google.maps.Marker({position:{lat:z.lat,lng:z.lng},map:map});
-       let circle=new google.maps.Circle({map:map,center:{lat:z.lat,lng:z.lng},radius:25,fillOpacity:0.1});
-
-       objetivos.push({
-        id,
-        lat:z.lat,lng:z.lng,
-        marker,
-        circle,
-        owner:"NEUTRAL",
-        progreso:0
-       });
-      }
-
-     });
-    }
-
-    iniciarTimer(m.estado.startTime);
-    iniciarCaptura();
-    escucharObjetivos();
-   }
-  });
- });
+ escucharRadio();
 }
 
-/* TIMER */
-function iniciarTimer(t){
- setInterval(()=>{
-  let d=Date.now()-t;
-  let s=Math.floor(d/1000)%60;
-  let m=Math.floor(d/60000)%60;
-  let h=Math.floor(d/3600000);
-  document.getElementById("hud").innerText=
-  `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
- },1000);
-}
+/* ====== RADIO ====== */
+function escucharRadio(){
 
-/* 🚫 GPS ANTI CHEAT */
-function iniciarGPS(){
- navigator.geolocation.watchPosition(pos=>{
+ const base=`webrtc/${currentMisionId}/${user.equipo}`;
 
-  let now = Date.now();
-  let lat=pos.coords.latitude;
-  let lng=pos.coords.longitude;
+ db.ref(base).on("child_added",snap=>{
+  const id=snap.key;
+  if(id===user.id) return;
 
-  if(lastPosition){
-   let dist = google.maps.geometry.spherical.computeDistanceBetween(
-    new google.maps.LatLng(lastPosition.lat,lastPosition.lng),
-    new google.maps.LatLng(lat,lng)
-   );
-
-   let timeDiff = (now - lastTime)/1000;
-   let speed = dist / timeDiff;
-
-   if(speed > MAX_SPEED || dist > MAX_DISTANCE_JUMP){
-    console.warn("Movimiento sospechoso bloqueado");
-    return;
-   }
+  if(!peers[id]){
+   crearPeer(id,true);
   }
+ });
 
-  lastPosition = {lat,lng};
-  lastTime = now;
+}
 
-  if(!myMarker){
-   myMarker=new google.maps.Marker({position:{lat,lng},map:map});
-  } else myMarker.setPosition({lat,lng});
+/* ====== CREAR PEER ====== */
+function crearPeer(id,offer){
 
-  db.ref("posiciones/"+user.id).set({
-   lat,lng,
-   equipo:user.equipo,
-   mision:currentMisionId,
-   t:now
-  });
+ const pc=new RTCPeerConnection(rtcConfig);
 
-  if(zona && google.maps.geometry.poly &&
-     !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(lat,lng), zona)){
-   alert("FUERA DE ZONA");
+ pc.ontrack=e=>{
+  let audio=new Audio();
+  audio.srcObject=e.streams[0];
+  audio.play();
+ };
+
+ pc.onicecandidate=e=>{
+  if(e.candidate){
+   db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}/ice`)
+   .push(JSON.stringify(e.candidate));
   }
+ };
 
- });
-}
+ localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
 
-/* JUGADORES */
-function escucharJugadores(){
- db.ref("posiciones").on("value",snap=>{
-  snap.forEach(s=>{
-   let p=s.val(); let id=s.key;
+ peers[id]=pc;
 
-   if(p.mision!==currentMisionId || id===user.id) return;
+ if(offer){
+  pc.createOffer().then(o=>{
+   pc.setLocalDescription(o);
 
-   let pos={lat:p.lat,lng:p.lng};
-
-   if(!markers[id]){
-    markers[id]=new google.maps.Marker({position:pos,map:map});
-   } else markers[id].setPosition(pos);
+   db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}/offer`)
+   .set(JSON.stringify(o));
   });
- });
-}
-
-/* 🎯 CAPTURA */
-function iniciarCaptura(){
- setInterval(()=>{
-
-  if(!myMarker) return;
-
-  let pos=myMarker.getPosition();
-
-  objetivos.forEach(obj=>{
-   let d=google.maps.geometry.spherical.computeDistanceBetween(
-    pos,new google.maps.LatLng(obj.lat,obj.lng)
-   );
-
-   if(d<25) obj.progreso++;
-
-   if(obj.progreso>=180){
-    obj.owner=user.equipo;
-    obj.progreso=0;
-    db.ref("objetivos/"+obj.id).set({owner:obj.owner});
-   }
-
-   actualizarColor(obj);
-  });
-
- },1000);
-}
-
-function actualizarColor(obj){
- let c="#ffff00";
- if(obj.owner==="EQUIPO_ROJO") c="#ff0000";
- if(obj.owner==="EQUIPO_AZUL") c="#0000ff";
- obj.circle.setOptions({fillColor:c,strokeColor:c});
-}
-
-function escucharObjetivos(){
- db.ref("objetivos").on("value",snap=>{
-  snap.forEach(s=>{
-   let data=s.val();
-   let obj=objetivos.find(o=>o.id===s.key);
-   if(obj){
-    obj.owner=data.owner;
-    actualizarColor(obj);
-   }
-  });
- });
-}
-
-/* 🚫 RATE LIMIT */
-function canAct(){
- let now = Date.now();
- if(now - lastActionTime < ACTION_COOLDOWN) return false;
- lastActionTime = now;
- return true;
-}
-
-/* MÉDICO */
-function pedirMedico(){
- if(!canAct()) return;
-
- medicoCount++;
- db.ref("eventos").push({tipo:"medico",user:user.callsign});
-
- if(medicoCount>=2){
-  alert("BAJA");
-  db.ref("eventos").push({tipo:"baja",user:user.callsign,equipo:user.equipo});
  }
+
+ escucharPeer(id);
 }
 
-/* ENEMIGO */
-function marcarEnemigo(){
- if(!canAct()) return;
- db.ref("eventos").push({tipo:"enemigo",user:user.callsign});
+/* ====== ESCUCHAR PEER ====== */
+function escucharPeer(id){
+
+ const ref=db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}`);
+
+ ref.on("value",snap=>{
+  const data=snap.val();
+  const pc=peers[id];
+
+  if(data?.offer && !pc.currentRemoteDescription){
+   pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.offer)));
+
+   pc.createAnswer().then(a=>{
+    pc.setLocalDescription(a);
+
+    ref.child("answer").set(JSON.stringify(a));
+   });
+  }
+
+  if(data?.answer){
+   pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.answer)));
+  }
+ });
+
+ ref.child("ice").on("child_added",c=>{
+  const pc=peers[id];
+  pc.addIceCandidate(new RTCIceCandidate(JSON.parse(c.val())));
+ });
 }
 
-/* CHAT */
+/* ====== PTT ====== */
+const ptt=document.getElementById("ptt");
+
+ptt.onmousedown=()=>{
+ if(!micTrack) return;
+ micTrack.enabled=true;
+ ptt.classList.add("active");
+};
+
+ptt.onmouseup=()=>{
+ if(!micTrack) return;
+ micTrack.enabled=false;
+ ptt.classList.remove("active");
+};
+
+ptt.ontouchstart=e=>{
+ e.preventDefault();
+ micTrack.enabled=true;
+ ptt.classList.add("active");
+};
+
+ptt.ontouchend=()=>{
+ micTrack.enabled=false;
+ ptt.classList.remove("active");
+};
+
+/* ====== CHAT ====== */
 function enviarMsg(){
- if(!canAct()) return;
-
  let msg=document.getElementById("msg").value;
  if(!msg) return;
 
@@ -401,20 +282,13 @@ db.ref("chat").on("child_added",snap=>{
  document.getElementById("chat").innerHTML+=`<div><b>${c.user}:</b> ${c.msg}</div>`;
 });
 
-/* UTILS */
-function getBounds(path){
- let b=new google.maps.LatLngBounds();
- path.forEach(p=>b.extend(p));
- return b;
-}
-
+/* ====== LOGOUT ====== */
 function logout(){
- auth.signOut();
- location.href="login.html";
+ auth.signOut().then(()=>{
+  location.href="login.html";
+ });
 }
 </script>
-
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=geometry" async defer></script>
 
 </body>
 </html>
