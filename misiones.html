@@ -3,70 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.T.O.M. - Misiones</title>
+<title>A.T.O.M. - Operación</title>
 
 <style>
-:root { --p: #00ff00; --f: #0b0b0b; --red:#ff3333; --blue:#33aaff; }
+:root { --p:#00ff00; --f:#0b0b0b; --red:#ff3333; --blue:#33aaff; }
 
-body {
-    margin: 0;
-    font-family: 'Courier New', monospace;
-    background: var(--f);
-    color: var(--p);
+body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
+
+#map { height:100vh; width:100%; }
+
+#hud {
+    position:fixed; top:10px; left:50%;
+    transform:translateX(-50%);
+    background:#000; padding:5px 15px;
+    border:1px solid var(--p);
 }
 
-header {
-    background: #000;
-    border-bottom: 2px solid var(--p);
-    padding: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.container {
-    padding: 15px;
-}
-
-.mision {
-    border: 1px solid #333;
-    padding: 12px;
-    margin-bottom: 10px;
-    background: #050505;
+#menu {
+    position:fixed; right:0; top:0;
+    width:250px; height:100%;
+    background:#050505;
+    border-left:2px solid var(--p);
+    padding:10px;
 }
 
 button {
-    background: #111;
-    border: 1px solid var(--p);
-    color: var(--p);
-    padding: 8px;
-    cursor: pointer;
-    margin-top: 5px;
+    width:100%; margin-top:5px;
+    background:#111; color:var(--p);
+    border:1px solid var(--p);
+    padding:8px;
 }
 
-button:hover {
-    background: var(--p);
-    color: black;
+.chat {
+    height:150px; overflow:auto;
+    border:1px solid #333; margin-top:10px;
+    font-size:11px;
 }
-
-.estado {
-    font-size: 12px;
-    margin-top: 5px;
-}
-
 </style>
 </head>
 
 <body>
 
-<header>
-    <div id="user-info">...</div>
-    <button onclick="logout()">CERRAR SESIÓN</button>
-</header>
+<div id="map"></div>
 
-<div class="container">
-    <h3>MISIONES DISPONIBLES</h3>
-    <div id="lista-misiones"></div>
+<div id="hud">00:00:00</div>
+
+<div id="menu">
+    <h3>COMANDO</h3>
+
+    <button onclick="pedirMedico()">🩺 SOLICITAR MÉDICO</button>
+    <button onclick="marcarEnemigo()">⚠ ENEMIGO DETECTADO</button>
+
+    <input id="msg" placeholder="mensaje">
+    <button onclick="enviarMsg()">ENVIAR</button>
+
+    <div class="chat" id="chat"></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -74,116 +65,166 @@ button:hover {
 
 <script>
 const firebaseConfig = {
-    apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-    authDomain: "atom--airsoft.firebaseapp.com",
-    databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-    projectId: "atom--airsoft"
+ apiKey:"AIza...",
+ databaseURL:"https://atom--airsoft-default-rtdb.firebaseio.com"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let usuario = null;
+let user = JSON.parse(localStorage.getItem("usuario"));
+if(!user) location.href="login.html";
 
-// 🔐 PROTEGER ACCESO
-window.onload = () => {
-    usuario = JSON.parse(localStorage.getItem("usuario"));
+let map, myMarker;
+let zona = null;
+let medicoCount = 0;
 
-    if(!usuario) {
-        window.location.href = "login.html";
-        return;
-    }
+// MAPA
+function initMap(){
+    map = new google.maps.Map(document.getElementById("map"),{
+        zoom:17,
+        center:{lat:-34.09,lng:-56.21},
+        mapTypeId:"satellite"
+    });
 
-    document.getElementById("user-info").innerText = "CALLSIGN: " + usuario.callsign;
+    cargarMisionActiva();
+    iniciarGPS();
+}
 
-    cargarMisiones();
-};
+// CARGAR MISIÓN
+function cargarMisionActiva(){
+    db.ref("operaciones").once("value", snap=>{
+        snap.forEach(s=>{
+            let m = s.val();
+            if(m.estado && m.estado.activo){
 
+                if(m.zonas){
+                    m.zonas.forEach(z=>{
+                        if(z.type==="polygon"){
+                            zona = new google.maps.Polygon({
+                                paths:z.path,
+                                map:map,
+                                fillOpacity:0.1,
+                                strokeColor:"#00ff00"
+                            });
 
-// 📦 CARGAR MISIONES
-function cargarMisiones() {
-    db.ref('operaciones').on('value', snap => {
-        const contenedor = document.getElementById('lista-misiones');
-        contenedor.innerHTML = "";
+                            map.fitBounds(getBounds(z.path));
+                        }
 
-        snap.forEach(mSnap => {
-            const m = mSnap.val();
-            const id = mSnap.key;
+                        if(z.role==="objetivo"){
+                            new google.maps.Marker({
+                                position:{lat:z.lat,lng:z.lng},
+                                map:map,
+                                icon:"http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
+                            });
+                        }
+                    });
+                }
 
-            contenedor.innerHTML += `
-                <div class="mision">
-                    <strong>${m.nombre}</strong><br>
-                    <span>Estado: ${m.estado && m.estado.activo ? 'EN CURSO' : 'DISPONIBLE'}</span><br>
-                    <button onclick="inscribirse('${id}')">INSCRIBIRSE</button>
-                    <div id="estado-${id}" class="estado"></div>
-                </div>
-            `;
-
-            verificarEstado(id);
+                iniciarTimer(m.estado.startTime);
+            }
         });
     });
 }
 
+// TIMER
+function iniciarTimer(t){
+    setInterval(()=>{
+        let diff = Date.now()-t;
+        let s = Math.floor(diff/1000)%60;
+        let m = Math.floor(diff/60000)%60;
+        let h = Math.floor(diff/3600000);
 
-// 🧾 INSCRIPCIÓN
-function inscribirse(misionId) {
+        document.getElementById("hud").innerText =
+        `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+    },1000);
+}
 
-    db.ref('inscripciones').once('value', snap => {
-        let yaInscripto = false;
+// GPS
+function iniciarGPS(){
+    navigator.geolocation.watchPosition(pos=>{
+        let lat = pos.coords.latitude;
+        let lng = pos.coords.longitude;
 
-        snap.forEach(i => {
-            const ins = i.val();
+        let p = {lat,lng};
 
-            if(ins.mision === misionId && ins.callsign === usuario.callsign) {
-                yaInscripto = true;
-            }
-        });
-
-        if(yaInscripto) {
-            alert("YA ESTÁS INSCRIPTO");
-            return;
+        if(!myMarker){
+            myMarker = new google.maps.Marker({position:p,map:map});
+        }else{
+            myMarker.setPosition(p);
         }
 
-        db.ref('inscripciones').push({
-            uid: usuario.id,
-            callsign: usuario.callsign,
-            mision: misionId,
-            equipo: "PENDIENTE",
-            estado: "ALISTADO"
+        db.ref("posiciones/"+user.id).set({
+            lat,lng,
+            equipo:"?"
         });
 
-        alert("INSCRIPCIÓN EXITOSA");
+        if(zona && !google.maps.geometry.poly.containsLocation(
+            new google.maps.LatLng(lat,lng), zona
+        )){
+            alert("FUERA DE ZONA!");
+        }
+
     });
 }
 
+// MÉDICO
+function pedirMedico(){
+    medicoCount++;
 
-// 🔍 VERIFICAR ESTADO DEL USUARIO EN ESA MISIÓN
-function verificarEstado(misionId) {
+    db.ref("eventos").push({
+        tipo:"medico",
+        user:user.callsign
+    });
 
-    db.ref('inscripciones').on('value', snap => {
+    if(medicoCount>=2){
+        alert("BAJA - VOLVER A RESPAWN");
 
-        let estadoTexto = "";
-
-        snap.forEach(i => {
-            const ins = i.val();
-
-            if(ins.mision === misionId && ins.callsign === usuario.callsign) {
-                estadoTexto = `INSCRIPTO | EQUIPO: ${ins.equipo}`;
-            }
+        db.ref("eventos").push({
+            tipo:"baja",
+            user:user.callsign
         });
+    }
+}
 
-        document.getElementById("estado-" + misionId).innerText = estadoTexto;
+// ENEMIGO
+function marcarEnemigo(){
+    db.ref("eventos").push({
+        tipo:"enemigo",
+        user:user.callsign
     });
 }
 
+// CHAT
+function enviarMsg(){
+    let msg = document.getElementById("msg").value;
 
-// 🚪 LOGOUT
-function logout() {
-    localStorage.removeItem("usuario");
-    window.location.href = "login.html";
+    db.ref("chat").push({
+        user:user.callsign,
+        msg:msg
+    });
+
+    document.getElementById("msg").value="";
+}
+
+// ESCUCHAR CHAT
+db.ref("chat").on("child_added", snap=>{
+    let c = snap.val();
+
+    document.getElementById("chat").innerHTML +=
+    `<div><b>${c.user}:</b> ${c.msg}</div>`;
+});
+
+// UTILS
+function getBounds(path){
+    let b = new google.maps.LatLngBounds();
+    path.forEach(p=>b.extend(p));
+    return b;
 }
 
 </script>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=geometry" async defer></script>
 
 </body>
 </html>
