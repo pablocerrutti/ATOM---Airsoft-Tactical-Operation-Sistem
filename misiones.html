@@ -21,10 +21,11 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
 
 #menu {
     position:fixed; right:0; top:0;
-    width:250px; height:100%;
+    width:260px; height:100%;
     background:#050505;
     border-left:2px solid var(--p);
     padding:10px;
+    overflow:auto;
 }
 
 button {
@@ -45,11 +46,12 @@ button {
 <body>
 
 <div id="map"></div>
-
 <div id="hud">00:00:00</div>
 
 <div id="menu">
     <h3>COMANDO</h3>
+
+    <div id="info"></div>
 
     <button onclick="pedirMedico()">🩺 SOLICITAR MÉDICO</button>
     <button onclick="marcarEnemigo()">⚠ ENEMIGO DETECTADO</button>
@@ -58,6 +60,8 @@ button {
     <button onclick="enviarMsg()">ENVIAR</button>
 
     <div class="chat" id="chat"></div>
+
+    <button onclick="logout()">CERRAR SESIÓN</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -65,7 +69,7 @@ button {
 
 <script>
 const firebaseConfig = {
- apiKey:"AIza...",
+ apiKey:"AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
  databaseURL:"https://atom--airsoft-default-rtdb.firebaseio.com"
 };
 
@@ -75,9 +79,17 @@ const db = firebase.database();
 let user = JSON.parse(localStorage.getItem("usuario"));
 if(!user) location.href="login.html";
 
-let map, myMarker;
-let zona = null;
-let medicoCount = 0;
+let map, myMarker, zona=null;
+let currentMisionId=null;
+let markers={};
+let medicoCount=0;
+
+// INIT
+window.onload = () => {
+    document.getElementById("info").innerText = "CALLSIGN: " + user.callsign;
+    initMap();
+    obtenerMiEquipo();
+};
 
 // MAPA
 function initMap(){
@@ -91,15 +103,35 @@ function initMap(){
     iniciarGPS();
 }
 
+// OBTENER EQUIPO
+function obtenerMiEquipo(){
+    db.ref("inscripciones")
+    .orderByChild("uid")
+    .equalTo(user.id)
+    .once("value", snap => {
+
+        snap.forEach(s => {
+            let ins = s.val();
+            currentMisionId = ins.mision;
+            user.equipo = ins.equipo;
+
+            escucharJugadores();
+        });
+
+    });
+}
+
 // CARGAR MISIÓN
 function cargarMisionActiva(){
     db.ref("operaciones").once("value", snap=>{
         snap.forEach(s=>{
             let m = s.val();
+
             if(m.estado && m.estado.activo){
 
                 if(m.zonas){
                     m.zonas.forEach(z=>{
+
                         if(z.type==="polygon"){
                             zona = new google.maps.Polygon({
                                 paths:z.path,
@@ -118,6 +150,7 @@ function cargarMisionActiva(){
                                 icon:"http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
                             });
                         }
+
                     });
                 }
 
@@ -149,22 +182,57 @@ function iniciarGPS(){
         let p = {lat,lng};
 
         if(!myMarker){
-            myMarker = new google.maps.Marker({position:p,map:map});
+            myMarker = new google.maps.Marker({
+                position:p,
+                map:map,
+                icon:"http://maps.google.com/mapfiles/ms/icons/green-dot.png"
+            });
         }else{
             myMarker.setPosition(p);
         }
 
-        db.ref("posiciones/"+user.id).set({
-            lat,lng,
-            equipo:"?"
-        });
+        if(user.equipo && currentMisionId){
+            db.ref("posiciones/"+user.id).set({
+                lat,lng,
+                equipo:user.equipo,
+                mision:currentMisionId
+            });
+        }
 
         if(zona && !google.maps.geometry.poly.containsLocation(
             new google.maps.LatLng(lat,lng), zona
         )){
-            alert("FUERA DE ZONA!");
+            alert("⚠ FUERA DE ZONA!");
         }
 
+    });
+}
+
+// VER COMPAÑEROS
+function escucharJugadores(){
+    db.ref("posiciones").on("value", snap=>{
+        snap.forEach(s=>{
+            let p = s.val();
+            let id = s.key;
+
+            if(p.mision !== currentMisionId) return;
+            if(p.equipo !== user.equipo) return;
+            if(id === user.id) return;
+
+            let pos = {lat:p.lat, lng:p.lng};
+
+            if(!markers[id]){
+                markers[id] = new google.maps.Marker({
+                    position: pos,
+                    map: map,
+                    icon: user.equipo === "EQUIPO_ROJO"
+                        ? "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                        : "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                });
+            } else {
+                markers[id].setPosition(pos);
+            }
+        });
     });
 }
 
@@ -178,7 +246,7 @@ function pedirMedico(){
     });
 
     if(medicoCount>=2){
-        alert("BAJA - VOLVER A RESPAWN");
+        alert("🚫 BAJA - VOLVER A RESPAWN");
 
         db.ref("eventos").push({
             tipo:"baja",
@@ -207,7 +275,6 @@ function enviarMsg(){
     document.getElementById("msg").value="";
 }
 
-// ESCUCHAR CHAT
 db.ref("chat").on("child_added", snap=>{
     let c = snap.val();
 
@@ -220,6 +287,11 @@ function getBounds(path){
     let b = new google.maps.LatLngBounds();
     path.forEach(p=>b.extend(p));
     return b;
+}
+
+function logout(){
+    localStorage.removeItem("usuario");
+    location.href="login.html";
 }
 
 </script>
