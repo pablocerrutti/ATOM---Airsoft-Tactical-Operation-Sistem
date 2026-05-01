@@ -12,7 +12,6 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
 
 #map { height:100vh; width:100%; }
 
-/* HUD */
 #hud {
  position:fixed;
  top:10px;
@@ -25,7 +24,6 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
  z-index:1000;
 }
 
-/* MENÚ */
 #menu {
  position:fixed;
  right:0;
@@ -39,7 +37,6 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
  z-index:1000;
 }
 
-/* BOTÓN TOGGLE */
 #toggleMenu {
  position:fixed;
  top:10px;
@@ -52,7 +49,6 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
  width:auto;
 }
 
-/* BOTONES */
 button {
  width:100%;
  margin-top:6px;
@@ -63,7 +59,6 @@ button {
  font-size:14px;
 }
 
-/* INPUT */
 input {
  width:100%;
  padding:10px;
@@ -73,7 +68,6 @@ input {
  border:1px solid var(--p);
 }
 
-/* CHAT */
 .chat {
  height:150px;
  overflow:auto;
@@ -83,9 +77,7 @@ input {
  padding:5px;
 }
 
-/* 📱 RESPONSIVE */
 @media (max-width: 768px) {
-
  #menu {
   width:100% !important;
   height:auto;
@@ -95,11 +87,6 @@ input {
   border-top:2px solid var(--p);
   max-height:50vh;
  }
-
- #map {
-  height:100vh;
- }
-
 }
 </style>
 </head>
@@ -140,44 +127,33 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-/* 🔒 BLINDAJE */
-const ROLES_PERMITIDOS = ["ADMIN","EDITOR","JUGADOR"];
+/* 🔒 CONFIG ANTI CHEAT */
+const MAX_SPEED = 15; // m/s (~54 km/h)
+const MAX_DISTANCE_JUMP = 100; // metros
+const ACTION_COOLDOWN = 3000;
 
+let lastPosition = null;
+let lastTime = 0;
+let lastActionTime = 0;
+
+/* 🔒 AUTH */
 let user = null;
 
 auth.onAuthStateChanged(u => {
-
- if(!u){
-  location.href="login.html";
-  return;
- }
+ if(!u) return location.href="login.html";
 
  db.ref("usuarios/"+u.uid).once("value").then(snap=>{
-  const data = snap.val();
-
-  if(!data){
-   alert("Usuario inválido");
-   auth.signOut();
-   return;
-  }
-
-  if(!ROLES_PERMITIDOS.includes(data.rol)){
-   alert("ACCESO DENEGADO");
-   location.href="index.html";
-   return;
-  }
+  let data = snap.val();
+  if(!data) return auth.signOut();
 
   user = {
-   id: u.uid,
-   callsign: data.callsign,
-   rol: data.rol
+   id:u.uid,
+   callsign:data.callsign,
+   rol:data.rol
   };
-
-  localStorage.setItem("usuario", JSON.stringify(user));
 
   iniciarApp();
  });
-
 });
 
 /* ===== APP ===== */
@@ -193,13 +169,11 @@ function iniciarApp(){
  obtenerEquipo();
 }
 
-/* TOGGLE MENU */
 function toggleMenu(){
  let menu = document.getElementById("menu");
  menu.style.display = (menu.style.display === "none") ? "block" : "none";
 }
 
-/* MAP */
 function initMap(){
  map = new google.maps.Map(document.getElementById("map"),{
   zoom:17,
@@ -211,7 +185,6 @@ function initMap(){
  iniciarGPS();
 }
 
-/* EQUIPO */
 function obtenerEquipo(){
  db.ref("inscripciones").orderByChild("uid").equalTo(user.id).once("value",snap=>{
   snap.forEach(s=>{
@@ -223,7 +196,6 @@ function obtenerEquipo(){
  });
 }
 
-/* MISION */
 function cargarMision(){
  db.ref("operaciones").once("value",snap=>{
   snap.forEach(s=>{
@@ -239,14 +211,16 @@ function cargarMision(){
       }
 
       if(z.role==="objetivo"){
+       let id = "obj_"+z.lat+"_"+z.lng;
+
        let marker=new google.maps.Marker({position:{lat:z.lat,lng:z.lng},map:map});
        let circle=new google.maps.Circle({map:map,center:{lat:z.lat,lng:z.lng},radius:25,fillOpacity:0.1});
 
        objetivos.push({
-        id:"obj_"+Math.random(),
+        id,
         lat:z.lat,lng:z.lng,
-        marker:marker,
-        circle:circle,
+        marker,
+        circle,
         owner:"NEUTRAL",
         progreso:0
        });
@@ -275,22 +249,48 @@ function iniciarTimer(t){
  },1000);
 }
 
-/* GPS */
+/* 🚫 GPS ANTI CHEAT */
 function iniciarGPS(){
  navigator.geolocation.watchPosition(pos=>{
+
+  let now = Date.now();
   let lat=pos.coords.latitude;
   let lng=pos.coords.longitude;
 
+  if(lastPosition){
+   let dist = google.maps.geometry.spherical.computeDistanceBetween(
+    new google.maps.LatLng(lastPosition.lat,lastPosition.lng),
+    new google.maps.LatLng(lat,lng)
+   );
+
+   let timeDiff = (now - lastTime)/1000;
+   let speed = dist / timeDiff;
+
+   if(speed > MAX_SPEED || dist > MAX_DISTANCE_JUMP){
+    console.warn("Movimiento sospechoso bloqueado");
+    return;
+   }
+  }
+
+  lastPosition = {lat,lng};
+  lastTime = now;
+
   if(!myMarker){
-   myMarker=new google.maps.Marker({position:{lat,lng},map:map,icon:"http://maps.google.com/mapfiles/ms/icons/green-dot.png"});
+   myMarker=new google.maps.Marker({position:{lat,lng},map:map});
   } else myMarker.setPosition({lat,lng});
 
-  db.ref("posiciones/"+user.id).set({lat,lng,equipo:user.equipo,mision:currentMisionId});
+  db.ref("posiciones/"+user.id).set({
+   lat,lng,
+   equipo:user.equipo,
+   mision:currentMisionId,
+   t:now
+  });
 
-  if(zona && google.maps.geometry && google.maps.geometry.poly &&
+  if(zona && google.maps.geometry.poly &&
      !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(lat,lng), zona)){
    alert("FUERA DE ZONA");
   }
+
  });
 }
 
@@ -300,26 +300,18 @@ function escucharJugadores(){
   snap.forEach(s=>{
    let p=s.val(); let id=s.key;
 
-   if(p.mision!==currentMisionId) return;
-   if(p.equipo!==user.equipo) return;
-   if(id===user.id) return;
+   if(p.mision!==currentMisionId || id===user.id) return;
 
    let pos={lat:p.lat,lng:p.lng};
 
    if(!markers[id]){
-    markers[id]=new google.maps.Marker({
-     position:pos,
-     map:map,
-     icon:user.equipo==="EQUIPO_ROJO"?
-     "http://maps.google.com/mapfiles/ms/icons/red-dot.png":
-     "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-    });
+    markers[id]=new google.maps.Marker({position:pos,map:map});
    } else markers[id].setPosition(pos);
   });
  });
 }
 
-/* CAPTURA */
+/* 🎯 CAPTURA */
 function iniciarCaptura(){
  setInterval(()=>{
 
@@ -328,27 +320,11 @@ function iniciarCaptura(){
   let pos=myMarker.getPosition();
 
   objetivos.forEach(obj=>{
-
-   let aliados=0;
-
-   Object.values(markers).forEach(m=>{
-    let d=google.maps.geometry.spherical.computeDistanceBetween(
-     m.getPosition(),
-     new google.maps.LatLng(obj.lat,obj.lng)
-    );
-    if(d<25) aliados++;
-   });
-
    let d=google.maps.geometry.spherical.computeDistanceBetween(
-    pos,
-    new google.maps.LatLng(obj.lat,obj.lng)
+    pos,new google.maps.LatLng(obj.lat,obj.lng)
    );
 
-   if(d<25) aliados++;
-
-   if(aliados>0){
-    obj.progreso+=aliados;
-   }
+   if(d<25) obj.progreso++;
 
    if(obj.progreso>=180){
     obj.owner=user.equipo;
@@ -357,13 +333,11 @@ function iniciarCaptura(){
    }
 
    actualizarColor(obj);
-
   });
 
  },1000);
 }
 
-/* COLOR */
 function actualizarColor(obj){
  let c="#ffff00";
  if(obj.owner==="EQUIPO_ROJO") c="#ff0000";
@@ -371,7 +345,6 @@ function actualizarColor(obj){
  obj.circle.setOptions({fillColor:c,strokeColor:c});
 }
 
-/* SYNC OBJ */
 function escucharObjetivos(){
  db.ref("objetivos").on("value",snap=>{
   snap.forEach(s=>{
@@ -385,10 +358,21 @@ function escucharObjetivos(){
  });
 }
 
+/* 🚫 RATE LIMIT */
+function canAct(){
+ let now = Date.now();
+ if(now - lastActionTime < ACTION_COOLDOWN) return false;
+ lastActionTime = now;
+ return true;
+}
+
 /* MÉDICO */
 function pedirMedico(){
+ if(!canAct()) return;
+
  medicoCount++;
  db.ref("eventos").push({tipo:"medico",user:user.callsign});
+
  if(medicoCount>=2){
   alert("BAJA");
   db.ref("eventos").push({tipo:"baja",user:user.callsign,equipo:user.equipo});
@@ -397,14 +381,18 @@ function pedirMedico(){
 
 /* ENEMIGO */
 function marcarEnemigo(){
+ if(!canAct()) return;
  db.ref("eventos").push({tipo:"enemigo",user:user.callsign});
 }
 
 /* CHAT */
 function enviarMsg(){
+ if(!canAct()) return;
+
  let msg=document.getElementById("msg").value;
  if(!msg) return;
- db.ref("chat").push({user:user.callsign,msg:msg});
+
+ db.ref("chat").push({user:user.callsign,msg});
  document.getElementById("msg").value="";
 }
 
@@ -420,14 +408,10 @@ function getBounds(path){
  return b;
 }
 
-/* LOGOUT */
 function logout(){
- auth.signOut().then(()=>{
-  localStorage.removeItem("usuario");
-  location.href="login.html";
- });
+ auth.signOut();
+ location.href="login.html";
 }
-
 </script>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=geometry" async defer></script>
