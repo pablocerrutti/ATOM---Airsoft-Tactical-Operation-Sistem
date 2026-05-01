@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.T.O.M. - COMANDO</title>
+<title>A.T.O.M. - COMANDO CENTRAL</title>
 
 <style>
 :root { --p:#00ff00; --f:#0b0b0b; --red:#ff3333; --blue:#33aaff; }
@@ -11,7 +11,7 @@
 body { margin:0; font-family: monospace; background:var(--f); color:var(--p); display:flex; }
 
 #panel {
-    width:300px;
+    width:320px;
     background:#050505;
     border-right:2px solid var(--p);
     padding:10px;
@@ -31,6 +31,8 @@ button, select, input {
 }
 
 .user { display:flex; justify-content:space-between; font-size:12px; border-bottom:1px solid #222; padding:5px;}
+
+.stat { font-size:12px; margin-top:5px; }
 </style>
 </head>
 
@@ -39,7 +41,6 @@ button, select, input {
 <div id="panel">
 
 <h3>MISIONES</h3>
-
 <select id="misiones" onchange="cargarMision(this.value)"></select>
 
 <input id="nombre" placeholder="Nombre misión">
@@ -56,24 +57,24 @@ button, select, input {
 <hr>
 
 <h3>EDITOR MAPA</h3>
-
-<button onclick="setMode('zona')">ZONA JUEGO</button>
-<button onclick="setMode('segura')">ZONA SEGURA</button>
-<button onclick="setMode('respawn_rojo')">RESPAWN ROJO</button>
-<button onclick="setMode('respawn_azul')">RESPAWN AZUL</button>
-<button onclick="setMode('objetivo')">OBJETIVO</button>
-<button onclick="setMode('dominio')">OBJ DEFENSA</button>
+<button onclick="setMode('zona')">ZONA</button>
+<button onclick="setMode('segura')">SEGURA</button>
+<button onclick="setMode('respawn_rojo')">SPAWN R</button>
+<button onclick="setMode('respawn_azul')">SPAWN A</button>
+<button onclick="setMode('objetivo')">OBJ</button>
 
 <hr>
 
 <h3>JUGADORES</h3>
 <div id="jugadores"></div>
-
 <button onclick="balancear()">BALANCEAR</button>
 
 <hr>
 
-<button onclick="lanzar()">🚀 LANZAR MISIÓN</button>
+<h3>ESTADO</h3>
+<div class="stat" id="stats"></div>
+
+<button onclick="lanzar()">🚀 LANZAR</button>
 
 </div>
 
@@ -91,9 +92,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let map, drawMode=null, shapes=[], currentId=null;
+let map, currentId=null;
+let shapes=[];
+let playerMarkers={};
+let objetivos={};
 
-// MAPA
 function initMap(){
  map=new google.maps.Map(document.getElementById("map"),{
   center:{lat:-34.09,lng:-56.21},
@@ -102,56 +105,40 @@ function initMap(){
  });
 
  map.addListener("click",e=>{
-  if(!drawMode) return;
+  if(!mode) return;
 
-  let obj={
+  shapes.push({
    type:"marker",
-   role:drawMode,
+   role:mode,
    lat:e.latLng.lat(),
    lng:e.latLng.lng()
-  };
+  });
 
-  let marker=new google.maps.Marker({position:e.latLng,map:map});
-  shapes.push(obj);
+  new google.maps.Marker({position:e.latLng,map:map});
  });
 }
 
-// MODOS
-function setMode(m){ drawMode=m; }
+let mode=null;
+function setMode(m){ mode=m; }
 
-// NUEVA
 function nuevaMision(){
- shapes=[];
- currentId=null;
- alert("Nueva misión");
+ shapes=[]; currentId=null;
 }
 
-// GUARDAR
 function guardarMision(){
-
  let nombre=document.getElementById("nombre").value;
  let modo=document.getElementById("modo").value;
 
- if(!nombre) return alert("Nombre requerido");
-
  if(currentId){
-  db.ref("operaciones/"+currentId).update({
-   nombre,modo,zonas:shapes
-  });
+  db.ref("operaciones/"+currentId).update({nombre,modo,zonas:shapes});
  } else {
   let ref=db.ref("operaciones").push();
-  ref.set({
-   nombre,modo,zonas:shapes,
-   estado:{activo:false}
-  });
+  ref.set({nombre,modo,zonas:shapes,estado:{activo:false}});
   currentId=ref.key;
  }
-
- alert("Guardado");
  cargarListado();
 }
 
-// LISTADO
 function cargarListado(){
  db.ref("operaciones").on("value",snap=>{
   let sel=document.getElementById("misiones");
@@ -162,27 +149,43 @@ function cargarListado(){
  });
 }
 
-// CARGAR
 function cargarMision(id){
  currentId=id;
+
  db.ref("operaciones/"+id).once("value",snap=>{
   let m=snap.val();
+
   document.getElementById("nombre").value=m.nombre;
   document.getElementById("modo").value=m.modo;
 
-  shapes=m.zonas||[];
+  if(m.zonas){
+   m.zonas.forEach(z=>{
+    if(z.role==="objetivo"){
+     let circle=new google.maps.Circle({
+      map:map,
+      center:{lat:z.lat,lng:z.lng},
+      radius:25,
+      fillOpacity:0.2,
+      strokeColor:"#ffff00"
+     });
+     objetivos["obj_"+Math.random()]=circle;
+    }
+   });
+  }
+
  });
+
  cargarJugadores();
+ escucharJugadores();
+ escucharObjetivos();
+ escucharEventos();
+ contarEquipos();
 }
 
-// ELIMINAR
 function eliminarMision(){
- if(confirm("Eliminar misión")){
-  db.ref("operaciones/"+currentId).remove();
- }
+ db.ref("operaciones/"+currentId).remove();
 }
 
-// JUGADORES
 function cargarJugadores(){
  db.ref("inscripciones").orderByChild("mision").equalTo(currentId)
  .on("value",snap=>{
@@ -190,7 +193,6 @@ function cargarJugadores(){
   cont.innerHTML="";
   snap.forEach(s=>{
    let p=s.val();
-
    cont.innerHTML+=`
    <div class="user">
     ${p.callsign}
@@ -203,22 +205,17 @@ function cargarJugadores(){
  });
 }
 
-// EQUIPO
 function equipo(id,e){
  db.ref("inscripciones/"+id).update({equipo:e});
 }
 
-// BALANCEO
 function balancear(){
  db.ref("inscripciones").orderByChild("mision").equalTo(currentId)
  .once("value",snap=>{
   let arr=[];
   snap.forEach(s=>arr.push(s.key));
-
   arr.sort(()=>Math.random()-0.5);
-
   let mitad=Math.ceil(arr.length/2);
-
   arr.forEach((id,i)=>{
    db.ref("inscripciones/"+id).update({
     equipo:i<mitad?"EQUIPO_ROJO":"EQUIPO_AZUL"
@@ -227,14 +224,97 @@ function balancear(){
  });
 }
 
-// LANZAR
 function lanzar(){
  db.ref("operaciones/"+currentId+"/estado")
  .set({activo:true,startTime:Date.now()});
- alert("MISIÓN INICIADA");
 }
 
-// INIT
+function escucharJugadores(){
+ db.ref("posiciones").on("value",snap=>{
+  snap.forEach(s=>{
+   let p=s.val(); let id=s.key;
+   if(p.mision!==currentId) return;
+
+   let pos={lat:p.lat,lng:p.lng};
+   let color="http://maps.google.com/mapfiles/ms/icons/green-dot.png";
+
+   if(p.equipo==="EQUIPO_ROJO") color="http://maps.google.com/mapfiles/ms/icons/red-dot.png";
+   if(p.equipo==="EQUIPO_AZUL") color="http://maps.google.com/mapfiles/ms/icons/blue-dot.png";
+
+   if(!playerMarkers[id]){
+    playerMarkers[id]=new google.maps.Marker({position:pos,map:map,icon:color});
+   } else playerMarkers[id].setPosition(pos);
+  });
+ });
+}
+
+function escucharObjetivos(){
+ db.ref("objetivos").on("value",snap=>{
+  snap.forEach(s=>{
+   let o=s.val();
+   let circle=objetivos[s.key];
+   if(circle){
+    let c="#ffff00";
+    if(o.owner==="EQUIPO_ROJO") c="#ff0000";
+    if(o.owner==="EQUIPO_AZUL") c="#0000ff";
+    circle.setOptions({fillColor:c,strokeColor:c});
+   }
+  });
+ });
+}
+
+// 💀 BAJAS + EVENTOS
+let bajas={rojo:0,azul:0};
+
+function escucharEventos(){
+ db.ref("eventos").on("child_added",snap=>{
+  let e=snap.val();
+
+  if(e.tipo==="baja"){
+   if(e.equipo==="EQUIPO_ROJO") bajas.rojo++;
+   if(e.equipo==="EQUIPO_AZUL") bajas.azul++;
+  }
+
+  actualizarStats();
+ });
+}
+
+function contarEquipos(){
+ db.ref("posiciones").on("value",snap=>{
+  let r=0,a=0;
+
+  snap.forEach(s=>{
+   let p=s.val();
+   if(p.mision!==currentId) return;
+   if(p.equipo==="EQUIPO_ROJO") r++;
+   if(p.equipo==="EQUIPO_AZUL") a++;
+  });
+
+  window.totalR=r;
+  window.totalA=a;
+
+  actualizarStats();
+ });
+}
+
+function actualizarStats(){
+ document.getElementById("stats").innerHTML=
+ `
+ ROJO: ${window.totalR||0} | BAJAS: ${bajas.rojo}<br>
+ AZUL: ${window.totalA||0} | BAJAS: ${bajas.azul}
+ `;
+
+ // FIN EXTERMINIO
+ if(document.getElementById("modo").value==="EXTERMINIO"){
+  if(bajas.rojo>=window.totalR){
+   alert("AZUL GANA");
+  }
+  if(bajas.azul>=window.totalA){
+   alert("ROJO GANA");
+  }
+ }
+}
+
 initMap();
 cargarListado();
 
