@@ -3,181 +3,170 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.T.O.M. - Acceso</title>
+<title>A.T.O.M - Acceso</title>
 
 <style>
-:root { --p: #00ff00; --f: #0b0b0b; }
+:root { --p:#00ff00; --f:#050505; --red:#ff3333; }
 
 body {
-    margin: 0;
-    font-family: 'Courier New', monospace;
-    background: var(--f);
-    color: var(--p);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
+ background:var(--f);
+ color:var(--p);
+ font-family:monospace;
+ margin:0;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ height:100vh;
+ overflow:hidden;
 }
 
-.container {
-    border: 2px solid var(--p);
-    padding: 25px;
-    width: 300px;
-    background: #050505;
+#login-box {
+ border:2px solid var(--p);
+ padding:25px;
+ width:90%;
+ max-width:320px;
+ text-align:center;
+ background:#000;
+ box-shadow:0 0 20px #00ff0033;
 }
 
-h1 {
-    text-align: center;
-    font-size: 18px;
-    letter-spacing: 3px;
+.title {
+ font-size:20px;
+ margin-bottom:10px;
+ letter-spacing:2px;
 }
 
-input, button {
-    width: 100%;
-    margin-top: 10px;
-    padding: 10px;
-    background: #111;
-    border: 1px solid var(--p);
-    color: var(--p);
+input {
+ width:100%;
+ padding:10px;
+ margin-top:10px;
+ background:#111;
+ border:1px solid var(--p);
+ color:var(--p);
+ text-align:center;
+}
+
+button {
+ width:100%;
+ margin-top:15px;
+ padding:10px;
+ background:#111;
+ border:1px solid var(--p);
+ color:var(--p);
+ cursor:pointer;
 }
 
 button:hover {
-    background: var(--p);
-    color: black;
+ background:var(--p);
+ color:#000;
 }
 
-.toggle {
-    text-align: center;
-    font-size: 12px;
-    margin-top: 10px;
-    cursor: pointer;
+#status {
+ margin-top:10px;
+ font-size:12px;
+ height:15px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-    <h1>A.T.O.M.</h1>
+<div id="login-box">
 
-    <input type="text" id="callsign" placeholder="CALLSIGN">
-    <input type="email" id="email" placeholder="EMAIL">
-    <input type="password" id="password" placeholder="PASSWORD">
+<div class="title">A.T.O.M ACCESS</div>
 
-    <button onclick="login()">INGRESAR</button>
-    <button onclick="registro()">REGISTRARSE</button>
+<input id="email" placeholder="EMAIL">
+<input id="pass" type="password" placeholder="CLAVE">
 
-    <div class="toggle" onclick="limpiar()">LIMPIAR</div>
+<button onclick="login()">INGRESAR</button>
+
+<div id="status"></div>
+
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
 <script>
 const firebaseConfig = {
-    apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-    authDomain: "atom--airsoft.firebaseapp.com",
-    databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-    projectId: "atom--airsoft"
+ apiKey:"TU_API_KEY",
+ authDomain:"TU_PROJECT.firebaseapp.com",
+ databaseURL:"https://TU_PROJECT-default-rtdb.firebaseio.com"
 };
 
 firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
 const db = firebase.database();
 
-
-// 🔐 LOGIN
-function login() {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-
-    if(!email || !password) return alert("FALTAN DATOS");
-
-    db.ref('usuarios').once('value', snap => {
-        let encontrado = false;
-
-        snap.forEach(userSnap => {
-            const u = userSnap.val();
-
-            if(u.email === email && u.password === password) {
-                encontrado = true;
-
-                const usuario = {
-                    id: userSnap.key,
-                    callsign: u.callsign,
-                    rol: u.rol || "jugador"
-                };
-
-                localStorage.setItem("usuario", JSON.stringify(usuario));
-
-                redirigirPorRol(usuario);
-            }
-        });
-
-        if(!encontrado) alert("USUARIO O PASSWORD INCORRECTO");
-    });
+function setStatus(t,c){
+ let s=document.getElementById("status");
+ s.innerText=t;
+ s.style.color=c;
 }
 
+function login(){
 
-// 📍 REDIRECCIÓN INTELIGENTE
-function redirigirPorRol(user) {
-    if(user.rol === "admin" || user.rol === "editor") {
-        window.location.href = "admin.html";
-    } else {
-        window.location.href = "misiones.html";
-    }
+ let email=document.getElementById("email").value;
+ let pass=document.getElementById("pass").value;
+
+ if(!email || !pass){
+  setStatus("DATOS INCOMPLETOS","orange");
+  return;
+ }
+
+ setStatus("AUTENTICANDO...","var(--p)");
+
+ auth.signInWithEmailAndPassword(email,pass)
+ .then(userCredential=>{
+
+  let uid=userCredential.user.uid;
+
+  db.ref("usuarios/"+uid).once("value")
+  .then(snap=>{
+
+   let data=snap.val();
+
+   if(!data){
+    setStatus("USUARIO SIN PERFIL","var(--red)");
+    return;
+   }
+
+   let usuario = {
+    id: uid,
+    email: email,
+    callsign: data.callsign,
+    rol: data.rol
+   };
+
+   localStorage.setItem("usuario", JSON.stringify(usuario));
+
+   setStatus("ACCESO OK","#00ff00");
+
+   setTimeout(()=>{
+
+    if(data.rol==="ADMIN") location.href="admin.html";
+    else if(data.rol==="EDITOR") location.href="admin.html";
+    else location.href="misiones.html";
+
+   },800);
+
+  });
+
+ })
+ .catch(err=>{
+  setStatus("ERROR: "+err.message,"var(--red)");
+ });
+
 }
 
-
-// 🧾 REGISTRO
-function registro() {
-    const callsign = document.getElementById('callsign').value;
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-
-    if(!callsign || !email || !password) {
-        return alert("COMPLETAR TODOS LOS CAMPOS");
-    }
-
-    db.ref('usuarios').once('value', snap => {
-        let existe = false;
-
-        snap.forEach(userSnap => {
-            if(userSnap.val().email === email) {
-                existe = true;
-            }
-        });
-
-        if(existe) return alert("EMAIL YA REGISTRADO");
-
-        db.ref('usuarios').push({
-            callsign,
-            email,
-            password,
-            rol: "jugador", // 🔥 siempre jugador por defecto
-            creado: Date.now()
-        });
-
-        alert("USUARIO REGISTRADO");
-    });
-}
-
-
-// 🧹 LIMPIAR
-function limpiar() {
-    document.getElementById('callsign').value = "";
-    document.getElementById('email').value = "";
-    document.getElementById('password').value = "";
-}
-
-
-// 🔁 AUTO LOGIN
-window.onload = () => {
-    const user = JSON.parse(localStorage.getItem("usuario"));
-
-    if(user) {
-        redirigirPorRol(user);
-    }
-};
+// 🔁 SESIÓN ACTIVA
+auth.onAuthStateChanged(user=>{
+ if(user){
+  location.href="misiones.html";
+ }
+});
 </script>
 
 </body>
