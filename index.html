@@ -47,7 +47,7 @@ body {
  white-space:pre-line;
 }
 
-/* PROGRESS BAR */
+/* PROGRESS */
 #progress {
  width:100%;
  max-width:500px;
@@ -55,7 +55,6 @@ body {
  border:1px solid var(--p);
  margin-top:10px;
 }
-
 #bar {
  height:100%;
  width:0%;
@@ -68,7 +67,6 @@ body {
  height:200px;
  margin-top:20px;
 }
-
 .glitch-img {
  width:100%;
  filter:drop-shadow(0 0 5px var(--p));
@@ -87,7 +85,7 @@ body {
 .main-title {
  font-size:2rem;
  letter-spacing:3px;
- animation: text-glitch 500ms infinite;
+ animation:text-glitch 500ms infinite;
 }
 
 .grid-container {
@@ -105,6 +103,7 @@ body {
  text-decoration:none;
  color:var(--p);
  text-transform:uppercase;
+ cursor:pointer;
 }
 
 .module-card:hover {
@@ -114,21 +113,21 @@ body {
 
 /* FX */
 @keyframes glitch {
- 0% {transform:translate(0);}
- 20% {transform:translate(-2px,2px);}
- 40% {transform:translate(2px,-2px);}
- 100% {transform:translate(0);}
+ 0%{transform:translate(0);}
+ 20%{transform:translate(-2px,2px);}
+ 40%{transform:translate(2px,-2px);}
+ 100%{transform:translate(0);}
 }
 
 @keyframes text-glitch {
- 0% {transform:translate(0);}
- 50% {transform:translate(1px,-1px);}
- 100% {transform:translate(0);}
+ 0%{transform:translate(0);}
+ 50%{transform:translate(1px,-1px);}
+ 100%{transform:translate(0);}
 }
 
 @keyframes fadeIn {
- from {opacity:0; transform:translateY(10px);}
- to {opacity:1; transform:translateY(0);}
+ from{opacity:0;transform:translateY(10px);}
+ to{opacity:1;transform:translateY(0);}
 }
 
 body::before {
@@ -166,16 +165,61 @@ body::before {
 <p style="opacity:0.7;font-size:12px;">AIRSOFT TACTICAL OPERATION MAPS</p>
 
 <div class="grid-container">
-<a href="registro_usuario.html" class="module-card">ALTA USUARIO</a>
-<a href="escuadrones.html" class="module-card">ESCUADRONES</a>
-<a href="operaciones.html" class="module-card">MISIONES</a>
-<a href="admin.html" class="module-card" style="border-color:#444;opacity:0.7;">COMANDO CENTRAL</a>
+
+<a href="login.html" class="module-card">INGRESAR</a>
+
+<a href="registro_usuario.html" class="module-card">REGISTRARSE</a>
+
+<a href="operaciones.html" class="module-card">OPERACIONES</a>
+
+<a id="adminBtn" href="admin.html" class="module-card" style="border-color:#444;opacity:0.5;display:none;">
+COMANDO CENTRAL
+</a>
+
 </div>
 
 </div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
 <script>
+const firebaseConfig = {
+ apiKey:"AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+ databaseURL:"https://atom--airsoft-default-rtdb.firebaseio.com"
+};
 
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.database();
+
+/* 🔒 DETECTAR SESIÓN */
+auth.onAuthStateChanged(user=>{
+ if(user){
+  db.ref("usuarios/"+user.uid).once("value").then(snap=>{
+   const data = snap.val();
+
+   if(data){
+    localStorage.setItem("usuario", JSON.stringify({
+     id:user.uid,
+     callsign:data.callsign,
+     rol:data.rol
+    }));
+
+    // 🎯 Mostrar admin solo si corresponde
+    if(data.rol === "ADMIN" || data.rol === "EDITOR"){
+     document.getElementById("adminBtn").style.display = "block";
+     document.getElementById("adminBtn").style.opacity = "1";
+    }
+   }
+  });
+ }
+});
+
+/* BOOT */
 const bootLines = [
 "> BOOTING A.T.O.M SYSTEM...",
 "> CHECKING MODULES...",
@@ -197,9 +241,9 @@ function typeLine(){
   textEl.innerHTML += bootLines[i] + "\n";
   i++;
   bar.style.width = (i / bootLines.length * 100) + "%";
-  setTimeout(typeLine, 300);
+  setTimeout(typeLine, 250);
  } else {
-  setTimeout(startMain, 800);
+  setTimeout(startMain, 700);
  }
 }
 
