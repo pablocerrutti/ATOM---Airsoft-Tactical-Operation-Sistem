@@ -55,7 +55,6 @@
 
         #lock-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
 
-        /* Modal para agregar operadores */
         #modal-operadores {
             position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000;
             display: none; align-items: center; justify-content: center;
@@ -104,7 +103,7 @@
             <button id="btn-lanzar" class="btn-launch" style="display:none;" onclick="lanzarMision()">🚀 LANZAR MISIÓN</button>
             <button onclick="finalizarMision()" style="border-color:var(--red); color:var(--red); margin-top:10px;">ABORTAR</button>
             
-            <button class="btn-back" onclick="window.location.href='index.html'">VOLVER A INICIO</button>
+            <button class="btn-back" onclick="logout()">CERRAR SESIÓN</button>
         </div>
 
         <div id="map"></div>
@@ -117,7 +116,6 @@
         </div>
     </div>
 
-    <!-- Modal para buscar usuarios -->
     <div id="modal-operadores">
         <div class="modal-content">
             <h3 style="text-align: center;">USUARIOS REGISTRADOS</h3>
@@ -136,6 +134,7 @@
             databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
             projectId: "atom--airsoft"
         };
+
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
@@ -143,27 +142,53 @@
         let allShapes = [];
         let currentRole = 'zona_juego';
         let timerInterval;
+        let inscritosRef = null;
 
         function checkAuth() {
-            if(document.getElementById('master-key').value === "Ik3rc3rru771") {
-                document.getElementById('lock-screen').style.display = 'none';
-                initMap();
-                cargarListadoMisiones();
-            } else { alert("KEY INCORRECTA"); }
+            const key = document.getElementById('master-key').value;
+
+            if(key === "Ik3rc3rru771") {
+                localStorage.setItem("adminAuth", "true");
+                iniciarSistema();
+            } else {
+                alert("KEY INCORRECTA");
+            }
         }
 
-        function togglePanel(id) { document.getElementById(id).classList.toggle('open'); }
+        window.onload = () => {
+            if(localStorage.getItem("adminAuth") === "true") {
+                iniciarSistema();
+            }
+        };
+
+        function iniciarSistema() {
+            document.getElementById('lock-screen').style.display = 'none';
+            initMap();
+            cargarListadoMisiones();
+        }
+
+        function logout() {
+            localStorage.removeItem("adminAuth");
+            location.reload();
+        }
+
+        function togglePanel(id) {
+            document.getElementById(id).classList.toggle('open');
+        }
 
         function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
                 center: { lat: -34.095, lng: -56.214 },
-                zoom: 15, mapTypeId: 'satellite', disableDefaultUI: true
+                zoom: 15,
+                mapTypeId: 'satellite',
+                disableDefaultUI: true
             });
 
             drawingManager = new google.maps.drawing.DrawingManager({
                 drawingControl: false,
                 polygonOptions: { fillOpacity: 0.2, strokeWeight: 2, editable: true, clickable: true }
             });
+
             drawingManager.setMap(map);
 
             google.maps.event.addListener(drawingManager, 'overlaycomplete', (event) => {
@@ -171,7 +196,7 @@
                 shape.role = currentRole;
                 shape.type = event.type;
                 allShapes.push(shape);
-                
+
                 google.maps.event.addListener(shape, 'click', () => {
                     if(confirm("¿Eliminar este elemento?")) {
                         shape.setMap(null);
@@ -193,42 +218,48 @@
 
         function seleccionarMision(id) {
             if(!id) return;
+
             currentMisionId = id;
             limpiarMapa();
-            
+
+            if(inscritosRef) inscritosRef.off();
+
             db.ref(`operaciones/${id}`).once('value', snap => {
                 const m = snap.val();
                 document.getElementById('op-name').value = m.nombre;
-                
+
                 const bounds = new google.maps.LatLngBounds();
 
                 if(m.zonas) {
                     m.zonas.forEach(z => {
                         let shape;
+
                         if(z.type === 'polygon') {
                             shape = new google.maps.Polygon({
-                                path: z.path, 
-                                map: map, 
-                                fillOpacity: 0.2, 
+                                path: z.path,
+                                map: map,
+                                fillOpacity: 0.2,
                                 strokeColor: getRoleColor(z.role),
                                 fillColor: getRoleColor(z.role)
                             });
                             z.path.forEach(p => bounds.extend(p));
                         } else {
                             shape = new google.maps.Marker({
-                                position: {lat: z.lat, lng: z.lng}, 
+                                position: {lat: z.lat, lng: z.lng},
                                 map: map,
                                 label: z.role === 'objetivo' ? "OBJ" : "S"
                             });
                             bounds.extend({lat: z.lat, lng: z.lng});
                         }
+
                         shape.role = z.role;
                         shape.type = z.type;
                         allShapes.push(shape);
                     });
+
                     map.fitBounds(bounds);
                 }
-                
+
                 document.getElementById('btn-lanzar').style.display = 'block';
                 escucharInscritos(id);
             });
@@ -242,77 +273,44 @@
         }
 
         function escucharInscritos(misionId) {
-            db.ref('inscripciones').orderByChild('mision').equalTo(misionId).on('value', snap => {
+            inscritosRef = db.ref('inscripciones').orderByChild('mision').equalTo(misionId);
+
+            inscritosRef.on('value', snap => {
                 const list = document.getElementById('lista-inscritos');
                 list.innerHTML = "";
+
                 snap.forEach(pSnap => {
                     const p = pSnap.val();
+
                     list.innerHTML += `
                         <div class="user-item">
-                            <span style="color:${p.equipo === 'EQUIPO_ROJO' ? 'var(--red)' : (p.equipo === 'EQUIPO_AZUL' ? 'var(--blue)' : '#666')}">${p.callsign}</span>
+                            <span>${p.callsign}</span>
                             <div>
-                                <button onclick="asignarEquipo('${pSnap.key}', 'EQUIPO_ROJO')" style="width:25px; padding:2px; color:var(--red)">R</button>
-                                <button onclick="asignarEquipo('${pSnap.key}', 'EQUIPO_AZUL')" style="width:25px; padding:2px; color:var(--blue)">A</button>
-                                <button onclick="eliminarDeMision('${pSnap.key}')" style="width:25px; padding:2px; color:white; border-color:#444">X</button>
+                                <button onclick="asignarEquipo('${pSnap.key}', 'EQUIPO_ROJO')">R</button>
+                                <button onclick="asignarEquipo('${pSnap.key}', 'EQUIPO_AZUL')">A</button>
+                                <button onclick="eliminarDeMision('${pSnap.key}')">X</button>
                             </div>
                         </div>`;
                 });
             });
         }
 
-        function abrirModalOperadores() {
-            if(!currentMisionId) return alert("SELECCIONE UNA MISIÓN PRIMERO");
-            document.getElementById('modal-operadores').style.display = 'flex';
-            db.ref('usuarios').once('value', snap => {
-                const list = document.getElementById('lista-usuarios-db');
-                list.innerHTML = "";
-                snap.forEach(u => {
-                    list.innerHTML += `
-                        <div class="user-item">
-                            <span>${u.val().callsign}</span>
-                            <button onclick="invitarAMision('${u.val().callsign}')" style="width:auto; padding:5px 10px;">ADD</button>
-                        </div>`;
-                });
-            });
+        function asignarEquipo(uid, equipo) {
+            db.ref(`inscripciones/${uid}`).update({ equipo });
         }
 
-        function invitarAMision(callsign) {
-            db.ref('inscripciones').push({
-                callsign: callsign,
-                mision: currentMisionId,
-                equipo: "PENDIENTE",
-                estado: "ALISTADO"
-            });
-            alert(callsign + " AGREGADO");
-        }
-
-        function asignarEquipo(uid, equipo) { db.ref(`inscripciones/${uid}`).update({ equipo: equipo }); }
-        
-        function eliminarDeMision(uid) { if(confirm("¿Eliminar operador?")) db.ref(`inscripciones/${uid}`).remove(); }
-
-        function autoBalancear() {
-            db.ref('inscripciones').orderByChild('mision').equalTo(currentMisionId).once('value', snap => {
-                let operadores = [];
-                snap.forEach(s => { operadores.push({id: s.key}); });
-                
-                // Mezclar array aleatoriamente
-                operadores.sort(() => Math.random() - 0.5);
-                
-                const mitad = Math.ceil(operadores.length / 2);
-                
-                operadores.forEach((op, index) => {
-                    let equipo = (index < mitad) ? "EQUIPO_ROJO" : "EQUIPO_AZUL";
-                    db.ref(`inscripciones/${op.id}`).update({ equipo: equipo });
-                });
-                alert("EQUIPOS BALANCEADOS");
-            });
+        function eliminarDeMision(uid) {
+            if(confirm("¿Eliminar operador?")) {
+                db.ref(`inscripciones/${uid}`).remove();
+            }
         }
 
         function guardarMision() {
             const nombre = document.getElementById('op-name').value;
             if(!nombre) return alert("NOMBRE NECESARIO");
+
             const zonas = allShapes.map(s => extraerDatos(s));
-            
+
             if(currentMisionId) {
                 db.ref(`operaciones/${currentMisionId}`).update({ nombre, zonas });
             } else {
@@ -320,21 +318,51 @@
                 newRef.set({ nombre, zonas, estado: { activo: false } });
                 currentMisionId = newRef.key;
             }
+
             alert("MISIÓN GUARDADA");
         }
 
         function extraerDatos(s) {
             let d = { type: s.type, role: s.role };
-            if(s.type === 'polygon') d.path = s.getPath().getArray().map(p => ({lat: p.lat(), lng: p.lng()}));
-            else { d.lat = s.getPosition().lat(); d.lng = s.getPosition().lng(); }
+
+            if(s.type === 'polygon') {
+                d.path = s.getPath().getArray().map(p => ({lat: p.lat(), lng: p.lng()}));
+            } else {
+                d.lat = s.getPosition().lat();
+                d.lng = s.getPosition().lng();
+            }
+
             return d;
         }
 
         function lanzarMision() {
+            if(!currentMisionId) return alert("NO HAY MISIÓN SELECCIONADA");
+
             const t = Date.now();
-            db.ref(`operaciones/${currentMisionId}/estado`).set({ activo: true, startTime: t });
+
+            db.ref(`operaciones/${currentMisionId}/estado`).set({
+                activo: true,
+                startTime: t
+            });
+
+            iniciarTimer(t);
             document.getElementById('timer-display').style.display = 'block';
+
             alert("MISIÓN EN CURSO");
+        }
+
+        function iniciarTimer(startTime) {
+            clearInterval(timerInterval);
+
+            timerInterval = setInterval(() => {
+                const diff = Date.now() - startTime;
+
+                const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+                const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+                const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+
+                document.getElementById('timer-display').innerText = `${h}:${m}:${s}`;
+            }, 1000);
         }
 
         function finalizarMision() {
@@ -344,13 +372,26 @@
             }
         }
 
-        function limpiarMapa() { allShapes.forEach(s => s.setMap(null)); allShapes = []; }
-        function setMode(m, r) { 
-            currentRole = r; 
-            drawingManager.setDrawingMode(m === 'marker' ? google.maps.drawing.OverlayType.MARKER : google.maps.drawing.OverlayType.POLYGON); 
+        function limpiarMapa() {
+            allShapes.forEach(s => s.setMap(null));
+            allShapes = [];
         }
-        function resetForNewMission() { location.reload(); }
+
+        function setMode(m, r) {
+            currentRole = r;
+
+            drawingManager.setDrawingMode(
+                m === 'marker'
+                ? google.maps.drawing.OverlayType.MARKER
+                : google.maps.drawing.OverlayType.POLYGON
+            );
+        }
+
+        function resetForNewMission() {
+            location.reload();
+        }
     </script>
+
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing" defer></script>
 </body>
 </html>
