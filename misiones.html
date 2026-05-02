@@ -3,15 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.T.O.M. - Operaciones Tácticas</title>
+<title>A.T.O.M - Operaciones Tácticas</title>
 
 <style>
 :root { --p:#00ff00; --f:#0b0b0b; }
 
-body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
+body {
+ margin:0;
+ font-family: monospace;
+ background:var(--f);
+ color:var(--p);
+ height:100vh;
+ overflow:hidden;
+}
 
-#map { height:100vh; width:100%; }
+/* MAPA */
+#map {
+ height:100vh;
+ width:100%;
+}
 
+/* HUD */
 #hud {
  position:fixed;
  top:10px;
@@ -23,6 +35,7 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
  z-index:1000;
 }
 
+/* MENU */
 #menu {
  position:fixed;
  right:0;
@@ -36,27 +49,27 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
  z-index:1000;
 }
 
+/* PTT */
 #ptt {
- position: fixed;
- bottom: 20px;
- left: 50%;
- transform: translateX(-50%);
- width: 120px;
- height: 120px;
- border-radius: 50%;
- background: #000;
- border: 3px solid #00ff00;
- color: #00ff00;
- font-size: 16px;
- z-index: 2000;
- box-shadow: 0 0 20px #00ff00;
+ position:fixed;
+ bottom:20px;
+ left:50%;
+ transform:translateX(-50%);
+ width:120px;
+ height:120px;
+ border-radius:50%;
+ background:#000;
+ border:3px solid var(--p);
+ color:var(--p);
+ z-index:2000;
 }
 
 #ptt.active {
- background:#00ff00;
+ background:var(--p);
  color:#000;
 }
 
+/* CHAT */
 .chat {
  height:150px;
  overflow:auto;
@@ -86,24 +99,21 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
 <button onclick="logout()">SALIR</button>
 </div>
 
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
-<!-- 🔥 GOOGLE MAPS (FALTABA) -->
-<script
-src="https://maps.googleapis.com/maps/api/js?key=TU_KEY&callback=initMap"
-async defer>
-</script>
+<script>
 const firebaseConfig = {
  apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-  authDomain: "atom--airsoft.firebaseapp.com",
-  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-  projectId: "atom--airsoft",
-  storageBucket: "atom--airsoft.firebasestorage.app",
-  messagingSenderId: "310010107781",
-  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
-  measurementId: "G-3X2C87MPPV"
+ authDomain: "atom--airsoft.firebaseapp.com",
+ databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+ projectId: "atom--airsoft",
+ storageBucket: "atom--airsoft.firebasestorage.app",
+ messagingSenderId: "310010107781",
+ appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
+ measurementId: "G-3X2C87MPPV"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -111,22 +121,24 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-/* ===== STATE ===== */
+/* STATE */
 let user=null;
 let currentMisionId=null;
 let localStream=null;
 let micTrack=null;
 let peers={};
-let map;
+let map=null;
 
-/* ===== MAP INIT ===== */
-function initMap(){
+/* ===== MAPA (GLOBAL SAFE) ===== */
+window.initMap = function(){
+
  map = new google.maps.Map(document.getElementById("map"),{
   center:{lat:-34.9,lng:-56.2},
   zoom:15,
   mapTypeId:"satellite"
  });
-}
+
+};
 
 /* ===== AUTH ===== */
 auth.onAuthStateChanged(async u=>{
@@ -136,7 +148,7 @@ auth.onAuthStateChanged(async u=>{
  const data = snap.val();
  if(!data) return auth.signOut();
 
- user = {
+ user={
   id:u.uid,
   callsign:data.callsign,
   rol:data.rol
@@ -144,19 +156,18 @@ auth.onAuthStateChanged(async u=>{
 
  document.getElementById("info").innerText=user.callsign;
 
- initMap();
  await initAudio();
  getTeam();
 });
 
-/* ===== AUDIO ===== */
+/* ===== AUDIO SAFE ===== */
 async function initAudio(){
  try{
   localStream = await navigator.mediaDevices.getUserMedia({audio:true});
   micTrack = localStream.getAudioTracks()[0];
-  micTrack.enabled = false;
+  micTrack.enabled=false;
  }catch(e){
-  console.error(e);
+  console.log("MIC ERROR",e);
  }
 }
 
@@ -197,7 +208,7 @@ function listenPeers(base){
 /* ===== PEER ===== */
 function createPeer(id){
 
- const pc = new RTCPeerConnection({
+ const pc=new RTCPeerConnection({
   iceServers:[{urls:"stun:stun.l.google.com:19302"}]
  });
 
@@ -224,8 +235,8 @@ function createPeer(id){
   const d=snap.val();
   if(!d) return;
 
-  if(d.offer && !pc.remoteDescription){
-   pc.setRemoteDescription(JSON.parse(d.offer))
+  if(d.offer && !pc.currentRemoteDescription){
+   pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(d.offer)))
    .then(()=>pc.createAnswer())
    .then(a=>{
     pc.setLocalDescription(a);
@@ -234,13 +245,13 @@ function createPeer(id){
   }
 
   if(d.answer){
-   pc.setRemoteDescription(JSON.parse(d.answer));
+   pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(d.answer)));
   }
  });
 
  ref.child("ice").on("child_added",c=>{
   if(c.val()){
-   pc.addIceCandidate(JSON.parse(c.val()));
+   pc.addIceCandidate(new RTCIceCandidate(JSON.parse(c.val())));
   }
  });
 
@@ -253,18 +264,18 @@ function createPeer(id){
 /* ===== PTT ===== */
 const ptt=document.getElementById("ptt");
 
-function setMic(v){
+function mic(v){
  if(!micTrack) return;
  micTrack.enabled=v;
  ptt.classList.toggle("active",v);
 }
 
-ptt.onmousedown=()=>setMic(true);
-ptt.onmouseup=()=>setMic(false);
-ptt.ontouchstart=e=>{e.preventDefault();setMic(true);}
-ptt.ontouchend=()=>setMic(false);
+ptt.onmousedown=()=>mic(true);
+ptt.onmouseup=()=>mic(false);
+ptt.ontouchstart=e=>{e.preventDefault();mic(true);}
+ptt.ontouchend=()=>mic(false);
 
-/* ===== CHAT ===== */
+/* CHAT */
 function enviarMsg(){
  const msg=document.getElementById("msg").value;
  if(!msg) return;
@@ -283,10 +294,16 @@ db.ref("chat").on("child_added",snap=>{
  `<div><b>${c.user}:</b> ${c.msg}</div>`;
 });
 
-/* ===== LOGOUT ===== */
+/* LOGOUT */
 function logout(){
  auth.signOut().then(()=>location.href="login.html");
 }
+</script>
+
+<!-- GOOGLE MAPS AL FINAL (CRÍTICO) -->
+<script
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap"
+async defer>
 </script>
 
 </body>
