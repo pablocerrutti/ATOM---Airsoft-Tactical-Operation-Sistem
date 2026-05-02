@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.O.M - Editor de Operaciones</title>
+    <title>A.T.O.M - Editor de Operaciones Pro</title>
     <style>
-        :root { --p:#00ff00; --f:#050505; --red:rgba(255,0,0,0.4); --blue:rgba(0,0,255,0.4); --game:rgba(0,255,0,0.2); }
+        :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
         body { margin:0; font-family: monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
         
-        #panel { width:320px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; z-index:10; }
+        #panel { width:320px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; z-index:10; overflow-y: auto; }
         #map { flex:1; }
 
         .menu-drop { border-bottom: 1px solid #222; }
@@ -16,9 +16,11 @@
         .menu-content { padding:10px; display:none; flex-direction:column; }
         .menu-content.active { display:flex; }
 
-        button, select, input { width:100%; padding:12px; margin-top:8px; background:#111; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; }
+        button, select, input { width:100%; padding:12px; margin-top:8px; background:#111; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; }
         button:hover { background:var(--p); color:#000; }
         
+        .timer-display { font-size: 24px; text-align: center; padding: 10px; border: 1px solid var(--gold); color: var(--gold); margin-top: 10px; }
+        .btn-launch { background: var(--gold); color: #000; border: none; font-size: 1.1rem; }
         .btn-hub { background:#222; border-color:#555; margin-top:auto; padding:20px; }
     </style>
 </head>
@@ -26,7 +28,7 @@
 
 <div id="panel">
     <div style="padding:15px; border-bottom:2px solid var(--p)">
-        <h3>A.T.O.M EDITOR</h3>
+        <h3>A.T.O.M EDITOR V2</h3>
         <select id="mission-selector" onchange="editMission(this.value)">
             <option value="">-- MISIONES EN PARALELO --</option>
         </select>
@@ -34,24 +36,34 @@
         <button onclick="createNewMission()" style="background:#003300">NUEVA MISIÓN</button>
     </div>
 
-    <!-- Menú Desplegable: Herramientas -->
+    <!-- Gestión de Tiempo -->
     <div class="menu-drop">
-        <div class="menu-header" onclick="toggleMenu(this)">⚒ HERRAMIENTAS <span>+</span></div>
-        <div class="menu-content active">
-            <button onclick="setMode('GAME_ZONE')">🟢 ZONA DE JUEGO</button>
-            <button onclick="setMode('SAFE_ZONE')">🔴 ZONA SEGURA (POLÍGONO)</button>
-            <button onclick="setMode('RESPAWN_RED')">⭕ RESP. ROJO (CÍRCULO)</button>
-            <button onclick="setMode('RESPAWN_BLUE')">⭕ RESP. AZUL (CÍRCULO)</button>
-            <button onclick="setMode('OBJ_GREY')">🔘 OBJETIVO (GRIS)</button>
+        <div class="menu-header" onclick="toggleMenu(this)">⏱️ RELOJ Y ESTADO <span>+</span></div>
+        <div class="menu-content">
+            <div id="timer" class="timer-display">00:00:00</div>
+            <button id="btn-start" class="btn-launch" onclick="launchMission()">🚀 LANZAR MISIÓN</button>
+            <p id="status-label" style="text-align:center; font-size:10px; margin-top:5px;">ESTADO: STANDBY</p>
         </div>
     </div>
 
-    <!-- Menú Desplegable: Acciones -->
+    <!-- Herramientas Tácticas -->
     <div class="menu-drop">
-        <div class="menu-header" onclick="toggleMenu(this)">💾 GESTIÓN <span>+</span></div>
+        <div class="menu-header" onclick="toggleMenu(this)">⚒ HERRAMIENTAS <span>+</span></div>
+        <div class="menu-content active">
+            <button onclick="setMode('GAME_ZONE')">🟢 ZONA DE JUEGO (LÍMITE)</button>
+            <button onclick="setMode('SAFE_ZONE')">🔴 ZONA SEGURA (HOSPITAL)</button>
+            <button onclick="setMode('RESPAWN_RED')">⭕ RESP. ROJO (ALERTA)</button>
+            <button onclick="setMode('RESPAWN_BLUE')">⭕ RESP. AZUL (ALERTA)</button>
+            <button onclick="setMode('OBJ_GREY')">🔘 PUNTO DE INTERÉS</button>
+        </div>
+    </div>
+
+    <!-- Gestión Cloud -->
+    <div class="menu-drop">
+        <div class="menu-header" onclick="toggleMenu(this)">💾 GESTIÓN CLOUD <span>+</span></div>
         <div class="menu-content">
-            <button onclick="saveCurrentMission()">GUARDAR MISIÓN</button>
-            <button onclick="deleteCurrentMission()" style="color:red; border-color:red">ELIMINAR</button>
+            <button onclick="saveCurrentMission()">GUARDAR CAMBIOS</button>
+            <button onclick="deleteCurrentMission()" style="color:var(--red); border-color:var(--red)">ELIMINAR</button>
         </div>
     </div>
 
@@ -60,31 +72,37 @@
 
 <div id="map"></div>
 
+<!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
 <script>
-firebase.initializeApp({
-    apiKey:"AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-    authDomain:"atom--airsoft.firebaseapp.com",
-    databaseURL:"https://atom--airsoft-default-rtdb.firebaseio.com",
-    projectId:"atom--airsoft"
-});
-
+// Configuración integrada
+const firebaseConfig = {
+    apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+    authDomain: "atom--airsoft.firebaseapp.com",
+    databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+    projectId: "atom--airsoft"
+};
+firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
 let map, drawingManager, currentMissionId = null;
 let currentOverlays = [];
+let missionInterval;
 
 function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
         center: {lat:-34.5, lng:-56.2},
         zoom: 15,
-        mapTypeId: "satellite"
+        mapTypeId: "satellite",
+        disableDefaultUI: false
     });
 
     drawingManager = new google.maps.drawing.DrawingManager({
         drawingControl: false,
-        markerOptions: { icon: 'http://maps.google.com/mapfiles/ms/icons/ltblue-dot.png' }
+        circleOptions: { clickable: true, editable: true },
+        polygonOptions: { clickable: true, editable: true }
     });
     drawingManager.setMap(map);
 
@@ -97,7 +115,7 @@ function initMap() {
 }
 
 function setMode(mode) {
-    if(!currentMissionId) return alert("Crea o selecciona una misión primero");
+    if(!currentMissionId) return alert("Selecciona una misión activa.");
     document.body.dataset.mode = mode;
     
     const isCircle = mode.includes("RESPAWN");
@@ -108,49 +126,57 @@ function setMode(mode) {
         isPolygon ? google.maps.drawing.OverlayType.POLYGON : google.maps.drawing.OverlayType.MARKER
     );
 
-    // Ajustar estilos visuales según el modo[cite: 1]
+    // Estilos visuales dinámicos para el editor
+    const color = mode === 'GAME_ZONE' ? '#00ff00' : 
+                  mode === 'SAFE_ZONE' ? '#ff3333' : 
+                  mode.includes('RED') ? '#ff3333' : '#3333ff';
+
     drawingManager.setOptions({
-        polygonOptions: {
-            fillColor: mode === 'GAME_ZONE' ? '#00ff00' : '#ff0000',
-            strokeColor: mode === 'GAME_ZONE' ? '#00ff00' : '#ff0000',
-            fillOpacity: 0.3
-        },
-        circleOptions: {
-            fillColor: mode.includes('RED') ? '#ff0000' : '#0000ff',
-            strokeColor: mode.includes('RED') ? '#ff0000' : '#0000ff',
-            fillOpacity: 0.5
-        }
+        polygonOptions: { fillColor: color, strokeColor: color, fillOpacity: 0.2, strokeWeight: 2 },
+        circleOptions: { fillColor: color, strokeColor: color, fillOpacity: 0.4, strokeWeight: 2 }
     });
 }
 
+// 💾 PROCESO DE GUARDADO MEJORADO
 function processOverlay(event, mode) {
-    let data = { type: mode };
+    const id = Math.random().toString(36).substr(2, 9);
+    let elementData = { id, type: mode };
     
     if (event.type === 'polygon') {
-        data.path = event.overlay.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
+        elementData.path = event.overlay.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
     } else if (event.type === 'circle') {
-        data.center = {lat: event.overlay.getCenter().lat(), lng: event.overlay.getCenter().lng()};
-        data.radius = event.overlay.getRadius();
+        elementData.center = {lat: event.overlay.getCenter().lat(), lng: event.overlay.getCenter().lng()};
+        elementData.radius = event.overlay.getRadius();
     } else {
-        data.pos = {lat: event.overlay.getPosition().lat(), lng: event.overlay.getPosition().lng()};
+        elementData.pos = {lat: event.overlay.getPosition().lat(), lng: event.overlay.getPosition().lng()};
     }
 
-    db.ref(`operaciones/${currentMissionId}/elements`).push(data);
+    // Guardado inmediato en Firebase para persistencia real
+    db.ref(`operaciones/${currentMissionId}/elements/${id}`).set(elementData);
+    event.overlay.setMap(null); // Limpiamos el temporal para que el render oficial lo dibuje
     drawingManager.setDrawingMode(null);
 }
 
-function createNewMission() {
-    const name = document.getElementById('mission-name').value;
-    if(!name) return alert("Escribe un nombre");
-    currentMissionId = db.ref('operaciones').push().key;
-    db.ref(`operaciones/${currentMissionId}`).set({ nombre: name, created: Date.now() });
-    alert("Misión ID: " + currentMissionId + " Creada");
+// 🚀 LANZAMIENTO DE MISIÓN Y RELOJ
+function launchMission() {
+    if(!currentMissionId) return;
+    const startTime = Date.now();
+    db.ref(`operaciones/${currentMissionId}`).update({
+        estado: "ACTIVA",
+        startTime: startTime
+    });
+    alert("MISIÓN LANZADA: Reloj sincronizado para todos los operadores.");
 }
 
-function saveCurrentMission() {
-    const name = document.getElementById('mission-name').value;
-    db.ref(`operaciones/${currentMissionId}`).update({ nombre: name });
-    alert("CAMBIOS GUARDADOS EN CLOUD");
+function updateTimer(startTime) {
+    clearInterval(missionInterval);
+    missionInterval = setInterval(() => {
+        const diff = Date.now() - startTime;
+        const h = Math.floor(diff / 3600000).toString().padStart(2,'0');
+        const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2,'0');
+        const s = Math.floor((diff % 60000) / 1000).toString().padStart(2,'0');
+        document.getElementById("timer").innerText = `${h}:${m}:${s}`;
+    }, 1000);
 }
 
 function editMission(id) {
@@ -158,42 +184,82 @@ function editMission(id) {
     currentMissionId = id;
     db.ref(`operaciones/${id}`).on('value', snap => {
         const m = snap.val();
+        if(!m) return;
         document.getElementById('mission-name').value = m.nombre;
+        document.getElementById('status-label').innerText = "ESTADO: " + (m.estado || "STANDBY");
+        if(m.startTime) updateTimer(m.startTime);
         renderMission(m.elements);
     });
 }
 
+// 🗺️ RENDERIZADO TÁCTICO PARA OPERADORES
 function renderMission(elements) {
     currentOverlays.forEach(o => o.setMap(null));
+    currentOverlays = [];
     if(!elements) return;
 
     Object.values(elements).forEach(e => {
         let obj;
+        const color = e.type === 'GAME_ZONE' ? '#00ff00' : 
+                      e.type === 'SAFE_ZONE' ? '#ff3333' : 
+                      e.type.includes('RED') ? '#ff3333' : '#3333ff';
+
         if(e.path) {
-            obj = new google.maps.Polygon({ paths: e.path, fillColor: e.type === 'GAME_ZONE' ? '#00ff00' : '#ff0000', map });
+            obj = new google.maps.Polygon({ 
+                paths: e.path, 
+                fillColor: color, 
+                strokeColor: color, 
+                fillOpacity: 0.15, 
+                map: map,
+                zIndex: e.type === 'GAME_ZONE' ? 1 : 2
+            });
         } else if(e.radius) {
-            obj = new google.maps.Circle({ center: e.center, radius: e.radius, fillColor: e.type.includes('RED') ? '#ff0000' : '#0000ff', map });
+            obj = new google.maps.Circle({ 
+                center: e.center, 
+                radius: e.radius, 
+                fillColor: color, 
+                strokeColor: color, 
+                fillOpacity: 0.3, 
+                map: map 
+            });
         } else {
-            obj = new google.maps.Marker({ position: e.pos, map, icon: 'http://maps.google.com/mapfiles/ms/icons/grey-dot.png' });
+            obj = new google.maps.Marker({ 
+                position: e.pos, 
+                map: map, 
+                icon: 'http://maps.google.com/mapfiles/ms/icons/grey-dot.png',
+                title: "OBJETIVO"
+            });
         }
         currentOverlays.push(obj);
+    });
+}
+
+function createNewMission() {
+    const name = document.getElementById('mission-name').value;
+    if(!name) return alert("Asigna un nombre a la operación.");
+    currentMissionId = db.ref('operaciones').push().key;
+    db.ref(`operaciones/${currentMissionId}`).set({ 
+        nombre: name, 
+        estado: "STANDBY",
+        created: Date.now() 
+    });
+}
+
+function loadMissionsList() {
+    db.ref("operaciones").on("value", s => {
+        const sel = document.getElementById("mission-selector");
+        sel.innerHTML = '<option value="">-- SELECCIONAR OPERACIÓN --</option>';
+        s.forEach(child => {
+            sel.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
+        });
     });
 }
 
 function toggleMenu(header) {
     header.nextElementSibling.classList.toggle('active');
 }
-
-function loadMissionsList() {
-    db.ref("operaciones").on("value", s => {
-        const sel = document.getElementById("mission-selector");
-        sel.innerHTML = '<option value="">-- MISIONES EN PARALELO --</option>';
-        s.forEach(child => {
-            sel.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
-        });
-    });
-}
 </script>
+<!-- API de Google Maps con Librería de Dibujo -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing&callback=initMap" async defer></script>
 </body>
 </html>
