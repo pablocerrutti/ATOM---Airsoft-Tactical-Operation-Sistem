@@ -6,7 +6,7 @@
 <title>A.T.O.M - TERMINAL OPERADOR</title>
 
 <style>
-:root { --p:#00ff00; --f:#0b0b0b; --dim:#004400; }
+:root { --p:#00ff00; --f:#0b0b0b; --dim:#004400; --alert:#ff3333; }
 
 body{
  margin:0;
@@ -42,6 +42,7 @@ body{
  transition:0.2s;
  font-weight: bold;
  letter-spacing: 1px;
+ text-transform: uppercase;
 }
 
 .card:hover{
@@ -50,22 +51,17 @@ body{
  box-shadow: 0 0 15px var(--p);
 }
 
-/* Estilo para botón de salida */
-.btn-exit {
+/* Estilo para botón de salida crítico */
+.card-exit {
  margin-top: 25px;
- color: #ff3333;
- border-color: #ff3333;
- padding: 10px;
- border: 1px solid;
- cursor: pointer;
- background: transparent;
- width: 100%;
- font-family: inherit;
+ color: var(--alert);
+ border-color: var(--alert);
 }
 
-.btn-exit:hover {
- background: #ff3333;
+.card-exit:hover {
+ background: var(--alert);
  color: #000;
+ box-shadow: 0 0 15px var(--alert);
 }
 </style>
 </head>
@@ -77,7 +73,7 @@ body{
 <h2>A.T.O.M TERMINAL</h2>
 <div id="user">CARGANDO CREDENCIALES...</div>
 
-<!-- Botón solicitado para registrar y subir equipo -->
+<!-- Registro de escuadrón -->
 <div class="card" onclick="go('escuadrones.html')">
 🛡️ REGISTRAR / SUBIR ESCUADRÓN
 </div>
@@ -86,12 +82,15 @@ body{
 📡 MISIONES ACTIVAS
 </div>
 
-<!-- Enlace para ver listado de operadores/escuadrones activos -->
+<!-- Listado de activos -->
 <div class="card" onclick="go('listado_activos.html')">
 👥 OPERADORES EN CAMPO
 </div>
 
-<button class="btn-exit" onclick="logout()">CERRAR SESIÓN</button>
+<!-- Botón de salida solicitado -->
+<div class="card card-exit" onclick="logout()">
+SALIR DEL SISTEMA A.T.O.M.
+</div>
 
 </div>
 
@@ -141,10 +140,13 @@ function go(url){
  location.href = url;
 }
 
+/* CIERRE DE SESIÓN */
 function logout(){
- auth.signOut().then(()=>{
-  location.href="login.html";
- });
+    if(confirm("¿SOLICITAR DESCONEXIÓN DE LA TERMINAL?")) {
+        auth.signOut().then(()=>{
+            location.href="login.html";
+        }).catch(err => console.error("Error al salir:", err));
+    }
 }
 </script>
 
