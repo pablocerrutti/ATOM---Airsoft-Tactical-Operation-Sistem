@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.T.O.M - COMANDO CENTRAL</title>
+<title>A.T.O.M - EDITOR TÁCTICO</title>
 
 <style>
 :root { --p:#00ff00; --f:#0b0b0b; }
 
-body {
+body{
  margin:0;
  font-family: monospace;
  background:var(--f);
@@ -18,29 +18,36 @@ body {
  overflow:hidden;
 }
 
-#panel {
- width:320px;
+#panel{
+ width:340px;
  background:#050505;
  border-right:2px solid var(--p);
  padding:10px;
  overflow:auto;
 }
 
-#map { flex:1; }
+#map{ flex:1; }
 
-button, input, select {
+button,input,select{
  width:100%;
  margin-top:6px;
  padding:10px;
  background:#111;
  color:var(--p);
  border:1px solid var(--p);
+ cursor:pointer;
 }
 
-@media (max-width:768px){
- body{flex-direction:column;}
- #panel{width:100%;height:45vh;}
- #map{height:55vh;}
+.section{
+ margin-top:10px;
+ border-top:1px solid #222;
+ padding-top:10px;
+}
+
+.user{
+ font-size:12px;
+ border-bottom:1px solid #222;
+ padding:4px;
 }
 </style>
 </head>
@@ -55,25 +62,31 @@ button, input, select {
 
 <input id="nombre" placeholder="Nombre misión">
 
-<button onclick="saveMission()">GUARDAR MISIÓN</button>
-<button onclick="newMission()">NUEVA MISIÓN</button>
+<button onclick="createMission()">NUEVA</button>
+<button onclick="saveMission()">GUARDAR</button>
+<button onclick="deleteMission()">BORRAR</button>
+<button onclick="deployMission()">DESPLEGAR (START)</button>
 
-<hr>
+<div class="section">
+<h4>DIBUJO</h4>
 
-<h3>HERRAMIENTAS</h3>
+<button onclick="setMode('ZONE')">ZONA (POLIGONO)</button>
+<button onclick="setMode('SAFE')">ZONA SEGURA</button>
 
-<button onclick="setMode('ZONA')">ZONA JUEGO</button>
-<button onclick="setMode('SEGURA')">ZONA SEGURA</button>
-<button onclick="setMode('RESPAWN')">RESPAWN</button>
-<button onclick="setMode('OBJETIVO_NEUTRO')">OBJETIVO NEUTRO</button>
-<button onclick="setMode('OBJETIVO_ROJO')">OBJ ROJO</button>
-<button onclick="setMode('OBJETIVO_AZUL')">OBJ AZUL</button>
+<button onclick="setMode('RESPAWN_RED')">RESPAWN ROJO</button>
+<button onclick="setMode('RESPAWN_BLUE')">RESPAWN AZUL</button>
+
+<button onclick="setMode('OBJ_NEUTRAL')">OBJ NEUTRO</button>
+<button onclick="setMode('OBJ_RED')">OBJ ROJO</button>
+<button onclick="setMode('OBJ_BLUE')">OBJ AZUL</button>
 
 <button onclick="clearMode()">DESACTIVAR</button>
+</div>
 
-<hr>
-
-<button onclick="logout()">SALIR</button>
+<div class="section">
+<h4>JUGADORES</h4>
+<div id="players"></div>
+</div>
 
 </div>
 
@@ -85,165 +98,147 @@ button, input, select {
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
 <script>
-const firebaseConfig = {
- apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
- authDomain: "atom--airsoft.firebaseapp.com",
- databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
- projectId: "atom--airsoft",
- storageBucket: "atom--airsoft.firebasestorage.app",
- messagingSenderId: "310010107781",
- appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
-};
+firebase.initializeApp({
+ apiKey:"AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+ authDomain:"atom--airsoft.firebaseapp.com",
+ databaseURL:"https://atom--airsoft-default-rtdb.firebaseio.com",
+ projectId:"atom--airsoft"
+});
 
-firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 
-/* ===== STATE ===== */
 let map;
-let mode = null;
-let missionId = null;
-let shapes = [];
+let mode=null;
+let missionId=null;
 
-/* ===== MAPA ===== */
-window.initMap = function () {
+let markers=[];
+let polygons=[];
+let tempPolygon=[];
 
- map = new google.maps.Map(document.getElementById("map"), {
-  center: { lat: -34.9, lng: -56.2 },
-  zoom: 15,
-  mapTypeId: "satellite"
+/* MAP */
+window.initMap = function(){
+ map = new google.maps.Map(document.getElementById("map"),{
+  center:{lat:-34.9,lng:-56.2},
+  zoom:15,
+  mapTypeId:"satellite"
  });
 
- map.addListener("click", (e) => {
-
-  if (!mode) return;
-  if (!missionId) {
-   alert("Selecciona o crea una misión");
-   return;
-  }
-
-  const point = {
-   type: mode,
-   lat: e.latLng.lat(),
-   lng: e.latLng.lng()
-  };
-
-  shapes.push(point);
-
-  let color = "green";
-
-  if (mode.includes("ROJO")) color = "red";
-  if (mode.includes("AZUL")) color = "blue";
-  if (mode.includes("RESPAWN")) color = "purple";
-  if (mode.includes("SEGURA")) color = "white";
-  if (mode.includes("NEUTRO")) color = "yellow";
-
-  new google.maps.Marker({
-   position: e.latLng,
-   map: map,
-   icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`
-  });
-
- });
+ map.addListener("click",(e)=>handleClick(e));
 };
 
-/* ===== MODOS ===== */
-function setMode(m){
- mode = m;
- alert("Modo: " + m);
+/* CLICK MAP */
+function handleClick(e){
+ if(!mode || !missionId) return;
+
+ const pos = {lat:e.latLng.lat(),lng:e.latLng.lng()};
+
+ // POLYGON MODE
+ if(mode==="ZONE"){
+  tempPolygon.push(pos);
+
+  let poly = new google.maps.Polygon({
+   paths: tempPolygon,
+   strokeColor:"#00ff00",
+   fillColor:"#00ff00",
+   fillOpacity:0.2,
+   map
+  });
+
+  polygons.push(poly);
+  return;
+ }
+
+ // MARKERS
+ let color="yellow";
+
+ if(mode.includes("RED")) color="red";
+ if(mode.includes("BLUE")) color="blue";
+ if(mode.includes("SAFE")) color="white";
+
+ new google.maps.Marker({
+  position:pos,
+  map,
+  icon:`http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`
+ });
+
+ saveTempPoint(mode,pos);
 }
 
-function clearMode(){
- mode = null;
+/* SAVE TEMP */
+function saveTempPoint(type,pos){
+ db.ref(`operaciones/${missionId}/points`).push({
+  type,
+  ...pos
+ });
 }
 
-/* ===== MISIONES ===== */
+/* MODE */
+function setMode(m){ mode=m; }
+function clearMode(){ mode=null; }
+
+/* MISSIONS */
 function loadMissions(){
- db.ref("operaciones").on("value",snap=>{
+ db.ref("operaciones").on("value",s=>{
   let sel=document.getElementById("misiones");
   sel.innerHTML="";
-
-  snap.forEach(s=>{
-   sel.innerHTML += `<option value="${s.key}">${s.val().nombre}</option>`;
+  s.forEach(x=>{
+   sel.innerHTML+=`<option value="${x.key}">${x.val().nombre}</option>`;
   });
  });
 }
 
 function loadMission(id){
- missionId = id;
- shapes = [];
+ missionId=id;
+ tempPolygon=[];
 
- db.ref("operaciones/"+id).once("value",snap=>{
-  const m = snap.val();
-  if(!m) return;
-
-  document.getElementById("nombre").value = m.nombre;
-
-  renderExisting(m.zonas || []);
+ db.ref("operaciones/"+id).once("value",s=>{
+  let m=s.val();
+  document.getElementById("nombre").value=m.nombre||"";
  });
 }
 
-/* ===== RENDER EXISTENTE ===== */
-function renderExisting(zonas){
- zonas.forEach(z=>{
-  let color = "green";
-
-  if (z.type.includes("ROJO")) color = "red";
-  if (z.type.includes("AZUL")) color = "blue";
-  if (z.type.includes("RESPAWN")) color = "purple";
-  if (z.type.includes("SEGURA")) color = "white";
-  if (z.type.includes("NEUTRO")) color = "yellow";
-
-  new google.maps.Marker({
-   position: {lat:z.lat,lng:z.lng},
-   map: map,
-   icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`
-  });
- });
+/* CREATE */
+function createMission(){
+ missionId=db.ref("operaciones").push().key;
+ tempPolygon=[];
 }
 
-/* ===== GUARDAR ===== */
+/* SAVE */
 function saveMission(){
-
- if(!missionId){
-  missionId = db.ref("operaciones").push().key;
- }
-
- const nombre = document.getElementById("nombre").value;
-
  db.ref("operaciones/"+missionId).set({
-  nombre,
-  zonas: shapes,
-  estado:{
-   activo:false,
-   killsR:0,
-   killsA:0,
-   startTime:null
-  },
-  modo:"MILITAR_REAL"
+  nombre:document.getElementById("nombre").value,
+  estado:{activo:false},
+  created:Date.now()
  });
-
- alert("MISIÓN GUARDADA");
+ alert("GUARDADO");
 }
 
-/* ===== NUEVA ===== */
-function newMission(){
- shapes = [];
- missionId = null;
- document.getElementById("nombre").value="";
+/* DELETE */
+function deleteMission(){
+ if(!missionId) return;
+ db.ref("operaciones/"+missionId).remove();
+ alert("BORRADO");
 }
 
-/* ===== AUTH ===== */
-auth.onAuthStateChanged(u=>{
- if(!u) location.href="login.html";
+/* DEPLOY START GAME */
+function deployMission(){
+ db.ref("operaciones/"+missionId+"/estado").update({
+  activo:true,
+  startTime:Date.now()
+ });
+ alert("MISIÓN DESPLEGADA");
+}
+
+/* PLAYERS */
+db.ref("usuarios").on("value",s=>{
+ let html="";
+ s.forEach(u=>{
+  html+=`<div class="user">${u.val().callsign} - ${u.val().rol}</div>`;
+ });
+ document.getElementById("players").innerHTML=html;
 });
 
-/* ===== LOGOUT ===== */
-function logout(){
- auth.signOut().then(()=>location.href="login.html");
-}
-
-/* INIT */
 loadMissions();
 </script>
 
