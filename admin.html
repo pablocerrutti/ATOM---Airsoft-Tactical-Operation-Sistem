@@ -18,6 +18,7 @@ body {
  overflow:hidden;
 }
 
+/* PANEL */
 #panel {
  width:320px;
  background:#050505;
@@ -26,12 +27,13 @@ body {
  overflow-y:auto;
 }
 
+/* MAPA */
 #map {
  flex:1;
  height:100vh;
- width:100%;
 }
 
+/* UI */
 button, input, select {
  width:100%;
  margin-top:6px;
@@ -41,6 +43,7 @@ button, input, select {
  border:1px solid var(--p);
 }
 
+/* RESPONSIVE */
 @media (max-width: 768px) {
  body { flex-direction:column; }
 
@@ -87,7 +90,7 @@ button, input, select {
 
 <div id="map"></div>
 
-<!-- 🔥 FIREBASE REAL -->
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -100,19 +103,42 @@ const firebaseConfig = {
  projectId: "atom--airsoft",
  storageBucket: "atom--airsoft.firebasestorage.app",
  messagingSenderId: "310010107781",
- appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
- measurementId: "G-3X2C87MPPV"
+ appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
 };
 
 firebase.initializeApp(firebaseConfig);
 
+const auth = firebase.auth();
 const db = firebase.database();
 
-/* ===== MAPA ===== */
 let map;
 let mode = null;
 let shapes = [];
+let currentUser = null;
 
+/* 🔒 CONTROL DE ACCESO */
+auth.onAuthStateChanged(user => {
+ if (!user) {
+  location.href = "login.html";
+  return;
+ }
+
+ db.ref("usuarios/" + user.uid).once("value").then(snap => {
+  const data = snap.val();
+
+  if (!data || (data.rol !== "ADMIN" && data.rol !== "EDITOR")) {
+   alert("ACCESO DENEGADO");
+   location.href = "misiones.html";
+   return;
+  }
+
+  currentUser = data;
+
+  initMap();
+ });
+});
+
+/* 🔥 MAPA GLOBAL (IMPORTANTE FIX GOOGLE MAPS) */
 window.initMap = function () {
 
  map = new google.maps.Map(document.getElementById("map"), {
@@ -122,7 +148,6 @@ window.initMap = function () {
  });
 
  map.addListener("click", (e) => {
-
   if (!mode) return;
 
   new google.maps.Marker({
@@ -135,51 +160,53 @@ window.initMap = function () {
    lat: e.latLng.lat(),
    lng: e.latLng.lng()
   });
-
  });
 
 };
 
+/* MODOS */
 function setMode(m) {
  mode = m;
 }
 
+/* RESET */
 function nuevaMision() {
  shapes = [];
  document.getElementById("nombre").value = "";
  alert("Nueva misión iniciada");
 }
 
+/* GUARDAR */
 function guardarMision() {
 
- const nombre = document.getElementById("nombre").value;
+ const nombre = document.getElementById("nombre").value.trim();
 
- if (!nombre) {
-  alert("Falta nombre");
-  return;
- }
+ if (!nombre) return alert("Falta nombre");
 
  db.ref("operaciones").push().set({
   nombre,
   zonas: shapes,
-  estado: { activo: false }
+  estado: { activo: false },
+  creadoPor: currentUser.callsign
  });
 
  alert("Misión guardada");
 }
 
+/* LANZAR */
 function lanzar() {
  alert("Misión activada (placeholder)");
 }
 
+/* LOGOUT */
 function logout() {
- firebase.auth().signOut().then(() => {
+ auth.signOut().then(() => {
   location.href = "login.html";
  });
 }
 </script>
 
-<!-- 🔥 GOOGLE MAPS CON CALLBACK CORRECTO -->
+<!-- GOOGLE MAPS (IMPORTANTE: CALLBACK GLOBAL) -->
 <script
 src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap"
 async defer>
