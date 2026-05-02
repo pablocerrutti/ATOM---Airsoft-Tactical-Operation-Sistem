@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Airsoft Tactical Operation Mapss</title>
+    <title>A.T.O.M - Airsoft Tactical Operation Maps</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="logo_atom.png">
@@ -89,8 +89,8 @@
 <div class="container" id="main-app">
     <header style="text-align: center; margin-bottom: 30px;">
         <h2>IDENTIFICACIÓN</h2>
-        <p style="font-size: 12px; color: var(--gold);">A.T.O.M. - Airsoft Tactiscal Operation MapsS</p>
-        <p style="font-size: 12px; color: var(--gold);">creado por Pablo Cerrutti - Florida</p>
+        <p style="font-size: 12px; color: var(--gold);">A.T.O.M. - Airsoft Tactical Operation Maps</p>
+        <p style="font-size: 12px; color: #666;">creado por Pablo Cerrutti - Florida</p>
     </header>
 
     <div class="auth-card">
@@ -116,6 +116,7 @@
 </footer>
 
 <script>
+    // CONFIGURACIÓN FIREBASE
     const firebaseConfig = {
       apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
       authDomain: "atom---sistem.firebaseapp.com",
@@ -130,6 +131,7 @@
     const db = firebase.database();
     const auth = firebase.auth();
 
+    // MANEJO DE SPLASH SCREEN
     window.onload = () => {
         setTimeout(() => {
             document.getElementById('boot-text').innerText = "CONEXIÓN ESTABLECIDA";
@@ -138,8 +140,8 @@
                 document.getElementById('main-app').style.display = 'block';
                 document.getElementById('net-status').innerText = "ONLINE";
                 document.getElementById('net-status').classList.remove('blink');
-            }, 1200);
-        }, 2200);
+            }, 1000);
+        }, 1500);
     };
 
     function toggleForm(type) {
@@ -170,52 +172,39 @@
         try {
             await auth.signInWithEmailAndPassword(email, pass);
             location.href = "lobby.html";
-        } catch(e) { alert("ERROR DE ACCESO"); }
+        } catch(e) { alert("ERROR DE ACCESO: VERIFICA CREDENCIALES"); }
     }
 
-   // FUNCIONALIDAD MEJORADA: VERIFICACIÓN ROBUSTA DE ROL Y CALLSIGN
     function checkAdmin() {
         const user = auth.currentUser;
-        
-        // Verificación inmediata de sesión activa
         if (!user) {
             alert("SISTEMA BLOQUEADO: IDENTIFÍCATE PRIMERO");
             return;
         }
         
-        // Referencia directa al nodo del usuario en la base de datos
         db.ref(`usuarios/${user.uid}`).once('value')
             .then(snap => {
                 if (!snap.exists()) {
-                    alert("ERROR: PERFIL NO ENCONTRADO EN LA BASE DE DATOS");
+                    alert("ERROR: PERFIL NO ENCONTRADO");
                     return;
                 }
-
                 const data = snap.val();
-                
-                // 1. Verificación de privilegios (ADMIN o EDITOR)
-                const tienePermiso = data.rol === "ADMIN" || data.rol === "EDITOR";
-                
-                if (tienePermiso) {
-                    // 2. Solicitud de Segundo Factor (Callsign)
-                    const inputCallsign = prompt("SISTEMA DE AUTORIZACIÓN A.T.O.M\nINGRESE SU CALLSIGN:");
-                    
-                    // Verificación de nulidad y coincidencia exacta (ignorando mayúsculas)
+                if (data.rol === "ADMIN" || data.rol === "EDITOR") {
+                    const inputCallsign = prompt("AUTORIZACIÓN A.T.O.M\nINGRESE SU CALLSIGN:");
                     if (inputCallsign && inputCallsign.trim().toUpperCase() === data.callsign.toUpperCase()) {
-                        console.log("Acceso autorizado para:", data.callsign);
                         location.href = "restricted_zone.html";
                     } else {
-                        alert("⚠️ ALERTA DE SEGURIDAD: CALLSIGN INCORRECTO.\nREINICIANDO TERMINAL...");
-                        location.reload(); // Recarga para limpiar cualquier intento
+                        alert("⚠️ ALERTA: CALLSIGN INCORRECTO.");
+                        location.reload();
                     }
                 } else {
-                    alert("⚠️ ACCESO DENEGADO: NIVEL DE AUTORIZACIÓN INSUFICIENTE");
+                    alert("⚠️ ACCESO DENEGADO: NIVEL INSUFICIENTE");
                 }
             })
             .catch(error => {
-                console.error("Error en DB:", error);
-                alert("ERROR CRÍTICO DE ENLACE CON LA BASE DE DATOS");
+                alert("ERROR DE ENLACE CON LA DB");
             });
     }
+</script> <!-- ESTA ETIQUETA FALTABA -->
 </body>
 </html>
