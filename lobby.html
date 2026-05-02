@@ -9,7 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <style>
-        :root { --p: #00ff00; --f: #050505; --gold: #ffd700; --gray: #1a1a1a; }
+        :root { --p: #00ff00; --f: #050505; --gold: #ffd700; --gray: #1a1a1a; --red: #ff3333; }
         body { 
             margin: 0; background: var(--f); color: var(--p); 
             font-family: 'Courier New', monospace; display: flex; flex-direction: column; height: 100vh;
@@ -27,9 +27,17 @@
             margin-bottom: 15px; position: relative;
         }
 
-        .mission-card { background: var(--gray); padding: 15px; border-left: 4px solid var(--gold); margin-bottom: 20px; }
+        .mission-card { background: var(--gray); padding: 15px; border-left: 4px solid var(--gold); margin-bottom: 10px; }
         .mission-title { font-size: 1.1rem; margin: 0; color: #fff; }
         .mission-desc { font-size: 0.8rem; color: #aaa; margin-top: 5px; }
+
+        /* Botón Secundario (Operadores) */
+        .btn-secondary {
+            width: 100%; padding: 12px; background: transparent; color: var(--gold);
+            border: 1px solid var(--gold); font-family: inherit; font-weight: bold;
+            cursor: pointer; margin-bottom: 20px; transition: 0.3s;
+        }
+        .btn-secondary:hover { background: rgba(255, 215, 0, 0.1); }
 
         /* Estado de Enlistamiento */
         #waiting-area { 
@@ -37,7 +45,7 @@
             border: 1px dashed var(--gold); margin-top: 10px;
         }
 
-        /* Botón de Acción */
+        /* Botón de Acción Principal */
         .btn-enlist { 
             width: 100%; padding: 20px; background: var(--p); color: #000; 
             border: none; font-weight: bold; font-size: 1.1rem; cursor: pointer;
@@ -45,7 +53,9 @@
         }
         .btn-enlist:disabled { background: #222; color: #555; cursor: not-allowed; }
 
-        /* Responsive adjustments */
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
         @media (min-width: 600px) {
             body { align-items: center; }
             #mission-container, header, .btn-enlist { width: 500px; }
@@ -76,8 +86,12 @@
         </div>
     </div>
 
+    <!-- BOTÓN DE OPERADORES OPERATIVOS -->
+    <button class="btn-secondary" onclick="location.href='operadores.html'">
+        👥 OPERADORES OPERATIVOS
+    </button>
+
     <div id="mini-map">
-        <!-- El mapa cargará aquí para mostrar la Game Zone -->
         <div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:12px; color:#444;">
             VISTA PREVIA TÁCTICA
         </div>
@@ -93,11 +107,9 @@
 
 <button class="btn-enlist" id="btn-action" onclick="handleEnlist()" disabled>DESPLEGAR EN MISIÓN</button>
 
-<!-- Google Maps con Librería de Dibujo para ver las zonas -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing"></script>
 
 <script>
-    // Configuración Real de A.T.O.M v2.0
 const firebaseConfig = {
   apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
   authDomain: "atom---sistem.firebaseapp.com",
@@ -108,7 +120,6 @@ const firebaseConfig = {
   appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
 };
 
-// Inicializar
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
@@ -120,8 +131,10 @@ const auth = firebase.auth();
         if (user) {
             db.ref(`usuarios/${user.uid}`).once('value', snap => {
                 const data = snap.val();
-                document.getElementById('display-callsign').innerText = data.callsign;
-                checkActiveMission(user.uid);
+                if(data) {
+                    document.getElementById('display-callsign').innerText = data.callsign;
+                    checkActiveMission(user.uid);
+                }
             });
         } else {
             location.href = "index.html";
@@ -129,7 +142,6 @@ const auth = firebase.auth();
     });
 
     function checkActiveMission(uid) {
-        // Escuchar misiones activas
         db.ref('misiones').orderByChild('estado').equalTo('PREPARACION').on('value', snap => {
             if (snap.exists()) {
                 const missions = snap.val();
@@ -146,10 +158,9 @@ const auth = firebase.auth();
             }
         });
 
-        // Escuchar si el admin ya lanzó la partida para este usuario
         db.ref(`operacion_activa/despliegue/${uid}`).on('value', snap => {
             if (snap.exists() && snap.val().lanzada === true) {
-                location.href = "mapa_tactico.html"; // Salto automático al combate
+                location.href = "mapa_tactico.html";
             }
         });
     }
@@ -160,10 +171,9 @@ const auth = firebase.auth();
             zoom: 14,
             mapTypeId: "satellite",
             disableDefaultUI: true,
-            gestureHandling: "none" // Bloqueado para que sea solo visual
+            gestureHandling: "none"
         });
 
-        // Dibujar solo la Game Zone (borde verde) para previsualización
         if(elements) {
             Object.values(elements).forEach(el => {
                 if(el.type === "GAME_ZONE") {
@@ -185,7 +195,6 @@ const auth = firebase.auth();
         const user = auth.currentUser;
         const callsign = document.getElementById('display-callsign').innerText;
 
-        // Registrar al jugador como enlistado para que el Admin lo vea
         db.ref(`operacion_activa/despliegue/${user.uid}`).set({
             callsign: callsign,
             equipo: "PENDIENTE",
