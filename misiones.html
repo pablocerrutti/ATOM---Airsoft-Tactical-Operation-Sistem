@@ -9,7 +9,7 @@
         body { margin:0; font-family: monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
         #panel { width:300px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; z-index:10; }
         #map { flex:1; }
-        .menu-content { padding:10px; display:flex; flex-direction:column; gap: 8px; }
+        .menu-content { padding:10px; display:flex; flex-direction:column; gap: 8px; overflow-y: auto; }
         button { width:100%; padding:12px; background:#111; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; }
         button:disabled { border-color: var(--grey); color: var(--grey); cursor: not-allowed; }
         .btn-medico { background: #600; color: white; border-color: var(--red); font-size: 1.2rem; height: 60px; }
@@ -17,6 +17,7 @@
         .status-box { border: 1px solid var(--p); padding: 10px; font-size: 0.9rem; background: #080808; }
         .timer-display { font-size: 22px; text-align: center; color: var(--gold); border: 1px solid var(--gold); padding: 5px; }
         #respawn-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,0,0,0.8); z-index:100; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center; }
+        #mission-selector-container { display: none; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -29,11 +30,15 @@
 
 <div id="panel">
     <div style="padding:15px; border-bottom:2px solid var(--p)">
-        <h3 style="margin:0;">A.T.O.M OPS</h3>
-        <select id="mission-selector" onchange="joinMission(this.value)">
-            <option value="">-- SELECCIONAR MISIÓN --</option>
-        </select>
-        <select id="team-selector" style="margin-top:5px;">
+        <h3 style="margin:0 0 10px 0;">A.T.O.M OPS</h3>
+        
+        <div id="mission-selector-container">
+            <select id="mission-selector" onchange="joinMission(this.value)">
+                <option value="">-- SELECCIONAR MISIÓN --</option>
+            </select>
+        </div>
+
+        <select id="team-selector">
             <option value="RED">EQUIPO ROJO</option>
             <option value="BLUE">EQUIPO AZUL</option>
         </select>
@@ -48,7 +53,6 @@
         </div>
 
         <button onclick="reportEnemy()" class="btn-enemy">⚠️ AVISTAMIENTO ENEMIGO</button>
-        
         <button id="btn-medico" class="btn-medico" onclick="useMedic()">💉 SOLICITAR MÉDICO</button>
 
         <div style="border:1px solid #333; padding:5px;">
@@ -77,8 +81,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let map, myMarker, currentMissionId = null;
-let teamMarkers = {}, enemyMarkers = {}, missionOverlays = [];
+let map, currentMissionId = null;
+let teamMarkers = {}, missionOverlays = [];
 let medicUses = 2;
 let isEnlisted = false;
 let watchId = null;
@@ -96,10 +100,17 @@ function initMap() {
 function loadMissions() {
     db.ref("operaciones").on("value", s => {
         const sel = document.getElementById("mission-selector");
-        sel.innerHTML = '<option value="">-- SELECCIONAR MISIÓN --</option>';
-        s.forEach(child => {
-            sel.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
-        });
+        const container = document.getElementById("mission-selector-container");
+        
+        if(s.exists()) {
+            container.style.display = "block";
+            sel.innerHTML = '<option value="">-- SELECCIONAR MISIÓN --</option>';
+            s.forEach(child => {
+                sel.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
+            });
+        } else {
+            container.style.display = "none";
+        }
     });
 }
 
@@ -107,33 +118,65 @@ function joinMission(id) {
     if(!id) return;
     currentMissionId = id;
     
-    // Escuchar la misión (Zonas y Tiempo)
     db.ref(`operaciones/${id}`).on('value', snap => {
         const data = snap.val();
+        if(!data) return;
+
         renderStaticElements(data.elements);
         if(data.startTime) startLocalTimer(data.startTime);
         
-        // Escuchar bajas del equipo
         const team = document.getElementById('team-selector').value;
         db.ref(`operaciones/${id}/stats/deaths_${team}`).on('value', s => {
             document.getElementById('team-deaths').innerText = s.val() || 0;
         });
     });
 
-    // Escuchar GPS de compañeros de mi mismo equipo
     const myTeam = document.getElementById('team-selector').value;
     db.ref(`operaciones/${id}/players`).on('value', snap => {
-        const players = snap.val();
-        updateTeamGPS(players, myTeam);
+        updateTeamGPS(snap.val(), myTeam);
     });
 
-    // Escuchar Marcas de Enemigos
     db.ref(`operaciones/${id}/enemy_pings`).on('child_added', snap => {
         showEnemyPing(snap.val(), snap.key);
     });
 }
 
+function renderStaticElements(elements) {
+    missionOverlays.forEach(o => o.setMap(null));
+    missionOverlays = [];
+    if(!elements) return;
+
+    const bounds = new google.maps.LatLngBounds();
+    let hasElements = false;
+
+    Object.values(elements).forEach(e => {
+        let obj;
+        const color = e.type === 'GAME_ZONE' ? '#00ff00' : 
+                      e.type === 'SAFE_ZONE' ? '#ff3333' : 
+                      e.type.includes('RED') ? '#f00' : 
+                      e.type.includes('BLUE') ? '#00f' : '#888';
+
+        if(e.path) {
+            obj = new google.maps.Polygon({ paths: e.path, fillColor: color, strokeColor: color, fillOpacity: 0.1, map: map });
+            e.path.forEach(p => bounds.extend(p));
+            hasElements = true;
+        } else if(e.radius) {
+            obj = new google.maps.Circle({ center: e.center, radius: e.radius, fillColor: color, strokeColor: color, fillOpacity: 0.2, map: map });
+            bounds.extend(e.center);
+            hasElements = true;
+        } else if(e.pos) {
+            obj = new google.maps.Marker({ position: e.pos, map: map, icon: 'http://maps.google.com/mapfiles/ms/icons/grey-dot.png' });
+            bounds.extend(e.pos);
+            hasElements = true;
+        }
+        if(obj) missionOverlays.push(obj);
+    });
+
+    if(hasElements) map.fitBounds(bounds);
+}
+
 function toggleEnlist() {
+    if(!currentMissionId) return alert("Selecciona una misión primero.");
     isEnlisted = !isEnlisted;
     const btn = document.getElementById('btn-enlist');
     const team = document.getElementById('team-selector').value;
@@ -165,7 +208,7 @@ function startTracking(team) {
 
 function stopTracking() {
     if(watchId) navigator.geolocation.clearWatch(watchId);
-    db.ref(`operaciones/${currentMissionId}/players/PABLO`).remove();
+    if(currentMissionId) db.ref(`operaciones/${currentMissionId}/players/PABLO`).remove();
 }
 
 function updateTeamGPS(players, myTeam) {
@@ -197,7 +240,6 @@ function useMedic() {
         document.getElementById('med-count').innerText = medicUses;
         alert("SOLICITUD DE MÉDICO ENVIADA");
     } else {
-        // Bloqueo y Respawn
         document.getElementById('respawn-overlay').style.display = 'flex';
         const team = document.getElementById('team-selector').value;
         db.ref(`operaciones/${currentMissionId}/stats/deaths_${team}`).transaction(c => (c || 0) + 1);
@@ -218,7 +260,7 @@ function reportEnemy() {
 
 function showEnemyPing(data, id) {
     const myTeam = document.getElementById('team-selector').value;
-    if(data.team !== myTeam) return; // Solo veo pings de mi equipo
+    if(data.team !== myTeam) return;
 
     const marker = new google.maps.Marker({
         position: data.coords,
@@ -227,7 +269,7 @@ function showEnemyPing(data, id) {
         animation: google.maps.Animation.BOUNCE
     });
 
-    setTimeout(() => marker.setMap(null), 30000); // Desaparece en 30s
+    setTimeout(() => marker.setMap(null), 30000);
 }
 
 function resetRespawn() {
@@ -235,22 +277,6 @@ function resetRespawn() {
     document.getElementById('med-count').innerText = "2";
     document.getElementById('respawn-overlay').style.display = 'none';
 }
-
-function renderStaticElements(elements) {
-    missionOverlays.forEach(o => o.setMap(null));
-    if(!elements) return;
-    Object.values(elements).forEach(e => {
-        const color = e.type === 'GAME_ZONE' ? '#00ff00' : e.type === 'SAFE_ZONE' ? '#ff3333' : e.type.includes('RED') ? '#f00' : '#00f';
-        let obj;
-        if(e.path) obj = new google.maps.Polygon({ paths: e.path, fillColor: color, strokeColor: color, fillOpacity: 0.1, map: map });
-        else if(e.radius) obj = new google.maps.Circle({ center: e.center, radius: e.radius, fillColor: color, strokeColor: color, fillOpacity: 0.2, map: map });
-        missionOverlays.push(obj);
-    });
-}
-
-// Lógica de Audio (Simulada para estructura)
-function startVoice() { console.log("Grabando..."); }
-function stopVoice() { console.log("Mensaje enviado (Firebase Storage)"); }
 
 function startLocalTimer(start) {
     setInterval(() => {
@@ -261,6 +287,9 @@ function startLocalTimer(start) {
         document.getElementById("timer").innerText = `${h}:${m}:${s}`;
     }, 1000);
 }
+
+function startVoice() { console.log("Grabando..."); }
+function stopVoice() { console.log("Mensaje enviado"); }
 
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
