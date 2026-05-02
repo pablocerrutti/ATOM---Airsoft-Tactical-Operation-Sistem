@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M - TACTICAL MAP</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <style>
+        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; }
+        body, html { margin: 0; padding: 0; height: 100%; background: var(--f); overflow: hidden; font-family: monospace; }
+        
+        #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        
+        /* HUD Superior */
+        #hud-top { 
+            position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10;
+            display: flex; justify-content: space-between; pointer-events: none;
+        }
+        .hud-box { background: rgba(0,0,0,0.7); border: 1px solid var(--p); padding: 5px 10px; color: var(--p); font-size: 12px; pointer-events: all; }
+
+        /* Controles Inferiores */
+        #controls { 
+            position: absolute; bottom: 25px; width: 100%; display: flex; 
+            justify-content: space-around; z-index: 10; padding: 0 10px; box-sizing: border-box;
+        }
+        .btn-tactic { 
+            width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--p);
+            background: rgba(0,0,0,0.8); color: var(--p); font-size: 10px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+        }
+        .btn-medic { border-color: var(--red); color: var(--red); }
+        .btn-enemy { border-color: var(--gold); color: var(--gold); }
+        
+        /* Estilos de Marcadores */
+        .marker-label { color: white; font-size: 10px; font-weight: bold; text-shadow: 1px 1px black; }
+    </style>
+</head>
+<body>
+
+    <div id="hud-top">
+        <div class="hud-box" id="bando-indicator">BANDO: ---</div>
+        <div class="hud-box" id="status-indicator">STATUS: OK</div>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="controls">
+        <button class="btn-tactic btn-enemy" onclick="markEnemy()">⚠️<br>ENEMIGO</button>
+        <button class="btn-tactic" onmousedown="startVoice()" onmouseup="stopVoice()" ontouchstart="startVoice()" ontouchend="stopVoice()">🎙️<br>RADIO</button>
+        <button class="btn-tactic btn-medic" id="btn-medic" onclick="toggleMedic()">🚑<br>MÉDICO</button>
+    </div>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58"></script>
+<script>
+   // Configuración Real de A.T.O.M v2.0
+const firebaseConfig = {
+  apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+  authDomain: "atom---sistem.firebaseapp.com",
+  databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+  projectId: "atom---sistem",
+  storageBucket: "atom---sistem.firebasestorage.app",
+  messagingSenderId: "151110156876",
+  appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
+};
+
+// Inicializar
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+    let map, userMarker;
+    let myBando = "";
+    let markers = {};
+
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            db.ref(`operacion_activa/despliegue/${user.uid}`).on('value', snap => {
+                const data = snap.val();
+                if (!data) return;
+                myBando = data.equipo;
+                document.getElementById('bando-indicator').innerText = `BANDO: ${myBando}`;
+                document.getElementById('bando-indicator').style.color = myBando === "ROJO" ? "var(--red)" : "var(--blue)";
+                initMap();
+                startTracking(user.uid);
+                listenTeammates();
+            });
+        }
+    });
+
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: {lat: -34.34, lng: -56.71},
+            zoom: 17,
+            mapTypeId: "satellite",
+            disableDefaultUI: true,
+            styles: [{ featureType: "all", elementType: "labels", stylers: [{ visibility: "on" }] }]
+        });
+    }
+
+    function startTracking(uid) {
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(pos => {
+                const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                db.ref(`operacion_activa/despliegue/${uid}/pos`).set(p);
+                map.setCenter(p);
+            }, null, { enableHighAccuracy: true });
+        }
+    }
+
+    function listenTeammates() {
+        db.ref('operacion_activa/despliegue').on('value', snap => {
+            snap.forEach(child => {
+                const data = child.val();
+                if (data.equipo === myBando && child.key !== auth.currentUser.uid) {
+                    updateMarker(child.key, data);
+                }
+            });
+        });
+    }
+
+    function updateMarker(uid, data) {
+        const color = data.estado === "HERIDO" ? "yellow" : (myBando === "ROJO" ? "red" : "blue");
+        if (markers[uid]) {
+            markers[uid].setPosition(data.pos);
+        } else {
+            markers[uid] = new google.maps.Marker({
+                position: data.pos,
+                map: map,
+                label: { text: data.callsign, color: "white", fontSize: "10px" },
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 7,
+                    fillColor: color,
+                    fillOpacity: 1,
+                    strokeWeight: 2,
+                    strokeColor: "white"
+                }
+            });
+        }
+    }
+
+    function toggleMedic() {
+        const uid = auth.currentUser.uid;
+        const btn = document.getElementById('btn-medic');
+        db.ref(`operacion_activa/despliegue/${uid}/estado`).once('value', snap => {
+            const newState = snap.val() === "VIVO" ? "HERIDO" : "VIVO";
+            db.ref(`operacion_activa/despliegue/${uid}/estado`).set(newState);
+            document.getElementById('status-indicator').innerText = `STATUS: ${newState}`;
+            btn.style.background = newState === "HERIDO" ? "var(--red)" : "rgba(0,0,0,0.8)";
+        });
+    }
+
+    function markEnemy() {
+        const center = map.getCenter();
+        const id = Date.now();
+        db.ref(`operacion_activa/enemigos/${id}`).set({
+            pos: { lat: center.lat(), lng: center.lng() },
+            timestamp: id
+        });
+        // Lógica para borrar la marca automáticamente tras 2 minutos
+        setTimeout(() => db.ref(`operacion_activa/enemigos/${id}`).remove(), 120000);
+    }
+
+    // Lógica de Voz (Simplificada para el esquema)
+    function startVoice() { console.log("Grabando..."); }
+    function stopVoice() { console.log("Enviando audio (Máx 15s)..."); }
+</script>
+</body>
+</html>

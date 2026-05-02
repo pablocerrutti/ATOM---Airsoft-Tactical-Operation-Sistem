@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M - Lobby de Despliegue</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
+    <style>
+        :root { --p: #00ff00; --f: #050505; --gold: #ffd700; --gray: #1a1a1a; }
+        body { 
+            margin: 0; background: var(--f); color: var(--p); 
+            font-family: 'Courier New', monospace; display: flex; flex-direction: column; height: 100vh;
+        }
+
+        /* Cabecera Táctica */
+        header { padding: 15px; border-bottom: 1px solid var(--p); background: #000; }
+        .op-info { display: flex; justify-content: space-between; align-items: center; }
+        .callsign { font-weight: bold; color: var(--gold); font-size: 1.2rem; }
+
+        /* Contenedor de Misión */
+        #mission-container { flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
+        #mini-map { 
+            width: 100%; height: 250px; background: #111; border: 1px solid var(--p); 
+            margin-bottom: 15px; position: relative;
+        }
+
+        .mission-card { background: var(--gray); padding: 15px; border-left: 4px solid var(--gold); margin-bottom: 20px; }
+        .mission-title { font-size: 1.1rem; margin: 0; color: #fff; }
+        .mission-desc { font-size: 0.8rem; color: #aaa; margin-top: 5px; }
+
+        /* Estado de Enlistamiento */
+        #waiting-area { 
+            display: none; text-align: center; padding: 20px; 
+            border: 1px dashed var(--gold); margin-top: 10px;
+        }
+
+        /* Botón de Acción */
+        .btn-enlist { 
+            width: 100%; padding: 20px; background: var(--p); color: #000; 
+            border: none; font-weight: bold; font-size: 1.1rem; cursor: pointer;
+            position: sticky; bottom: 0;
+        }
+        .btn-enlist:disabled { background: #222; color: #555; cursor: not-allowed; }
+
+        /* Responsive adjustments */
+        @media (min-width: 600px) {
+            body { align-items: center; }
+            #mission-container, header, .btn-enlist { width: 500px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="op-info">
+        <div>
+            <div id="display-callsign" class="callsign">CARGANDO...</div>
+            <div style="font-size: 10px;">ESTADO: OPERATIVO</div>
+        </div>
+        <button onclick="logout()" style="background:none; border:1px solid var(--p); color:var(--p); font-size:10px; padding:5px;">SALIR</button>
+    </div>
+</header>
+
+<div id="mission-container">
+    <div id="mission-data">
+        <h4 style="margin: 0 0 10px 0;">OPERACIÓN DISPONIBLE:</h4>
+        <div class="mission-card">
+            <p id="no-mission" style="color:var(--red);">ESPERANDO ÓRDENES DEL COMANDO...</p>
+            <div id="active-mission-info" style="display:none;">
+                <h3 id="m-name" class="mission-title">--</h3>
+                <p id="m-status" class="mission-desc">--</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="mini-map">
+        <!-- El mapa cargará aquí para mostrar la Game Zone -->
+        <div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:12px; color:#444;">
+            VISTA PREVIA TÁCTICA
+        </div>
+    </div>
+
+    <div id="waiting-area">
+        <span class="blink" style="color:var(--gold);">[ ENLISTADO ]</span>
+        <p style="font-size: 12px; color: #888; margin-top: 10px;">
+            TU POSICIÓN HA SIDO ENVIADA AL COMANDO.<br>ESPERA ASIGNACIÓN DE BANDO.
+        </p>
+    </div>
+</div>
+
+<button class="btn-enlist" id="btn-action" onclick="handleEnlist()" disabled>DESPLEGAR EN MISIÓN</button>
+
+<!-- Google Maps con Librería de Dibujo para ver las zonas -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing"></script>
+
+<script>
+    // Configuración Real de A.T.O.M v2.0
+const firebaseConfig = {
+  apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+  authDomain: "atom---sistem.firebaseapp.com",
+  databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+  projectId: "atom---sistem",
+  storageBucket: "atom---sistem.firebasestorage.app",
+  messagingSenderId: "151110156876",
+  appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
+};
+
+// Inicializar
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+
+    let map;
+    let currentMissionId = null;
+
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            db.ref(`usuarios/${user.uid}`).once('value', snap => {
+                const data = snap.val();
+                document.getElementById('display-callsign').innerText = data.callsign;
+                checkActiveMission(user.uid);
+            });
+        } else {
+            location.href = "index.html";
+        }
+    });
+
+    function checkActiveMission(uid) {
+        // Escuchar misiones activas
+        db.ref('misiones').orderByChild('estado').equalTo('PREPARACION').on('value', snap => {
+            if (snap.exists()) {
+                const missions = snap.val();
+                currentMissionId = Object.keys(missions)[0];
+                const mission = missions[currentMissionId];
+
+                document.getElementById('no-mission').style.display = 'none';
+                document.getElementById('active-mission-info').style.display = 'block';
+                document.getElementById('m-name').innerText = mission.nombre;
+                document.getElementById('m-status').innerText = "FASE DE RECLUTAMIENTO";
+                document.getElementById('btn-action').disabled = false;
+                
+                initMiniMap(mission.elements);
+            }
+        });
+
+        // Escuchar si el admin ya lanzó la partida para este usuario
+        db.ref(`operacion_activa/despliegue/${uid}`).on('value', snap => {
+            if (snap.exists() && snap.val().lanzada === true) {
+                location.href = "mapa_tactico.html"; // Salto automático al combate
+            }
+        });
+    }
+
+    function initMiniMap(elements) {
+        map = new google.maps.Map(document.getElementById("mini-map"), {
+            center: {lat:-34.34, lng:-56.71}, 
+            zoom: 14,
+            mapTypeId: "satellite",
+            disableDefaultUI: true,
+            gestureHandling: "none" // Bloqueado para que sea solo visual
+        });
+
+        // Dibujar solo la Game Zone (borde verde) para previsualización
+        if(elements) {
+            Object.values(elements).forEach(el => {
+                if(el.type === "GAME_ZONE") {
+                    new google.maps.Polygon({
+                        paths: el.path,
+                        strokeColor: "#00ff00",
+                        strokeOpacity: 0.8,
+                        strokeWeight: 2,
+                        fillColor: "#00ff00",
+                        fillOpacity: 0.1,
+                        map: map
+                    });
+                }
+            });
+        }
+    }
+
+    function handleEnlist() {
+        const user = auth.currentUser;
+        const callsign = document.getElementById('display-callsign').innerText;
+
+        // Registrar al jugador como enlistado para que el Admin lo vea
+        db.ref(`operacion_activa/despliegue/${user.uid}`).set({
+            callsign: callsign,
+            equipo: "PENDIENTE",
+            enlistado: true,
+            lanzada: false,
+            estado: "VIVO",
+            pos: { lat: 0, lng: 0 }
+        }).then(() => {
+            document.getElementById('btn-action').style.display = 'none';
+            document.getElementById('waiting-area').style.display = 'block';
+        });
+    }
+
+    function logout() { auth.signOut(); }
+</script>
+</body>
+</html>

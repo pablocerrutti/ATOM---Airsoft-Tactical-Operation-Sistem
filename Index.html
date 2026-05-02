@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M - Tactical Systems</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
+    <style>
+        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; --gray: #222; }
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; background: var(--f); color: var(--p); 
+            font-family: 'Courier New', monospace; overflow-x: hidden;
+            display: flex; flex-direction: column; min-height: 100vh;
+        }
+
+        /* Animación de Inicio y Logo */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--f); z-index: 1000; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .logo-container { width: 150px; height: 150px; border: 2px solid var(--p); border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite; }
+        .logo-text { font-size: 2rem; font-weight: bold; letter-spacing: 5px; }
+        
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(0, 255, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); } }
+
+        /* Contenedor Principal Responsive */
+        .container { width: 100%; max-width: 500px; margin: 0 auto; padding: 20px; flex: 1; display: none; }
+        
+        /* Sistema de Verificación */
+        #status-bar { font-size: 10px; padding: 10px; border-bottom: 1px solid var(--gray); display: flex; justify-content: space-between; }
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
+        /* Formularios */
+        .auth-card { background: #111; padding: 20px; border: 1px solid var(--gray); margin-top: 20px; }
+        input { 
+            width: 100%; padding: 15px; margin-bottom: 10px; 
+            background: #000; border: 1px solid var(--p); color: var(--p);
+            font-family: inherit; font-size: 16px;
+        }
+        .btn-primary { 
+            width: 100%; padding: 15px; background: var(--p); color: #000; 
+            border: none; font-weight: bold; cursor: pointer; font-size: 16px;
+        }
+        .btn-outline { 
+            width: 100%; padding: 10px; background: transparent; color: var(--p); 
+            border: 1px solid var(--p); margin-top: 10px; cursor: pointer;
+        }
+
+        /* Footer y Zona Restringida */
+        footer { padding: 20px; text-align: center; border-top: 1px solid var(--gray); }
+        .btn-restricted { color: #444; text-decoration: none; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div id="splash-screen">
+    <div class="logo-container"><span class="logo-text">ATOM</span></div>
+    <p id="boot-text" style="margin-top: 20px;">INICIALIZANDO SISTEMA...</p>
+</div>
+
+<div id="status-bar">
+    <span>CONEXIÓN: <span id="net-status" class="blink">COMPROBANDO...</span></span>
+    <span>DATOS: ENCRIPTADO AES-256</span>
+</div>
+
+<div class="container" id="main-app">
+    <header style="text-align: center; margin-bottom: 30px;">
+        <h2>IDENTIFICACIÓN</h2>
+        <p style="font-size: 12px; color: var(--gold);">SISTEMA TÁCTICO DE COMUNICACIONES</p>
+    </header>
+
+    <div class="auth-card">
+        <div id="login-form">
+            <input type="email" id="log-email" placeholder="EMAIL DE OPERADOR">
+            <input type="password" id="log-pass" placeholder="CONTRASEÑA">
+            <button class="btn-primary" onclick="login()">ACCEDER AL LOBBY</button>
+            <button class="btn-outline" onclick="toggleForm('reg')">NUEVO RECLUTA</button>
+        </div>
+
+        <div id="register-form" style="display:none;">
+            <input type="text" id="reg-callsign" placeholder="CALLSIGN (EJ: GORDO)">
+            <input type="email" id="reg-email" placeholder="EMAIL">
+            <input type="password" id="reg-pass" placeholder="CONTRASEÑA">
+            <button class="btn-primary" onclick="register()">CREAR PERFIL ÚNICO</button>
+            <button class="btn-outline" onclick="toggleForm('log')">VOLVER</button>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <button class="btn-restricted" onclick="checkAdmin()">⚙️ ZONA RESTRINGIDA</button>
+</footer>
+
+<script>
+    // Configuración Real de A.T.O.M v2.0
+const firebaseConfig = {
+  apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+  authDomain: "atom---sistem.firebaseapp.com",
+  databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+  projectId: "atom---sistem",
+  storageBucket: "atom---sistem.firebasestorage.app",
+  messagingSenderId: "151110156876",
+  appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
+};
+
+// Inicializar
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+    // Animación de Inicio
+    window.onload = () => {
+        setTimeout(() => {
+            document.getElementById('boot-text').innerText = "CONEXIÓN ESTABLECIDA";
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                document.getElementById('net-status').innerText = "ONLINE";
+                document.getElementById('net-status').classList.remove('blink');
+            }, 1000);
+        }, 2000);
+    };
+
+    function toggleForm(type) {
+        document.getElementById('login-form').style.display = type === 'reg' ? 'none' : 'block';
+        document.getElementById('register-form').style.display = type === 'reg' ? 'block' : 'none';
+    }
+
+    // Lógica de Registro con Callsign
+    async function register() {
+        const email = document.getElementById('reg-email').value;
+        const pass = document.getElementById('reg-pass').value;
+        const call = document.getElementById('reg-callsign').value.toUpperCase();
+
+        if(!call || !email || !pass) return alert("Completa todos los campos tácticos");
+
+        try {
+            const res = await auth.createUserWithEmailAndPassword(email, pass);
+            const userObj = { callsign: call, email: email, rol: 'PLAYER', uid: res.user.uid };
+            
+            // Guardar en rama privada y rama pública de comunidad
+            await db.ref(`usuarios/${res.user.uid}`).set(userObj);
+            await db.ref(`comunidad_publica/${res.user.uid}`).set({ callsign: call });
+            
+            alert("PERFIL CREADO. BIENVENIDO A A.T.O.M");
+            location.reload();
+        } catch(e) { alert(e.message); }
+    }
+
+    async function login() {
+        const email = document.getElementById('log-email').value;
+        const pass = document.getElementById('log-pass').value;
+        try {
+            await auth.signInWithEmailAndPassword(email, pass);
+            location.href = "lobby.html";
+        } catch(e) { alert("ERROR DE ACCESO"); }
+    }
+
+    function checkAdmin() {
+        const user = auth.currentUser;
+        if(!user) return alert("IDENTIFÍCATE PRIMERO");
+        
+        db.ref(`usuarios/${user.uid}`).once('value', snap => {
+            const rol = snap.val().rol;
+            if(rol === "ADMIN" || rol === "EDITOR") {
+                location.href = "restricted_zone.html";
+            } else {
+                alert("ACCESO DENEGADO: NIVEL DE AUTORIZACIÓN INSUFICIENTE");
+            }
+        });
+    }
+</script>
+</body>
+</html>
