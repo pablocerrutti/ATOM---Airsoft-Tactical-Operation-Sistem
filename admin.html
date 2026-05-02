@@ -7,27 +7,21 @@
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
         body { margin:0; font-family: monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
-        
-        /* Panel Lateral */
         #panel { width:320px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; overflow-y: auto; z-index: 10; }
         #map { flex:1; }
-        
         .menu-drop { border-bottom: 1px solid #222; }
         .menu-header { padding:15px; background:#111; cursor:pointer; font-weight:bold; display:flex; justify-content:space-between; }
         .menu-content { padding:10px; display:none; flex-direction:column; }
         .menu-content.active { display:flex; }
-        
         button, select, input { 
             width:100%; padding:12px; margin-top:8px; background:#111; color:var(--p); 
             border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; 
         }
         button:hover { background:var(--p); color:#000; }
         button.active { background: var(--p); color: #000; }
-        
         .timer-display { font-size: 24px; text-align: center; padding: 10px; border: 1px solid var(--gold); color: var(--gold); margin-top: 10px; }
         .btn-launch { background: var(--gold); color: #000; border: none; }
         .btn-hub { background:#222; border-color:#555; margin-top:auto; padding:20px; }
-        
         #player-list { font-size: 10px; margin-top: 10px; border-top: 1px solid #333; padding-top: 10px; }
         .player-entry { display: flex; justify-content: space-between; margin-bottom: 5px; padding: 3px; border: 1px solid #222; }
     </style>
@@ -67,9 +61,7 @@
 
     <div class="menu-drop">
         <div class="menu-header" onclick="toggleMenu(this)">👥 OPERADORES ENROLADOS</div>
-        <div class="menu-content" id="player-list">
-            Selecciona una misión para ver personal...
-        </div>
+        <div class="menu-content" id="player-list">Selecciona una misión...</div>
     </div>
 
     <button class="btn-hub" onclick="handleExit()">🔙 VOLVER AL HUB</button>
@@ -77,7 +69,6 @@
 
 <div id="map"></div>
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
@@ -115,7 +106,7 @@ function initMap() {
         const mode = document.body.dataset.mode;
         if (!currentMissionId) {
             e.overlay.setMap(null);
-            return alert("Selecciona una misión primero");
+            return alert("Error: Debes seleccionar una misión del listado antes de dibujar.");
         }
         saveElement(e, mode);
     });
@@ -128,46 +119,56 @@ function createNewMission() {
     if(!name) return alert("Ingresa un nombre para la operación");
     
     const id = db.ref('misiones').push().key;
-    db.ref(`misiones/${id}`).set({
+    const missionData = {
         id: id,
         nombre: name,
         estado: "STANDBY",
         timestamp: Date.now()
-    }).then(() => {
+    };
+
+    db.ref(`misiones/${id}`).set(missionData).then(() => {
         document.getElementById('mission-name').value = "";
-        alert("Operación creada con éxito.");
+        // Forzamos la selección de la nueva misión inmediatamente
+        editMission(id); 
+        alert("Operación '" + name + "' creada y seleccionada.");
     });
 }
 
 function loadList() {
     db.ref("misiones").on("value", s => {
         const sel = document.getElementById("mission-selector");
+        const currentVal = sel.value; // Guardar selección actual
         sel.innerHTML = '<option value="">-- CARGAR OPERACIÓN --</option>';
         s.forEach(child => {
-            sel.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
+            const m = child.val();
+            sel.innerHTML += `<option value="${m.id}">${m.nombre}</option>`;
         });
+        // Mantener la selección visual si existe
+        if (currentMissionId) sel.value = currentMissionId;
     });
 }
 
 function editMission(id) {
-    if(!id) return;
+    if(!id) {
+        currentMissionId = null;
+        return;
+    }
     currentMissionId = id;
+    document.getElementById("mission-selector").value = id; // Sincroniza el select visualmente
     
     db.ref(`misiones/${id}`).off();
     db.ref(`misiones/${id}`).on('value', snap => {
         const m = snap.val();
         if(!m) return;
-
         document.getElementById('status-label').innerText = m.estado;
         if(m.startTime) startTimer(m.startTime);
-        
         renderElements(m.elements);
         renderPlayers(m.players);
     });
 }
 
 function setMode(mode, btn) {
-    if(!currentMissionId) return alert("Selecciona o crea una misión primero.");
+    if(!currentMissionId) return alert("Selecciona una misión del listado arriba para habilitar herramientas.");
     document.querySelectorAll('#tools button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.body.dataset.mode = mode;
@@ -188,6 +189,7 @@ function setMode(mode, btn) {
 }
 
 function saveElement(event, mode) {
+    if(!currentMissionId) return;
     const elementRef = db.ref(`misiones/${currentMissionId}/elements`).push();
     const id = elementRef.key;
     let data = { id, type: mode };
@@ -213,15 +215,13 @@ function renderElements(elements) {
     Object.values(elements).forEach(e => {
         const color = e.type.includes('RED') ? '#ff3333' : e.type.includes('BLUE') ? '#3333ff' : e.type === 'GAME_ZONE' ? '#00ff00' : '#ffd700';
         let obj;
-        
         if(e.path) {
             obj = new google.maps.Polygon({ paths: e.path, fillColor: color, strokeColor: color, fillOpacity: 0.2, map: map, clickable: false });
         } else if(e.radius) {
             obj = new google.maps.Circle({ center: e.center, radius: e.radius, fillColor: color, strokeColor: color, fillOpacity: 0.3, map: map, clickable: false });
         } else {
             obj = new google.maps.Marker({ 
-                position: e.pos, 
-                map: map, 
+                position: e.pos, map: map, 
                 label: { text: e.type.replace('_', ' '), color: 'white', fontSize: '10px', fontWeight: 'bold' } 
             });
         }
@@ -233,23 +233,14 @@ function renderPlayers(players) {
     const list = document.getElementById('player-list');
     list.innerHTML = "";
     if(!players) { list.innerHTML = "Sin personal enrolado."; return; }
-
     Object.values(players).forEach(p => {
-        list.innerHTML += `
-            <div class="player-entry">
-                <span>${p.callsign}</span>
-                <span style="color:${p.team === 'RED' ? 'red' : p.team === 'BLUE' ? 'blue' : 'gold'}">${p.team || 'PENDIENTE'}</span>
-            </div>
-        `;
+        list.innerHTML += `<div class="player-entry"><span>${p.callsign}</span><span style="color:${p.team === 'RED' ? 'red' : p.team === 'BLUE' ? 'blue' : 'gold'}">${p.team || 'PENDIENTE'}</span></div>`;
     });
 }
 
 function launchMission() {
     if(!currentMissionId) return;
-    db.ref(`misiones/${currentMissionId}`).update({
-        estado: "ACTIVA",
-        startTime: Date.now()
-    });
+    db.ref(`misiones/${currentMissionId}`).update({ estado: "ACTIVA", startTime: Date.now() });
 }
 
 function startTimer(start) {
@@ -264,18 +255,14 @@ function startTimer(start) {
 }
 
 function clearMap() {
-    if(currentMissionId && confirm("¿Eliminar todos los elementos tácticos de esta misión?")) {
+    if(currentMissionId && confirm("¿Eliminar todos los elementos tácticos?")) {
         db.ref(`misiones/${currentMissionId}/elements`).remove();
     }
 }
 
 function handleExit() {
     const userData = JSON.parse(localStorage.getItem("usuario"));
-    if (userData && (userData.rol === "ADMIN" || userData.rol === "EDITOR")) {
-        location.href = "hub2.html";
-    } else {
-        location.href = "hub.html";
-    }
+    location.href = (userData && (userData.rol === "ADMIN" || userData.rol === "EDITOR")) ? "hub.html" : "hub2.html";
 }
 
 function toggleMenu(h) { h.nextElementSibling.classList.toggle('active'); }
