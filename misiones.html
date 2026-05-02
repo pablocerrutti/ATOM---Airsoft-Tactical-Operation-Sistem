@@ -90,9 +90,12 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
+<!-- 🔥 GOOGLE MAPS (FALTABA) -->
+<script src="https://maps.googleapis.com/maps/api/js?key=TU_GOOGLE_MAPS_KEY"></script>
+
 <script>
 const firebaseConfig = {
- apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+ apiKey: "TU_API_KEY_REAL",
  authDomain: "atom--airsoft.firebaseapp.com",
  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
  projectId: "atom--airsoft"
@@ -109,10 +112,16 @@ let currentMisionId=null;
 let localStream=null;
 let micTrack=null;
 let peers={};
+let map;
 
-const rtcConfig = {
- iceServers:[{urls:"stun:stun.l.google.com:19302"}]
-};
+/* ===== MAP INIT ===== */
+function initMap(){
+ map = new google.maps.Map(document.getElementById("map"),{
+  center:{lat:-34.9,lng:-56.2},
+  zoom:15,
+  mapTypeId:"satellite"
+ });
+}
 
 /* ===== AUTH ===== */
 auth.onAuthStateChanged(async u=>{
@@ -120,7 +129,7 @@ auth.onAuthStateChanged(async u=>{
 
  const snap = await db.ref("usuarios/"+u.uid).once("value");
  const data = snap.val();
- if(!data){ return auth.signOut(); }
+ if(!data) return auth.signOut();
 
  user = {
   id:u.uid,
@@ -130,87 +139,88 @@ auth.onAuthStateChanged(async u=>{
 
  document.getElementById("info").innerText=user.callsign;
 
+ initMap();
  await initAudio();
- await getTeam();
+ getTeam();
 });
 
-/* ===== AUDIO SAFE INIT ===== */
+/* ===== AUDIO ===== */
 async function initAudio(){
  try{
   localStream = await navigator.mediaDevices.getUserMedia({audio:true});
   micTrack = localStream.getAudioTracks()[0];
   micTrack.enabled = false;
  }catch(e){
-  console.error("MIC ERROR",e);
+  console.error(e);
  }
 }
 
 /* ===== TEAM ===== */
 function getTeam(){
- return db.ref("inscripciones").orderByChild("uid").equalTo(user.id).once("value")
- .then(snap=>{
+ db.ref("inscripciones").orderByChild("uid").equalTo(user.id)
+ .once("value",snap=>{
   snap.forEach(s=>{
-   const ins = s.val();
-   currentMisionId = ins.mision;
-   user.equipo = ins.equipo;
+   const ins=s.val();
+   currentMisionId=ins.mision;
+   user.equipo=ins.equipo;
    registerRadio();
   });
  });
 }
 
-/* ===== RADIO SYSTEM ===== */
+/* ===== RADIO ===== */
 function registerRadio(){
  if(!currentMisionId || !user.equipo) return;
 
- const base = `webrtc/${currentMisionId}/${user.equipo}`;
+ const base=`webrtc/${currentMisionId}/${user.equipo}`;
 
  db.ref(base+"/"+user.id).set({online:true});
 
  listenPeers(base);
 }
 
-/* ===== LISTEN ===== */
+/* ===== PEERS ===== */
 function listenPeers(base){
-
  db.ref(base).on("child_added",snap=>{
-  const id = snap.key;
+  const id=snap.key;
   if(id===user.id) return;
   if(peers[id]) return;
-
-  createPeer(id, true);
+  createPeer(id);
  });
 }
 
 /* ===== PEER ===== */
-function createPeer(id, isOffer){
+function createPeer(id){
 
- const pc = new RTCPeerConnection(rtcConfig);
+ const pc = new RTCPeerConnection({
+  iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+ });
 
  peers[id]=pc;
 
- localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+ localStream?.getTracks().forEach(t=>pc.addTrack(t,localStream));
 
- pc.ontrack = e=>{
-  const audio = new Audio();
-  audio.srcObject = e.streams[0];
+ pc.ontrack=e=>{
+  const audio=new Audio();
+  audio.srcObject=e.streams[0];
   audio.play();
  };
 
- pc.onicecandidate = e=>{
+ pc.onicecandidate=e=>{
   if(e.candidate){
    db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}/ice`)
    .push(JSON.stringify(e.candidate));
   }
  };
 
- const ref = db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}`);
+ const ref=db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}`);
 
  ref.on("value",snap=>{
-  const data = snap.val();
-  if(!data) return;
+  const d=snap.val();
+  if(!d) return;
 
-  if(data.offer && !pc.remoteDescription){
-   pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.offer)))
+  if(d.offer && !pc.remoteDescription){
+   pc.setRemoteDescription(JSON.parse(d.offer))
    .then(()=>pc.createAnswer())
    .then(a=>{
     pc.setLocalDescription(a);
@@ -218,39 +228,36 @@ function createPeer(id, isOffer){
    });
   }
 
-  if(data.answer && !pc.currentRemoteDescription){
-   pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.answer)));
+  if(d.answer){
+   pc.setRemoteDescription(JSON.parse(d.answer));
   }
  });
 
  ref.child("ice").on("child_added",c=>{
   if(c.val()){
-   pc.addIceCandidate(new RTCIceCandidate(JSON.parse(c.val())));
+   pc.addIceCandidate(JSON.parse(c.val()));
   }
  });
 
- if(isOffer){
-  pc.createOffer()
-  .then(o=>{
-   pc.setLocalDescription(o);
-   ref.child("offer").set(JSON.stringify(o));
-  });
- }
+ pc.createOffer().then(o=>{
+  pc.setLocalDescription(o);
+  ref.child("offer").set(JSON.stringify(o));
+ });
 }
 
-/* ===== PTT SAFE ===== */
-const ptt = document.getElementById("ptt");
+/* ===== PTT ===== */
+const ptt=document.getElementById("ptt");
 
-function setMic(state){
+function setMic(v){
  if(!micTrack) return;
- micTrack.enabled = state;
- ptt.classList.toggle("active", state);
+ micTrack.enabled=v;
+ ptt.classList.toggle("active",v);
 }
 
-ptt.onmousedown = ()=>setMic(true);
-ptt.onmouseup = ()=>setMic(false);
-ptt.ontouchstart = e=>{e.preventDefault(); setMic(true);};
-ptt.ontouchend = ()=>setMic(false);
+ptt.onmousedown=()=>setMic(true);
+ptt.onmouseup=()=>setMic(false);
+ptt.ontouchstart=e=>{e.preventDefault();setMic(true);}
+ptt.ontouchend=()=>setMic(false);
 
 /* ===== CHAT ===== */
 function enviarMsg(){
@@ -267,7 +274,7 @@ function enviarMsg(){
 
 db.ref("chat").on("child_added",snap=>{
  const c=snap.val();
- document.getElementById("chat").innerHTML +=
+ document.getElementById("chat").innerHTML+=
  `<div><b>${c.user}:</b> ${c.msg}</div>`;
 });
 
