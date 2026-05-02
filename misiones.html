@@ -6,63 +6,72 @@
     <title>A.T.O.M - Operativo de Campo</title>
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff4444; --blue:#4444ff; }
-        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
+        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; flex-direction: column; }
         
+        #hud-top { width: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: space-around; padding: 10px 0; z-index: 10; border-bottom: 1px solid var(--p); }
+        .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
         #map { flex:1; }
 
-        /* Panel Lateral Izquierdo (Herramientas) */
-        #side-menu { width: 260px; background: rgba(0,0,0,0.9); border-right: 2px solid var(--p); display: flex; flex-direction: column; padding: 10px; }
+        /* Panel Lateral Responsivo */
+        #side-menu { width: 280px; background: rgba(0,0,0,0.95); border-right: 2px solid var(--p); display: flex; flex-direction: column; padding: 15px; overflow-y: auto; box-sizing: border-box; }
         
-        /* HUD Superior */
-        #hud-top { position: absolute; top: 0; width: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: space-around; padding: 10px; z-index: 5; border-bottom: 1px solid var(--p); }
-        
-        .stat-box { text-align: center; font-weight: bold; }
-        .bajas-r { color: var(--red); }
-        .bajas-a { color: var(--blue); }
+        @media (max-width: 768px) {
+            #side-menu { width: 200px; padding: 10px; font-size: 0.8rem; }
+        }
 
-        button { width:100%; padding:15px; margin-top:10px; background:#111; color:var(--p); border:1px solid var(--p); font-weight: bold; cursor: pointer; }
-        .btn-med { border-color: #ff9900; color: #ff9900; }
-        .btn-enemy { border-color: var(--red); color: var(--red); }
-
-        /* Pantalla de Muerte */
-        #respawn-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.9); color: white; z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        button, select { width:100%; padding:12px; margin-top:10px; background:#111; color:var(--p); border:1px solid var(--p); font-weight: bold; cursor: pointer; font-family: inherit; }
+        button:active { background: var(--p); color: #000; }
         
-        #mission-timer { font-size: 1.8rem; letter-spacing: 2px; }
+        .btn-ptt { background: #222; border-color: #00ffff; color: #00ffff; }
+        .btn-ptt.recording { background: var(--red); color: white; animation: pulse 1s infinite; }
+        .btn-exit { margin-top: auto; border-color: #555; color: #888; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        #mission-timer { font-size: 1.5rem; text-shadow: 0 0 5px var(--p); }
+        #respawn-screen { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,0,0,0.9); z-index:1000; flex-direction:column; align-items:center; justify-content:center; }
     </style>
 </head>
 <body>
 
 <div id="hud-top">
-    <div class="stat-box bajas-r">BAJAS ROJO: <span id="kill-red">0</span></div>
+    <div style="color:var(--red)">R: <span id="kill-red">0</span></div>
     <div id="mission-timer">00:00:00</div>
-    <div class="stat-box bajas-a">BAJAS AZUL: <span id="kill-blue">0</span></div>
+    <div style="color:var(--blue)">A: <span id="kill-blue">0</span></div>
 </div>
 
-<div id="side-menu">
-    <h3 id="callsign-display">IDENTIFICANDO...</h3>
-    <div id="team-info" style="font-size: 0.8rem; margin-bottom: 10px;">BANDO: PENDIENTE</div>
-    
-    <button class="btn-med" onclick="requestMedic()">🚑 SOLICITAR MÉDICO (<span id="med-count">0</span>/2)</button>
-    <button class="btn-enemy" onclick="markEnemyContact()">⚠ CONTACTO ENEMIGO</button>
-    <button onmousedown="startPTT()" onmouseup="stopPTT()" style="background: #222;">🎤 PTT EQUIPO (AUDIO)</button>
-    
-    <div id="obj-status" style="margin-top:20px; font-size: 0.8rem;">
-        <h4>ESTADO OBJETIVOS:</h4>
-        <div id="obj-list">Sincronizando...</div>
+<div class="main-container">
+    <div id="side-menu">
+        <h3 id="user-callsign">IDENTIFICANDO...</h3>
+        
+        <label>OPERACIÓN:</label>
+        <select id="mission-selector" onchange="syncMission(this.value)">
+            <option>Cargando...</option>
+        </select>
+
+        <button class="btn-ptt" id="ptt-button">🎤 PTT EQUIPO (MÁX 30s)</button>
+        
+        <button class="btn-med" onclick="requestMedic()">🚑 MÉDICO (<span id="med-count">0</span>/2)</button>
+        <button class="btn-enemy" onclick="markEnemyContact()" style="color:var(--red); border-color:var(--red)">⚠ CONTACTO ENEMIGO</button>
+        
+        <div id="obj-status" style="margin-top:15px; border-top:1px solid #333; padding-top:10px;">
+            <div id="obj-list">Esperando misión...</div>
+        </div>
+
+        <button class="btn-exit" onclick="logout()">✖ SALIR DEL SISTEMA</button>
     </div>
-</div>
 
-<div id="map"></div>
+    <div id="map"></div>
+</div>
 
 <div id="respawn-screen">
-    <h1>ESTÁS ELIMINADO</h1>
-    <p>Límite de solicitudes de médico alcanzado.</p>
-    <h2 style="letter-spacing: 5px;">VUELVE AL RESPAWN</h2>
+    <h1>FUERA DE COMBATE</h1>
+    <h2 style="letter-spacing:10px;">RESPAWN</h2>
 </div>
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
 
 <script>
 const fbConfig = {
@@ -73,115 +82,141 @@ const fbConfig = {
 };
 firebase.initializeApp(fbConfig);
 const db = firebase.database();
+const auth = firebase.auth();
 
-let map, myUser, missionId, myTeam;
+let map, missionId, myTeam, myCallsign, mediaRecorder, audioChunks = [];
 let medRequests = 0;
-let markers = {};
+let activeMarkers = [];
 
 function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
-        center: {lat:-34.52, lng:-56.21},
-        zoom: 16,
+        center: {lat:-34.5, lng:-56.2},
+        zoom: 15,
         mapTypeId: "satellite",
         disableDefaultUI: true
     });
 }
 
-/* 1. SINCRONIZACIÓN DE MISIÓN Y RELOJ */
-function syncMission(mId) {
-    missionId = mId;
-    db.ref(`operaciones/${mId}`).on('value', snap => {
-        const data = snap.val();
-        if(data.startTime) startGlobalClock(data.startTime);
-        updateObjectives(data.elements);
-        updateScore(data.score);
-    });
-}
+/* --- LÓGICA DE AUDIO (PTT) --- */
+const pttBtn = document.getElementById('ptt-button');
 
-function startGlobalClock(startTime) {
-    setInterval(() => {
-        const diff = Date.now() - startTime;
-        const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-        const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-        const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-        document.getElementById('mission-timer').innerText = `${h}:${m}:${s}`;
-    }, 1000);
-}
+navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    mediaRecorder = new MediaRecorder(stream);
+    
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    
+    mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        audioChunks = [];
+        sendVoiceMsg(audioBlob);
+    };
+});
 
-/* 2. LÓGICA DE MÉDICO Y SALUD */
-function requestMedic() {
-    if(medRequests >= 2) {
-        document.getElementById('respawn-screen').style.display = 'flex';
-        db.ref(`operaciones/${missionId}/bajas/${myTeam}`).push(Date.now());
-        return;
+pttBtn.onmousedown = () => {
+    if(!missionId || !myTeam) return;
+    audioChunks = [];
+    mediaRecorder.start();
+    pttBtn.classList.add('recording');
+    // Auto-stop a los 30 segundos
+    setTimeout(() => { if(mediaRecorder.state === "recording") stopPTT(); }, 30000);
+};
+
+pttBtn.onmouseup = stopPTT;
+function stopPTT() {
+    if(mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        pttBtn.classList.remove('recording');
     }
-    
-    medRequests++;
-    document.getElementById('med-count').innerText = medRequests;
-    
-    // Alerta al equipo
-    db.ref(`chat/${missionId}`).push({
-        msg: `¡MÉDICO NECESARIO EN MI POSICIÓN!`,
-        user: myUser.callsign,
-        team: myTeam,
-        type: 'ALERT'
-    });
 }
 
-/* 3. MARCADO DE CONTACTO (EXPIRA EN 1 MINUTO) */
-function markEnemyContact() {
-    navigator.geolocation.getCurrentPosition(pos => {
-        const contactId = Date.now();
-        const contactData = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
+function sendVoiceMsg(blob) {
+    const reader = new FileReader();
+    reader.readAsDataURL(blob); 
+    reader.onloadend = () => {
+        db.ref(`audio_msgs/${missionId}`).push({
+            audio: reader.result,
             team: myTeam,
-            expires: Date.now() + 60000
-        };
-        db.ref(`operaciones/${missionId}/contactos/${contactId}`).set(contactData);
-    });
+            sender: myCallsign,
+            time: Date.now()
+        });
+    };
 }
 
-// Escuchar contactos enemigos (solo los de mi equipo)
-db.ref(`operaciones/${missionId}/contactos`).on('child_added', snap => {
-    const c = snap.val();
-    if(c.team === myTeam) {
-        const marker = new google.maps.Marker({
-            position: {lat: c.lat, lng: c.lng},
-            map,
-            icon: 'http://maps.google.com/mapfiles/ms/icons/red-pushpin.png',
-            label: 'ENEMIGO'
-        });
-        setTimeout(() => marker.setMap(null), 60000);
+// Escuchar mensajes de voz del equipo
+db.ref('audio_msgs').on('child_added', snap => {
+    const data = snap.val();
+    if(data.team === myTeam && data.time > Date.now() - 10000) {
+        const audio = new Audio(data.audio);
+        audio.play();
     }
 });
 
-/* 4. ESTADO DE OBJETIVOS */
-function updateObjectives(elements) {
+/* --- GESTIÓN DE MISIONES Y MAPA --- */
+function loadMissions() {
+    db.ref("operaciones").on("value", snap => {
+        const sel = document.getElementById("mission-selector");
+        sel.innerHTML = '<option value="">Seleccionar...</option>';
+        snap.forEach(c => { sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`; });
+    });
+}
+
+function syncMission(id) {
+    if(!id) return;
+    missionId = id;
+    activeMarkers.forEach(m => m.setMap(null));
+    
+    db.ref(`operaciones/${id}`).on('value', snap => {
+        const data = snap.val();
+        if(data.startTime) startClock(data.startTime);
+        renderMapElements(data.elements);
+    });
+}
+
+function renderMapElements(elements) {
+    if(!elements) return;
     const list = document.getElementById('obj-list');
     list.innerHTML = "";
-    if(!elements) return;
     
     Object.keys(elements).forEach(k => {
         const e = elements[k];
-        if(e.type === 'OBJ_NEUTRAL') {
-            const status = e.capturedBy || 'NEUTRO';
-            list.innerHTML += `<div>📍 ${e.nombre || 'Objetivo'}: <b>${status}</b></div>`;
+        const isMyTeam = e.type.includes(myTeam) || e.type.includes("NEUTRAL");
+        
+        if(isMyTeam) {
+            const pos = e.pos || (e.path ? e.path[0] : null);
+            if(pos) {
+                const marker = new google.maps.Marker({ position: pos, map, icon: getIcon(e.type) });
+                activeMarkers.push(marker);
+                if(e.type.includes("OBJ")) list.innerHTML += `<div>📍 ${e.type}: ${e.capturedBy || 'N'}</div>`;
+            }
         }
     });
 }
 
-function updateScore(score) {
-    if(!score) return;
-    document.getElementById('kill-red').innerText = score.red || 0;
-    document.getElementById('kill-blue').innerText = score.blue || 0;
+function getIcon(type) {
+    let color = "yellow";
+    if(type.includes("RED")) color = "red";
+    if(type.includes("BLUE")) color = "blue";
+    if(type.includes("SAFE")) color = "white";
+    return `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`;
 }
 
-// Inicialización de usuario (Simulada para el ejemplo, conectar con tu Auth)
-window.onload = () => {
-    // Aquí deberías obtener el ID de la misión activa desde la DB
-    syncMission("-O6K...ID_DE_TU_MISION");
-};
+function startClock(start) {
+    setInterval(() => {
+        const d = Date.now() - start;
+        document.getElementById('mission-timer').innerText = new Date(d).toISOString().substr(11, 8);
+    }, 1000);
+}
+
+function logout() {
+    auth.signOut().then(() => location.href = "login.html");
+}
+
+function requestMedic() {
+    if(++medRequests > 2) document.getElementById('respawn-screen').style.display = 'flex';
+    document.getElementById('med-count').innerText = medRequests;
+}
+
+window.onload = loadMissions;
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
 </body>
