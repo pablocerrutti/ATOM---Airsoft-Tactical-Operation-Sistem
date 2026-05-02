@@ -34,7 +34,6 @@ body {
  z-index:9999;
 }
 
-/* 🔥 LOGO NUEVO */
 #logo {
  width:160px;
  max-width:60%;
@@ -93,7 +92,6 @@ body {
  max-width:360px;
 }
 
-/* BOTONES PRINCIPALES */
 .btn {
  border:2px solid var(--p);
  padding:18px;
@@ -103,6 +101,9 @@ body {
  text-align:center;
  cursor:pointer;
  transition:0.2s;
+ background: transparent;
+ font-family: inherit;
+ font-size: 14px;
 }
 
 .btn:hover {
@@ -110,7 +111,6 @@ body {
  color:#000;
 }
 
-/* FX scan */
 body::before {
  content:"";
  position:absolute;
@@ -126,28 +126,21 @@ body::before {
 
 <!-- SPLASH -->
 <div id="splash">
-
- <!-- 🔥 LOGO AÑADIDO -->
  <img id="logo" src="logo_atom.png" alt="A.T.O.M LOGO">
-
  <div id="boot"></div>
  <div id="barWrap"><div id="bar"></div></div>
 </div>
 
 <!-- MAIN -->
 <div id="main">
+ <div class="title">A.T.O.M SYSTEM</div>
+ <p style="opacity:.7;font-size:12px;">AIRSOFT TACTICAL OPERATIONS MAP</p>
+ <p style="opacity:.7;font-size:12px;">creado por Pablo Cerrutti - florida</p>
 
-<div class="title">A.T.O.M SYSTEM</div>
-<p style="opacity:.7;font-size:12px;">AIRSOFT TACTICAL OPERATIONS MAP</p>
-<p style="opacity:.7;font-size:12px;">creado por Pablo Cerrutti - florida</p>
-
-<div class="grid">
-
-<a class="btn" href="login.html">INGRESAR A A.T.O.M</a>
-<a class="btn" href="registro_usuario.html">REGISTRARSE COMO OPERADOR</a>
-
-</div>
-
+ <div class="grid">
+  <a class="btn" href="login.html">INGRESAR A A.T.O.M</a>
+  <a class="btn" href="registro_usuario.html">REGISTRARSE COMO OPERADOR</a>
+ </div>
 </div>
 
 <!-- FIREBASE -->
@@ -168,8 +161,8 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+const db = firebase.database();
 
-/* ===== BOOT ANIM ===== */
 const lines = [
 "> INIT A.T.O.M SYSTEM",
 "> CHECK DATABASE .... OK",
@@ -190,8 +183,33 @@ function startBoot(){
   i++;
   setTimeout(startBoot, 250);
  } else {
-  setTimeout(showMain, 600);
+  // Al terminar la animación, verificamos si ya hay una sesión iniciada
+  checkSession();
  }
+}
+
+function checkSession() {
+ auth.onAuthStateChanged(user => {
+  if (user) {
+   // Si hay usuario, consultamos su rol antes de mostrar nada
+   db.ref("usuarios/" + user.uid).once("value").then(snap => {
+    const data = snap.val();
+    if (data) {
+     if (data.rol === "ADMIN" || data.rol === "EDITOR") {
+      window.location.href = "hub.html";
+     } else {
+      window.location.href = "hub2.html";
+     }
+    } else {
+     // Si no tiene datos en DB, mostramos el menú principal
+     showMain();
+    }
+   });
+  } else {
+   // Si no hay sesión, mostramos el menú principal
+   showMain();
+  }
+ });
 }
 
 function showMain(){
@@ -200,12 +218,6 @@ function showMain(){
 }
 
 window.onload = startBoot;
-
-auth.onAuthStateChanged(user=>{
- if(user){
-  console.log("Usuario activo:", user.uid);
- }
-});
 </script>
 
 </body>
