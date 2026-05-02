@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Tactical Systems</title>
+    <title>A.T.O.M - Airsoft Tactical Operation Mapss</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="logo_atom.png">
@@ -89,7 +89,8 @@
 <div class="container" id="main-app">
     <header style="text-align: center; margin-bottom: 30px;">
         <h2>IDENTIFICACIÓN</h2>
-        <p style="font-size: 12px; color: var(--gold);">SISTEMA TÁCTICO DE COMUNICACIONES</p>
+        <p style="font-size: 12px; color: var(--gold);">A.T.O.M. - Airsoft Tactiscal Operation MapsS</p>
+        <p style="font-size: 12px; color: var(--gold);">creado por Pablo Cerrutti - Florida</p>
     </header>
 
     <div class="auth-card">
@@ -172,32 +173,49 @@
         } catch(e) { alert("ERROR DE ACCESO"); }
     }
 
-    // FUNCIONALIDAD MEJORADA: VERIFICACIÓN POR ROL Y CALLSIGN
+   // FUNCIONALIDAD MEJORADA: VERIFICACIÓN ROBUSTA DE ROL Y CALLSIGN
     function checkAdmin() {
         const user = auth.currentUser;
-        if(!user) return alert("IDENTIFÍCATE PRIMERO");
         
-        db.ref(`usuarios/${user.uid}`).once('value', snap => {
-            const data = snap.val();
-            
-            // 1. Verificación de Rol
-            if(data && (data.rol === "ADMIN" || data.rol === "EDITOR")) {
-                
-                // 2. Solicitud de Segundo Factor (Callsign)
-                const inputCallsign = prompt("INGRESE SU CALLSIGN DE AUTORIZACIÓN:");
-                
-                if (inputCallsign && inputCallsign.toUpperCase() === data.callsign.toUpperCase()) {
-                    location.href = "restricted_zone.html";
-                } else {
-                    alert("ERROR DE ACCESO: CALLSIGN NO COINCIDE. REINICIANDO TERMINAL...");
-                    location.href = "index.html";
+        // Verificación inmediata de sesión activa
+        if (!user) {
+            alert("SISTEMA BLOQUEADO: IDENTIFÍCATE PRIMERO");
+            return;
+        }
+        
+        // Referencia directa al nodo del usuario en la base de datos
+        db.ref(`usuarios/${user.uid}`).once('value')
+            .then(snap => {
+                if (!snap.exists()) {
+                    alert("ERROR: PERFIL NO ENCONTRADO EN LA BASE DE DATOS");
+                    return;
                 }
 
-            } else {
-                alert("ACCESO DENEGADO: NIVEL DE AUTORIZACIÓN INSUFICIENTE");
-            }
-        });
+                const data = snap.val();
+                
+                // 1. Verificación de privilegios (ADMIN o EDITOR)
+                const tienePermiso = data.rol === "ADMIN" || data.rol === "EDITOR";
+                
+                if (tienePermiso) {
+                    // 2. Solicitud de Segundo Factor (Callsign)
+                    const inputCallsign = prompt("SISTEMA DE AUTORIZACIÓN A.T.O.M\nINGRESE SU CALLSIGN:");
+                    
+                    // Verificación de nulidad y coincidencia exacta (ignorando mayúsculas)
+                    if (inputCallsign && inputCallsign.trim().toUpperCase() === data.callsign.toUpperCase()) {
+                        console.log("Acceso autorizado para:", data.callsign);
+                        location.href = "restricted_zone.html";
+                    } else {
+                        alert("⚠️ ALERTA DE SEGURIDAD: CALLSIGN INCORRECTO.\nREINICIANDO TERMINAL...");
+                        location.reload(); // Recarga para limpiar cualquier intento
+                    }
+                } else {
+                    alert("⚠️ ACCESO DENEGADO: NIVEL DE AUTORIZACIÓN INSUFICIENTE");
+                }
+            })
+            .catch(error => {
+                console.error("Error en DB:", error);
+                alert("ERROR CRÍTICO DE ENLACE CON LA BASE DE DATOS");
+            });
     }
-</script>
 </body>
 </html>
