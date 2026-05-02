@@ -16,13 +16,8 @@ body{
  overflow:hidden;
 }
 
-/* MAPA */
-#map{
- height:100vh;
- width:100%;
-}
+#map{height:100vh;width:100%;}
 
-/* HUD */
 #hud{
  position:fixed;
  top:10px;
@@ -34,7 +29,6 @@ body{
  z-index:1000;
 }
 
-/* MENU */
 #menu{
  position:fixed;
  right:0;
@@ -48,8 +42,7 @@ body{
  z-index:1000;
 }
 
-/* BOTONES */
-button, input{
+button,input{
  width:100%;
  margin-top:6px;
  padding:10px;
@@ -58,9 +51,8 @@ button, input{
  border:1px solid var(--p);
 }
 
-/* CHAT */
 .chat{
- height:150px;
+ height:140px;
  overflow:auto;
  border:1px solid #333;
  margin-top:10px;
@@ -68,17 +60,9 @@ button, input{
  padding:5px;
 }
 
-/* ALERTA */
-#alerta{
- position:fixed;
- top:60px;
- left:50%;
- transform:translateX(-50%);
- background:red;
- color:#fff;
- padding:8px 12px;
- display:none;
- z-index:2000;
+.team{
+ font-size:12px;
+ margin-top:10px;
 }
 </style>
 </head>
@@ -89,22 +73,20 @@ button, input{
 
 <div id="hud">
 ⏱ <span id="timer">00:00</span> |
-🔴 <span id="rKills">0</span> |
-🔵 <span id="aKills">0</span>
+📡 <span id="team">-</span>
 </div>
-
-<div id="alerta"></div>
-
-<button id="ptt">🎤 EQUIPO</button>
 
 <div id="menu">
 <h3>OPERACIÓN</h3>
 <div id="info"></div>
 
+<div class="team" id="teamInfo"></div>
+
 <input id="msg" placeholder="mensaje equipo">
 <button onclick="sendMsg()">ENVIAR</button>
 
 <div class="chat" id="chat"></div>
+
 <button onclick="logout()">SALIR</button>
 </div>
 
@@ -133,10 +115,8 @@ let user=null;
 let map;
 let missionId=null;
 let team=null;
-let killsR=0;
-let killsA=0;
-let startTime=null;
-let inZone=true;
+let escuadron=null;
+let startTime=0;
 
 /* MAP */
 window.initMap=function(){
@@ -147,29 +127,33 @@ window.initMap=function(){
  });
 };
 
-/* LOGIN */
+/* AUTH */
 auth.onAuthStateChanged(async u=>{
  if(!u) return location.href="login.html";
 
  const snap=await db.ref("usuarios/"+u.uid).once("value");
  const d=snap.val();
- if(!d) return auth.signOut();
 
  user={id:u.uid,callsign:d.callsign};
 
  document.getElementById("info").innerText=user.callsign;
 
+ // buscar inscripción
  const ins=await db.ref("inscripciones")
  .orderByChild("uid").equalTo(u.uid).once("value");
 
  ins.forEach(s=>{
-  missionId=s.val().mision;
-  team=s.val().equipo;
+  const data=s.val();
+  missionId=data.mision;
+  team=data.equipo;
+  escuadron=data.escuadron;
  });
+
+ document.getElementById("teamInfo").innerHTML=
+ `Equipo: ${team}<br>Escuadrón: ${escuadron}`;
 
  listenMission();
  listenChat();
- listenObjectives();
 });
 
 /* MISION */
@@ -179,22 +163,21 @@ function listenMission(){
   const st=snap.val();
   if(!st || !st.activo) return;
 
-  startTime=st.startTime;
+  startTime=st.startTime || Date.now();
   setInterval(updateTimer,1000);
  });
 }
 
 /* TIMER */
 function updateTimer(){
- if(!startTime) return;
  let t=Math.floor((Date.now()-startTime)/1000);
  let m=Math.floor(t/60);
  let s=t%60;
- document.getElementById("timer")
- .innerText=`${m}:${s.toString().padStart(2,"0")}`;
+ document.getElementById("timer").innerText=
+ `${m}:${s.toString().padStart(2,"0")}`;
 }
 
-/* CHAT */
+/* CHAT SOLO EQUIPO */
 function sendMsg(){
  let msg=document.getElementById("msg").value;
  if(!msg) return;
@@ -210,52 +193,12 @@ function sendMsg(){
 
 function listenChat(){
  db.ref("chat").on("child_added",s=>{
-  let c=s.val();
+  const c=s.val();
   if(c.team!==team) return;
 
   document.getElementById("chat").innerHTML+=
   `<div><b>${c.user}:</b> ${c.msg}</div>`;
  });
-}
-
-/* OBJETIVOS */
-function listenObjectives(){
- db.ref("objetivos").on("value",snap=>{
-  snap.forEach(s=>{
-   let o=s.val();
-
-   if(o.mision!==missionId) return;
-
-   let color="#ffff00";
-   if(o.estado==="ROJO") color="red";
-   if(o.estado==="AZUL") color="blue";
-
-   new google.maps.Circle({
-    strokeColor:color,
-    fillColor:color,
-    fillOpacity:0.3,
-    map:map,
-    center:{lat:o.lat,lng:o.lng},
-    radius:20
-   });
-  });
-});
-
-/* BAJAS SIMULADAS */
-function kill(teamX){
- if(teamX==="ROJO") killsR++;
- if(teamX==="AZUL") killsA++;
-
- document.getElementById("rKills").innerText=killsR;
- document.getElementById("aKills").innerText=killsA;
-}
-
-/* ALERTA ZONA */
-function showAlert(msg){
- let a=document.getElementById("alerta");
- a.innerText=msg;
- a.style.display="block";
- setTimeout(()=>a.style.display="none",3000);
 }
 
 /* LOGOUT */
@@ -264,7 +207,6 @@ function logout(){
 }
 </script>
 
-<!-- GOOGLE MAPS -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
 
 </body>
