@@ -37,6 +37,7 @@ input {
  border:1px solid var(--p);
  color:var(--p);
  text-align:center;
+ box-sizing: border-box; /* Evita que el padding desborde el ancho */
 }
 
 button {
@@ -47,11 +48,27 @@ button {
  border:1px solid var(--p);
  color:var(--p);
  cursor:pointer;
+ font-family: inherit;
+ font-weight: bold;
 }
 
 button:hover {
  background:var(--p);
  color:#000;
+}
+
+/* Estilo específico para el botón de volver */
+.btn-back {
+ border-color: #555;
+ color: #888;
+ font-size: 11px;
+ margin-top: 10px;
+}
+
+.btn-back:hover {
+ border-color: #888;
+ background: #222;
+ color: #ccc;
 }
 
 #status {
@@ -77,6 +94,9 @@ button:disabled {
 <input id="pass" type="password" placeholder="CLAVE">
 
 <button id="btn" onclick="login()">INGRESAR</button>
+
+<!-- Botón solicitado -->
+<button class="btn-back" onclick="location.href='index.html'">VOLVER AL INICIO</button>
 
 <div id="status"></div>
 
@@ -155,20 +175,16 @@ function login(){
   setStatus("ACCESO CONCEDIDO","lime");
 
   setTimeout(()=>{
-
-   // 🔥 FLUJO DE ROLES
+   // Redirección por roles
    switch(usuario.rol){
-
     case "ADMIN":
     case "EDITOR":
      location.href="admin.html";
      break;
-
     default:
      location.href="misiones.html";
      break;
    }
-
   },700);
 
  })
