@@ -8,7 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <style>
-        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; }
+        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; --gray: #222; }
         body { margin: 0; background: var(--f); color: var(--p); font-family: 'Courier New', monospace; padding: 10px; }
         h2 { border-bottom: 1px solid var(--p); padding-bottom: 10px; font-size: 1.2rem; }
         
@@ -18,81 +18,95 @@
         .btn { padding: 8px 12px; border: none; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.8rem; }
         .btn-red { background: var(--red); color: white; }
         .btn-blue { background: var(--blue); color: white; }
-        .btn-launch { background: var(--p); color: black; width: 100%; padding: 15px; margin-top: 10px; }
+        .btn-launch { background: var(--p); color: black; width: 100%; padding: 15px; margin-top: 10px; font-weight: bold; cursor: pointer; border: none; }
+        .btn-editor { background: var(--gold); color: black; margin-bottom: 10px; }
         
         .badge { font-size: 0.7rem; padding: 2px 5px; border-radius: 3px; margin-left: 5px; }
         .badge-admin { background: var(--gold); color: black; }
         .badge-editor { background: var(--p); color: black; }
+        
+        .admin-label { color: var(--gold); font-size: 12px; margin-bottom: 10px; display: block; }
     </style>
 </head>
 <body>
 
     <header style="display:flex; justify-content:space-between; align-items:center;">
-        <h2>ZONA RESTRINGIDA</h2>
-        <button onclick="location.href='index.html'" style="background:none; border:1px solid #444; color:#888; font-size:10px;">SALIR</button>
+        <h2>SISTEMA DE MANDO A.T.O.M</h2>
+        <button onclick="location.href='index.html'" style="background:none; border:1px solid #444; color:#888; font-size:10px; cursor:pointer;">CERRAR SESIÓN</button>
     </header>
 
-    <!-- 1. GESTIÓN DE ENLISTADOS (Lanzamiento de Partida) -->
-    <div class="section">
-        <h3 style="color:var(--gold); margin-top:0;">OPERADORES EN ESPERA</h3>
-        <div id="list-enlisted">Cargando enlistados...</div>
-        <button class="btn-launch" onclick="launchMission()">🚀 LANZAR MISIÓN AHORA</button>
+    <!-- 1. GESTIÓN DE MISIONES (NUEVO BOTÓN) -->
+    <div class="section" style="border-color: var(--gold);">
+        <span class="admin-label">MÓDULO DE INGENIERÍA</span>
+        <h3 style="margin: 0 0 10px 0;">OPERACIONES TÁCTICAS</h3>
+        <p style="font-size: 11px; color: #888; margin-bottom: 15px;">DIBUJA LÍMITES DE CAMPO, PUNTOS DE CONTROL Y ZONAS DE RESPAWN.</p>
+        <button class="btn-launch btn-editor" onclick="location.href='editor.html'">
+            🗺️ CREAR NUEVA MISIÓN
+        </button>
     </div>
 
-    <!-- 2. GESTIÓN DE USUARIOS (Solo Admin) -->
-    <div id="admin-only-section" class="section" style="display:none;">
-        <h3>BASE DE DATOS DE LA PLATAFORMA</h3>
-        <div id="list-all-users">Cargando comunidad...</div>
+    <!-- 2. GESTIÓN DE ENLISTADOS -->
+    <div class="section">
+        <span class="admin-label">CONTROL DE DESPLIEGUE</span>
+        <h3 style="margin-top:0;">OPERADORES EN ESPERA</h3>
+        <div id="list-enlisted">Cargando enlistados...</div>
+        <button class="btn-launch" onclick="launchMission()">🚀 INICIAR OPERACIÓN EN CAMPO</button>
+    </div>
+
+    <!-- 3. GESTIÓN DE USUARIOS (Solo visible para ADMIN) -->
+    <div id="admin-only-section" class="section" style="display:none; border-color: #444;">
+        <span class="admin-label">BASE DE DATOS DE PERSONAL</span>
+        <h3>COMUNIDAD REGISTRADA</h3>
+        <div id="list-all-users">Cargando base de datos...</div>
     </div>
 
 <script>
-    // Configuración Real de A.T.O.M v2.0
-const firebaseConfig = {
-  apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-  authDomain: "atom---sistem.firebaseapp.com",
-  databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-  projectId: "atom---sistem",
-  storageBucket: "atom---sistem.firebasestorage.app",
-  messagingSenderId: "151110156876",
-  appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
-};
-
-// Inicializar
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const auth = firebase.auth();
+    const firebaseConfig = {
+        apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+        authDomain: "atom---sistem.firebaseapp.com",
+        databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+        projectId: "atom---sistem",
+        storageBucket: "atom---sistem.firebasestorage.app",
+        messagingSenderId: "151110156876",
+        appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
 
     auth.onAuthStateChanged(user => {
         if (user) {
             db.ref(`usuarios/${user.uid}`).once('value', snap => {
                 const userData = snap.val();
-                if (userData.rol === "ADMIN") {
-                    document.getElementById('admin-only-section').style.display = 'block';
-                    loadAllUsers();
-                }
-                if (userData.rol === "ADMIN" || userData.rol === "EDITOR") {
+                if (userData && (userData.rol === "ADMIN" || userData.rol === "EDITOR")) {
+                    // Si es ADMIN, mostrar sección de usuarios
+                    if (userData.rol === "ADMIN") {
+                        document.getElementById('admin-only-section').style.display = 'block';
+                        loadAllUsers();
+                    }
                     loadEnlisted();
                 } else {
-                    alert("ACCESO NO AUTORIZADO");
+                    alert("ACCESO DENEGADO: SE REQUIEREN PERMISOS DE MANDO");
                     location.href = "index.html";
                 }
             });
+        } else {
+            location.href = "index.html";
         }
     });
 
-    // Cargar jugadores que pulsaron "Desplegar"
     function loadEnlisted() {
         db.ref('operacion_activa/despliegue').on('value', snap => {
             const list = document.getElementById('list-enlisted');
             list.innerHTML = "";
-            if (!snap.exists()) { list.innerHTML = "No hay operadores enlistados."; return; }
+            if (!snap.exists()) { list.innerHTML = "<small style='color:#666'>No hay operadores enlistados en el lobby.</small>"; return; }
 
             snap.forEach(child => {
                 const p = child.val();
                 const div = document.createElement('div');
                 div.className = "player-row";
                 div.innerHTML = `
-                    <span>${p.callsign} <b style="color:${p.equipo === 'AZUL' ? 'var(--blue)' : p.equipo === 'ROJO' ? 'var(--red)' : '#666'}">[${p.equipo}]</b></span>
+                    <span>${p.callsign} <b style="color:${p.equipo === 'AZUL' ? 'var(--blue)' : p.equipo === 'ROJO' ? 'var(--red)' : '#666'}">[${p.equipo || 'SIN ASIGNAR'}]</b></span>
                     <div>
                         <button class="btn btn-red" onclick="assignTeam('${child.key}', 'ROJO')">ROJO</button>
                         <button class="btn btn-blue" onclick="assignTeam('${child.key}', 'AZUL')">AZUL</button>
@@ -108,17 +122,16 @@ const auth = firebase.auth();
     }
 
     function launchMission() {
-        if(confirm("¿CONFIRMAS LANZAMIENTO? Todos los enlistados entrarán al mapa táctico.")){
+        if(confirm("¿CONFIRMAS DESPLIEGUE? Los operadores entrarán al modo combate.")){
             db.ref('operacion_activa/despliegue').once('value', snap => {
                 snap.forEach(child => {
                     db.ref(`operacion_activa/despliegue/${child.key}`).update({ lanzada: true });
                 });
             });
-            alert("MISIÓN INICIADA");
+            alert("SISTEMAS ACTIVADOS EN EL CAMPO");
         }
     }
 
-    // Funciones de Administrador Total
     function loadAllUsers() {
         db.ref('usuarios').on('value', snap => {
             const list = document.getElementById('list-all-users');
@@ -128,8 +141,8 @@ const auth = firebase.auth();
                 const div = document.createElement('div');
                 div.className = "player-row";
                 div.innerHTML = `
-                    <span>${u.callsign} <span class="badge ${u.rol === 'ADMIN' ? 'badge-admin' : 'badge-editor'}">${u.rol}</span></span>
-                    <button class="btn" onclick="toggleRole('${child.key}', '${u.rol}')" style="background:#222; color:var(--p)">CAMBIAR ROL</button>
+                    <span>${u.callsign} <span class="badge ${u.rol === 'ADMIN' ? 'badge-admin' : (u.rol === 'EDITOR' ? 'badge-editor' : '')}">${u.rol}</span></span>
+                    <button class="btn" onclick="toggleRole('${child.key}', '${u.rol}')" style="background:#222; color:var(--p)">SUBIR RANGO</button>
                 `;
                 list.appendChild(div);
             });
@@ -137,8 +150,9 @@ const auth = firebase.auth();
     }
 
     function toggleRole(uid, currentRol) {
-        const newRol = currentRol === "PLAYER" ? "EDITOR" : (currentRol === "EDITOR" ? "ADMIN" : "PLAYER");
-        db.ref(`usuarios/${uid}`).update({ rol: newRol });
+        const roles = ["PLAYER", "EDITOR", "ADMIN"];
+        let nextIndex = (roles.indexOf(currentRol) + 1) % roles.length;
+        db.ref(`usuarios/${uid}`).update({ rol: roles[nextIndex] });
     }
 </script>
 </body>
