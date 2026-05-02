@@ -21,7 +21,7 @@
         .callsign { font-weight: bold; color: var(--gold); font-size: 1.2rem; }
 
         #mission-container { flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
-        #mini-map { width: 100%; height: 250px; background: #111; border: 1px solid var(--p); margin-bottom: 15px; }
+        #mini-map { width: 100%; height: 200px; background: #111; border: 1px solid var(--p); margin-bottom: 15px; }
 
         .mission-card { background: var(--gray); padding: 15px; border-left: 4px solid var(--gold); margin-bottom: 10px; }
         .btn-secondary { width: 100%; padding: 12px; background: transparent; color: var(--gold); border: 1px solid var(--gold); cursor: pointer; margin-bottom: 20px; font-family: inherit; }
@@ -32,24 +32,24 @@
         footer { padding: 20px; text-align: center; border-top: 1px solid var(--gray); margin-top: auto; }
         .btn-restricted { color: #444; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer; }
 
-        /* MODAL TÁCTICO PERSONALIZADO */
-        #auth-modal {
+        /* LOGIN DEDICADO - ZONA RESTRINGIDA */
+        #admin-login-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); backdrop-filter: blur(5px);
-            z-index: 3000; align-items: center; justify-content: center;
+            background: #000; z-index: 5000; flex-direction: column; align-items: center; justify-content: center;
         }
-        .modal-content {
-            width: 90%; max-width: 400px; background: #000; border: 2px solid var(--gold);
-            padding: 30px; text-align: center; box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+        .admin-box {
+            width: 90%; max-width: 350px; border: 1px solid var(--red); padding: 30px;
+            background: rgba(255, 0, 0, 0.05); text-align: center;
         }
-        .modal-content h3 { color: var(--gold); margin-top: 0; }
-        .modal-input { 
-            width: 100%; padding: 15px; background: #111; border: 1px solid var(--gold); 
-            color: var(--gold); text-align: center; font-family: inherit; font-size: 1.2rem; margin: 20px 0;
+        .admin-box h2 { color: var(--red); margin-top: 0; letter-spacing: 3px; }
+        .admin-input {
+            width: 100%; padding: 15px; margin-bottom: 15px; background: #111;
+            border: 1px solid var(--red); color: var(--red); font-family: inherit;
         }
-        .modal-btns { display: flex; gap: 10px; }
-        .btn-confirm { flex: 1; padding: 15px; background: var(--gold); color: #000; border: none; font-weight: bold; cursor: pointer; }
-        .btn-cancel { flex: 1; padding: 15px; background: #222; color: #fff; border: none; cursor: pointer; }
+        .btn-admin-auth {
+            width: 100%; padding: 15px; background: var(--red); color: #fff;
+            border: none; font-weight: bold; cursor: pointer; margin-bottom: 10px;
+        }
 
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
@@ -62,16 +62,17 @@
 </head>
 <body>
 
-<!-- MODAL DE VERIFICACIÓN -->
-<div id="auth-modal">
-    <div class="modal-content">
-        <h3 class="blink">AUTORIZACIÓN REQUERIDA</h3>
-        <p style="font-size: 12px; color: #888;">INGRESE SU CALLSIGN PARA VALIDAR ACCESO A NIVEL ADMIN/EDITOR</p>
-        <input type="text" id="modal-callsign-input" class="modal-input" placeholder="CALLSIGN" autocomplete="off">
-        <div class="modal-btns">
-            <button class="btn-cancel" onclick="closeAuthModal()">ABORTAR</button>
-            <button class="btn-confirm" onclick="confirmIdentity()">VERIFICAR</button>
-        </div>
+<!-- LOGIN DEDICADO PARA ADMIN -->
+<div id="admin-login-overlay">
+    <div class="admin-box">
+        <h2 class="blink">SISTEMA RESTRINGIDO</h2>
+        <p style="font-size: 10px; color: var(--red); margin-bottom: 20px;">SOLO PERSONAL AUTORIZADO (ADMIN/EDITOR)</p>
+        
+        <input type="email" id="admin-email" class="admin-input" placeholder="EMAIL DE COMANDO">
+        <input type="password" id="admin-pass" class="admin-input" placeholder="PASSWORD">
+        
+        <button class="btn-admin-auth" onclick="validateAdminAccess()">VALIDAR CREDENCIALES</button>
+        <button onclick="closeAdminLogin()" style="background:none; border:none; color:#555; cursor:pointer; font-size:11px;">CANCELAR ACCESO</button>
     </div>
 </div>
 
@@ -105,14 +106,14 @@
 
     <div id="waiting-area" style="display:none; text-align:center; padding:20px; border:1px dashed var(--gold);">
         <span class="blink" style="color:var(--gold);">[ ENLISTADO ]</span>
-        <p style="font-size: 12px; color: #888; margin-top: 10px;">COORDENADAS ENVIADAS AL COMANDO.</p>
+        <p style="font-size: 12px; color: #888; margin-top: 10px;">POSICIÓN ENVIADA AL COMANDO.</p>
     </div>
 </div>
 
 <button class="btn-enlist" id="btn-action" onclick="handleEnlist()" disabled>DESPLEGAR EN MISIÓN</button>
 
 <footer>
-    <button class="btn-restricted" onclick="openAuthModal()">⚙️ ZONA RESTRINGIDA</button>
+    <button class="btn-restricted" onclick="openAdminLogin()">⚙️ ZONA RESTRINGIDA</button>
 </footer>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing"></script>
@@ -132,12 +133,10 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 
-let userProfile = null; // Variable global para persistir el perfil
+let userProfile = null;
 
-// Listener de autenticación mejorado
 auth.onAuthStateChanged(user => {
     if (user) {
-        // Forzamos la descarga inmediata del perfil
         db.ref(`usuarios/${user.uid}`).on('value', snap => {
             userProfile = snap.val();
             if(userProfile) {
@@ -145,9 +144,7 @@ auth.onAuthStateChanged(user => {
                 checkActiveMission(user.uid);
             }
         });
-    } else {
-        location.href = "index.html";
-    }
+    } else { location.href = "index.html"; }
 });
 
 function checkActiveMission(uid) {
@@ -166,7 +163,6 @@ function checkActiveMission(uid) {
 }
 
 function handleEnlist() {
-    if (!userProfile) return alert("PERFIL NO CARGADO");
     const user = auth.currentUser;
     db.ref(`operacion_activa/despliegue/${user.uid}`).set({
         callsign: userProfile.callsign,
@@ -179,37 +175,43 @@ function handleEnlist() {
     });
 }
 
-// LÓGICA DE ACCESO CON VARIABLE GLOBAL
-function openAuthModal() {
-    // Si la sesión existe pero el perfil aún no descargó, esperamos un segundo
-    if (!userProfile) {
-        alert("SINCRONIZANDO CON COMANDO... REINTENTE EN 2 SEGUNDOS");
-        return;
-    }
-
-    // Verificación de Rango
-    if (userProfile.rol === "ADMIN" || userProfile.rol === "EDITOR") {
-        document.getElementById('auth-modal').style.display = 'flex';
-        document.getElementById('modal-callsign-input').focus();
-    } else {
-        alert("ACCESO DENEGADO: NIVEL DE AUTORIZACIÓN INSUFICIENTE");
-    }
+// NUEVA LÓGICA DE LOGIN DEDICADO PARA ADMIN
+function openAdminLogin() {
+    document.getElementById('admin-login-overlay').style.display = 'flex';
 }
 
-function closeAuthModal() {
-    document.getElementById('auth-modal').style.display = 'none';
-    document.getElementById('modal-callsign-input').value = "";
+function closeAdminLogin() {
+    document.getElementById('admin-login-overlay').style.display = 'none';
+    document.getElementById('admin-email').value = "";
+    document.getElementById('admin-pass').value = "";
 }
 
-function confirmIdentity() {
-    const input = document.getElementById('modal-callsign-input').value.trim().toUpperCase();
-    if (!userProfile.callsign) return alert("ERROR DE PERFIL");
+async function validateAdminAccess() {
+    const email = document.getElementById('admin-email').value;
+    const pass = document.getElementById('admin-pass').value;
 
-    if (input === userProfile.callsign.toUpperCase()) {
-        location.href = "restricted_zone.html";
-    } else {
-        alert("ALERTA: CALLSIGN INCORRECTO");
-        closeAuthModal();
+    if(!email || !pass) return alert("INGRESE CREDENCIALES COMPLETAS");
+
+    try {
+        // 1. Intentamos re-autenticar con las credenciales proporcionadas
+        const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+        const user = userCredential.user;
+
+        // 2. Verificamos el rol en la DB
+        const snap = await db.ref(`usuarios/${user.uid}`).once('value');
+        const data = snap.val();
+
+        if (data && (data.rol === "ADMIN" || data.rol === "EDITOR")) {
+            // 3. Si es correcto, procedemos
+            location.href = "restricted_zone.html";
+        } else {
+            // 4. Si el login es válido pero el rol no es suficiente
+            alert("ACCESO RECHAZADO: RANGO INSUFICIENTE PARA ESTA ÁREA");
+            // Opcional: Podrías desloguearlo o simplemente volver al lobby
+        }
+    } catch (error) {
+        alert("ERROR DE AUTORIZACIÓN: CREDENCIALES INVÁLIDAS");
+        console.error(error);
     }
 }
 
