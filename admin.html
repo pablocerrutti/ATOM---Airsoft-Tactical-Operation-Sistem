@@ -26,9 +26,7 @@ body {
  overflow:auto;
 }
 
-#map {
- flex:1;
-}
+#map { flex:1; }
 
 button, input, select {
  width:100%;
@@ -63,11 +61,15 @@ button, input, select {
 <hr>
 
 <h3>HERRAMIENTAS</h3>
-<button onclick="setMode('ZONA')">ZONA JUEGO</button>
-<button onclick="setMode('OBJETIVO')">OBJETIVO</button>
-<button onclick="setMode('NEUTRO')">NEUTRO</button>
 
-<button onclick="clearMode()">DESACTIVAR DIBUJO</button>
+<button onclick="setMode('ZONA')">ZONA JUEGO</button>
+<button onclick="setMode('SEGURA')">ZONA SEGURA</button>
+<button onclick="setMode('RESPAWN')">RESPAWN</button>
+<button onclick="setMode('OBJETIVO_NEUTRO')">OBJETIVO NEUTRO</button>
+<button onclick="setMode('OBJETIVO_ROJO')">OBJ ROJO</button>
+<button onclick="setMode('OBJETIVO_AZUL')">OBJ AZUL</button>
+
+<button onclick="clearMode()">DESACTIVAR</button>
 
 <hr>
 
@@ -77,6 +79,7 @@ button, input, select {
 
 <div id="map"></div>
 
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -96,13 +99,15 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 
+/* ===== STATE ===== */
 let map;
 let mode = null;
 let missionId = null;
 let shapes = [];
-let objectives = {};
 
+/* ===== MAPA ===== */
 window.initMap = function () {
+
  map = new google.maps.Map(document.getElementById("map"), {
   center: { lat: -34.9, lng: -56.2 },
   zoom: 15,
@@ -110,35 +115,54 @@ window.initMap = function () {
  });
 
  map.addListener("click", (e) => {
-  if (!mode || !missionId) return;
 
-  const obj = {
+  if (!mode) return;
+  if (!missionId) {
+   alert("Selecciona o crea una misión");
+   return;
+  }
+
+  const point = {
    type: mode,
    lat: e.latLng.lat(),
    lng: e.latLng.lng()
   };
 
-  shapes.push(obj);
+  shapes.push(point);
+
+  let color = "green";
+
+  if (mode.includes("ROJO")) color = "red";
+  if (mode.includes("AZUL")) color = "blue";
+  if (mode.includes("RESPAWN")) color = "purple";
+  if (mode.includes("SEGURA")) color = "white";
+  if (mode.includes("NEUTRO")) color = "yellow";
 
   new google.maps.Marker({
    position: e.latLng,
    map: map,
-   icon: mode === "OBJETIVO"
-     ? "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
-     : "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
+   icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`
   });
+
  });
 };
 
-/* MODOS */
-function setMode(m){ mode = m; }
-function clearMode(){ mode = null; }
+/* ===== MODOS ===== */
+function setMode(m){
+ mode = m;
+ alert("Modo: " + m);
+}
 
-/* MISIONES */
+function clearMode(){
+ mode = null;
+}
+
+/* ===== MISIONES ===== */
 function loadMissions(){
  db.ref("operaciones").on("value",snap=>{
   let sel=document.getElementById("misiones");
   sel.innerHTML="";
+
   snap.forEach(s=>{
    sel.innerHTML += `<option value="${s.key}">${s.val().nombre}</option>`;
   });
@@ -151,13 +175,36 @@ function loadMission(id){
 
  db.ref("operaciones/"+id).once("value",snap=>{
   const m = snap.val();
-  document.getElementById("nombre").value = m.nombre;
- });
+  if(!m) return;
 
+  document.getElementById("nombre").value = m.nombre;
+
+  renderExisting(m.zonas || []);
+ });
 }
 
-/* GUARDAR */
+/* ===== RENDER EXISTENTE ===== */
+function renderExisting(zonas){
+ zonas.forEach(z=>{
+  let color = "green";
+
+  if (z.type.includes("ROJO")) color = "red";
+  if (z.type.includes("AZUL")) color = "blue";
+  if (z.type.includes("RESPAWN")) color = "purple";
+  if (z.type.includes("SEGURA")) color = "white";
+  if (z.type.includes("NEUTRO")) color = "yellow";
+
+  new google.maps.Marker({
+   position: {lat:z.lat,lng:z.lng},
+   map: map,
+   icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`
+  });
+ });
+}
+
+/* ===== GUARDAR ===== */
 function saveMission(){
+
  if(!missionId){
   missionId = db.ref("operaciones").push().key;
  }
@@ -167,28 +214,37 @@ function saveMission(){
  db.ref("operaciones/"+missionId).set({
   nombre,
   zonas: shapes,
-  estado: { activo:false },
-  modo:"DOMINIO"
+  estado:{
+   activo:false,
+   killsR:0,
+   killsA:0,
+   startTime:null
+  },
+  modo:"MILITAR_REAL"
  });
 
- alert("Guardado");
+ alert("MISIÓN GUARDADA");
 }
 
-/* NUEVA */
+/* ===== NUEVA ===== */
 function newMission(){
  shapes = [];
  missionId = null;
  document.getElementById("nombre").value="";
 }
 
-/* LOGOUT */
+/* ===== AUTH ===== */
+auth.onAuthStateChanged(u=>{
+ if(!u) location.href="login.html";
+});
+
+/* ===== LOGOUT ===== */
 function logout(){
  auth.signOut().then(()=>location.href="login.html");
 }
 
 /* INIT */
 loadMissions();
-
 </script>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
