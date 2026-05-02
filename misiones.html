@@ -49,27 +49,16 @@ body {
  z-index:1000;
 }
 
-/* PTT */
-#ptt {
- position:fixed;
- bottom:20px;
- left:50%;
- transform:translateX(-50%);
- width:120px;
- height:120px;
- border-radius:50%;
- background:#000;
- border:3px solid var(--p);
+/* BOTONES */
+button, input, select {
+ width:100%;
+ margin-top:6px;
+ padding:10px;
+ background:#111;
  color:var(--p);
- z-index:2000;
+ border:1px solid var(--p);
 }
 
-#ptt.active {
- background:var(--p);
- color:#000;
-}
-
-/* CHAT */
 .chat {
  height:150px;
  overflow:auto;
@@ -84,9 +73,7 @@ body {
 <body>
 
 <div id="map"></div>
-<div id="hud">00:00:00</div>
-
-<button id="ptt">🎤 RADIO</button>
+<div id="hud">A.T.O.M ACTIVE</div>
 
 <div id="menu">
 <h3>COMANDO</h3>
@@ -110,10 +97,9 @@ const firebaseConfig = {
  authDomain: "atom--airsoft.firebaseapp.com",
  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
  projectId: "atom--airsoft",
- storageBucket: "atom--airsoft.firebasestorage.app",
+ storageBucket: "atom--airsoft.appspot.com",
  messagingSenderId: "310010107781",
- appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
- measurementId: "G-3X2C87MPPV"
+ appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -122,189 +108,119 @@ const auth = firebase.auth();
 const db = firebase.database();
 
 /* STATE */
-let user=null;
-let currentMisionId=null;
-let localStream=null;
-let micTrack=null;
-let peers={};
-let map=null;
+let user = null;
+let map;
+let mode = null;
+let currentMission = null;
+let shapes = [];
 
-/* ===== MAPA (GLOBAL SAFE) ===== */
-window.initMap = function(){
+/* ================= MAPA ================= */
+window.initMap = function () {
 
- map = new google.maps.Map(document.getElementById("map"),{
-  center:{lat:-34.9,lng:-56.2},
-  zoom:15,
-  mapTypeId:"satellite"
+ map = new google.maps.Map(document.getElementById("map"), {
+  center: { lat: -34.9, lng: -56.2 },
+  zoom: 15,
+  mapTypeId: "satellite"
+ });
+
+ map.addListener("click", (e) => {
+
+  if (!mode) return;
+
+  const point = {
+   type: mode,
+   lat: e.latLng.lat(),
+   lng: e.latLng.lng()
+  };
+
+  shapes.push(point);
+
+  new google.maps.Marker({
+   position: e.latLng,
+   map: map
+  });
+
  });
 
 };
 
-/* ===== AUTH ===== */
-auth.onAuthStateChanged(async u=>{
- if(!u){ location.href="login.html"; return; }
+/* ================= AUTH ================= */
+auth.onAuthStateChanged(async u => {
+ if (!u) return location.href = "login.html";
 
- const snap = await db.ref("usuarios/"+u.uid).once("value");
+ const snap = await db.ref("usuarios/" + u.uid).once("value");
  const data = snap.val();
- if(!data) return auth.signOut();
 
- user={
-  id:u.uid,
-  callsign:data.callsign,
-  rol:data.rol
- };
-
- document.getElementById("info").innerText=user.callsign;
-
- await initAudio();
- getTeam();
-});
-
-/* ===== AUDIO SAFE ===== */
-async function initAudio(){
- try{
-  localStream = await navigator.mediaDevices.getUserMedia({audio:true});
-  micTrack = localStream.getAudioTracks()[0];
-  micTrack.enabled=false;
- }catch(e){
-  console.log("MIC ERROR",e);
+ if (!data) {
+  auth.signOut();
+  return;
  }
-}
 
-/* ===== TEAM ===== */
-function getTeam(){
- db.ref("inscripciones").orderByChild("uid").equalTo(user.id)
- .once("value",snap=>{
-  snap.forEach(s=>{
-   const ins=s.val();
-   currentMisionId=ins.mision;
-   user.equipo=ins.equipo;
-   registerRadio();
-  });
- });
-}
-
-/* ===== RADIO ===== */
-function registerRadio(){
- if(!currentMisionId || !user.equipo) return;
-
- const base=`webrtc/${currentMisionId}/${user.equipo}`;
-
- db.ref(base+"/"+user.id).set({online:true});
-
- listenPeers(base);
-}
-
-/* ===== PEERS ===== */
-function listenPeers(base){
- db.ref(base).on("child_added",snap=>{
-  const id=snap.key;
-  if(id===user.id) return;
-  if(peers[id]) return;
-  createPeer(id);
- });
-}
-
-/* ===== PEER ===== */
-function createPeer(id){
-
- const pc=new RTCPeerConnection({
-  iceServers:[{urls:"stun:stun.l.google.com:19302"}]
- });
-
- peers[id]=pc;
-
- localStream?.getTracks().forEach(t=>pc.addTrack(t,localStream));
-
- pc.ontrack=e=>{
-  const audio=new Audio();
-  audio.srcObject=e.streams[0];
-  audio.play();
+ user = {
+  id: u.uid,
+  callsign: data.callsign,
+  rol: data.rol
  };
 
- pc.onicecandidate=e=>{
-  if(e.candidate){
-   db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}/ice`)
-   .push(JSON.stringify(e.candidate));
-  }
- };
+ document.getElementById("info").innerText = user.callsign;
 
- const ref=db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}`);
+};
 
- ref.on("value",snap=>{
-  const d=snap.val();
-  if(!d) return;
-
-  if(d.offer && !pc.currentRemoteDescription){
-   pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(d.offer)))
-   .then(()=>pc.createAnswer())
-   .then(a=>{
-    pc.setLocalDescription(a);
-    ref.child("answer").set(JSON.stringify(a));
-   });
-  }
-
-  if(d.answer){
-   pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(d.answer)));
-  }
- });
-
- ref.child("ice").on("child_added",c=>{
-  if(c.val()){
-   pc.addIceCandidate(new RTCIceCandidate(JSON.parse(c.val())));
-  }
- });
-
- pc.createOffer().then(o=>{
-  pc.setLocalDescription(o);
-  ref.child("offer").set(JSON.stringify(o));
- });
+/* ================= MODOS ================= */
+function setMode(m) {
+ mode = m;
 }
 
-/* ===== PTT ===== */
-const ptt=document.getElementById("ptt");
+/* ================= GUARDAR MISIÓN ================= */
+function guardar() {
 
-function mic(v){
- if(!micTrack) return;
- micTrack.enabled=v;
- ptt.classList.toggle("active",v);
+ const nombre = prompt("Nombre misión:");
+ if (!nombre) return;
+
+ db.ref("operaciones").push().set({
+  nombre,
+  zonas: shapes,
+  estado: { activo: false },
+  modo: "DOMINIO"
+ });
+
+ alert("Misión guardada");
 }
 
-ptt.onmousedown=()=>mic(true);
-ptt.onmouseup=()=>mic(false);
-ptt.ontouchstart=e=>{e.preventDefault();mic(true);}
-ptt.ontouchend=()=>mic(false);
+/* ================= NUEVA ================= */
+function nueva() {
+ shapes = [];
+ alert("Editor reiniciado");
+}
 
-/* CHAT */
-function enviarMsg(){
- const msg=document.getElementById("msg").value;
- if(!msg) return;
+/* ================= CHAT ================= */
+function enviarMsg() {
+
+ const msg = document.getElementById("msg").value;
+ if (!msg) return;
 
  db.ref("chat").push({
-  user:user.callsign,
+  user: user.callsign,
   msg
  });
 
- document.getElementById("msg").value="";
+ document.getElementById("msg").value = "";
 }
 
-db.ref("chat").on("child_added",snap=>{
- const c=snap.val();
- document.getElementById("chat").innerHTML+=
+db.ref("chat").on("child_added", snap => {
+ const c = snap.val();
+ document.getElementById("chat").innerHTML +=
  `<div><b>${c.user}:</b> ${c.msg}</div>`;
 });
 
-/* LOGOUT */
-function logout(){
- auth.signOut().then(()=>location.href="login.html");
+/* ================= LOGOUT ================= */
+function logout() {
+ auth.signOut().then(() => location.href = "login.html");
 }
 </script>
 
-<!-- GOOGLE MAPS AL FINAL (CRÍTICO) -->
-<script
-src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap"
-async defer>
-</script>
+<!-- GOOGLE MAPS -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
 
 </body>
 </html>
