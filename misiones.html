@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.T.O.M. - Operaciónes Tacticas</title>
+<title>A.T.O.M. - Operaciones Tácticas</title>
 
 <style>
 :root { --p:#00ff00; --f:#0b0b0b; }
@@ -12,7 +12,6 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
 
 #map { height:100vh; width:100%; }
 
-/* HUD */
 #hud {
  position:fixed;
  top:10px;
@@ -24,7 +23,6 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
  z-index:1000;
 }
 
-/* MENÚ */
 #menu {
  position:fixed;
  right:0;
@@ -38,7 +36,6 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
  z-index:1000;
 }
 
-/* BOTÓN PTT */
 #ptt {
  position: fixed;
  bottom: 20px;
@@ -54,12 +51,12 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
  z-index: 2000;
  box-shadow: 0 0 20px #00ff00;
 }
+
 #ptt.active {
  background:#00ff00;
  color:#000;
 }
 
-/* CHAT */
 .chat {
  height:150px;
  overflow:auto;
@@ -96,13 +93,9 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
 <script>
 const firebaseConfig = {
  apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-  authDomain: "atom--airsoft.firebaseapp.com",
-  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-  projectId: "atom--airsoft",
-  storageBucket: "atom--airsoft.firebasestorage.app",
-  messagingSenderId: "310010107781",
-  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
-  measurementId: "G-3X2C87MPPV"
+ authDomain: "atom--airsoft.firebaseapp.com",
+ databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+ projectId: "atom--airsoft"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -110,22 +103,24 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-/* ====== VARIABLES ====== */
+/* ===== STATE ===== */
 let user=null;
 let currentMisionId=null;
-let localStream, micTrack;
+let localStream=null;
+let micTrack=null;
 let peers={};
 
 const rtcConfig = {
  iceServers:[{urls:"stun:stun.l.google.com:19302"}]
 };
 
-/* ====== LOGIN SEGURO ====== */
+/* ===== AUTH ===== */
 auth.onAuthStateChanged(async u=>{
  if(!u){ location.href="login.html"; return; }
 
  const snap = await db.ref("usuarios/"+u.uid).once("value");
  const data = snap.val();
+ if(!data){ return auth.signOut(); }
 
  user = {
   id:u.uid,
@@ -135,164 +130,150 @@ auth.onAuthStateChanged(async u=>{
 
  document.getElementById("info").innerText=user.callsign;
 
- await iniciarAudio();
- obtenerEquipo();
+ await initAudio();
+ await getTeam();
 });
 
-/* ====== AUDIO ====== */
-async function iniciarAudio(){
- localStream = await navigator.mediaDevices.getUserMedia({audio:true});
- micTrack = localStream.getAudioTracks()[0];
- micTrack.enabled=false;
+/* ===== AUDIO SAFE INIT ===== */
+async function initAudio(){
+ try{
+  localStream = await navigator.mediaDevices.getUserMedia({audio:true});
+  micTrack = localStream.getAudioTracks()[0];
+  micTrack.enabled = false;
+ }catch(e){
+  console.error("MIC ERROR",e);
+ }
 }
 
-/* ====== EQUIPO ====== */
-function obtenerEquipo(){
- db.ref("inscripciones").orderByChild("uid").equalTo(user.id).once("value",snap=>{
+/* ===== TEAM ===== */
+function getTeam(){
+ return db.ref("inscripciones").orderByChild("uid").equalTo(user.id).once("value")
+ .then(snap=>{
   snap.forEach(s=>{
-   let ins=s.val();
-   currentMisionId=ins.mision;
-   user.equipo=ins.equipo;
-
-   registrarRadio();
+   const ins = s.val();
+   currentMisionId = ins.mision;
+   user.equipo = ins.equipo;
+   registerRadio();
   });
  });
 }
 
-/* ====== REGISTRO RADIO ====== */
-function registrarRadio(){
- const path=`webrtc/${currentMisionId}/${user.equipo}/${user.id}`;
+/* ===== RADIO SYSTEM ===== */
+function registerRadio(){
+ if(!currentMisionId || !user.equipo) return;
 
- db.ref(path).set({online:true});
+ const base = `webrtc/${currentMisionId}/${user.equipo}`;
 
- escucharRadio();
+ db.ref(base+"/"+user.id).set({online:true});
+
+ listenPeers(base);
 }
 
-/* ====== RADIO ====== */
-function escucharRadio(){
-
- const base=`webrtc/${currentMisionId}/${user.equipo}`;
+/* ===== LISTEN ===== */
+function listenPeers(base){
 
  db.ref(base).on("child_added",snap=>{
-  const id=snap.key;
+  const id = snap.key;
   if(id===user.id) return;
+  if(peers[id]) return;
 
-  if(!peers[id]){
-   crearPeer(id,true);
-  }
+  createPeer(id, true);
  });
-
 }
 
-/* ====== CREAR PEER ====== */
-function crearPeer(id,offer){
+/* ===== PEER ===== */
+function createPeer(id, isOffer){
 
- const pc=new RTCPeerConnection(rtcConfig);
+ const pc = new RTCPeerConnection(rtcConfig);
 
- pc.ontrack=e=>{
-  let audio=new Audio();
-  audio.srcObject=e.streams[0];
+ peers[id]=pc;
+
+ localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+
+ pc.ontrack = e=>{
+  const audio = new Audio();
+  audio.srcObject = e.streams[0];
   audio.play();
  };
 
- pc.onicecandidate=e=>{
+ pc.onicecandidate = e=>{
   if(e.candidate){
    db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}/ice`)
    .push(JSON.stringify(e.candidate));
   }
  };
 
- localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
-
- peers[id]=pc;
-
- if(offer){
-  pc.createOffer().then(o=>{
-   pc.setLocalDescription(o);
-
-   db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}/offer`)
-   .set(JSON.stringify(o));
-  });
- }
-
- escucharPeer(id);
-}
-
-/* ====== ESCUCHAR PEER ====== */
-function escucharPeer(id){
-
- const ref=db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}`);
+ const ref = db.ref(`webrtc/${currentMisionId}/${user.equipo}/${id}`);
 
  ref.on("value",snap=>{
-  const data=snap.val();
-  const pc=peers[id];
+  const data = snap.val();
+  if(!data) return;
 
-  if(data?.offer && !pc.currentRemoteDescription){
-   pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.offer)));
-
-   pc.createAnswer().then(a=>{
+  if(data.offer && !pc.remoteDescription){
+   pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.offer)))
+   .then(()=>pc.createAnswer())
+   .then(a=>{
     pc.setLocalDescription(a);
-
     ref.child("answer").set(JSON.stringify(a));
    });
   }
 
-  if(data?.answer){
+  if(data.answer && !pc.currentRemoteDescription){
    pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.answer)));
   }
  });
 
  ref.child("ice").on("child_added",c=>{
-  const pc=peers[id];
-  pc.addIceCandidate(new RTCIceCandidate(JSON.parse(c.val())));
+  if(c.val()){
+   pc.addIceCandidate(new RTCIceCandidate(JSON.parse(c.val())));
+  }
  });
+
+ if(isOffer){
+  pc.createOffer()
+  .then(o=>{
+   pc.setLocalDescription(o);
+   ref.child("offer").set(JSON.stringify(o));
+  });
+ }
 }
 
-/* ====== PTT ====== */
-const ptt=document.getElementById("ptt");
+/* ===== PTT SAFE ===== */
+const ptt = document.getElementById("ptt");
 
-ptt.onmousedown=()=>{
+function setMic(state){
  if(!micTrack) return;
- micTrack.enabled=true;
- ptt.classList.add("active");
-};
+ micTrack.enabled = state;
+ ptt.classList.toggle("active", state);
+}
 
-ptt.onmouseup=()=>{
- if(!micTrack) return;
- micTrack.enabled=false;
- ptt.classList.remove("active");
-};
+ptt.onmousedown = ()=>setMic(true);
+ptt.onmouseup = ()=>setMic(false);
+ptt.ontouchstart = e=>{e.preventDefault(); setMic(true);};
+ptt.ontouchend = ()=>setMic(false);
 
-ptt.ontouchstart=e=>{
- e.preventDefault();
- micTrack.enabled=true;
- ptt.classList.add("active");
-};
-
-ptt.ontouchend=()=>{
- micTrack.enabled=false;
- ptt.classList.remove("active");
-};
-
-/* ====== CHAT ====== */
+/* ===== CHAT ===== */
 function enviarMsg(){
- let msg=document.getElementById("msg").value;
+ const msg=document.getElementById("msg").value;
  if(!msg) return;
 
- db.ref("chat").push({user:user.callsign,msg});
+ db.ref("chat").push({
+  user:user.callsign,
+  msg
+ });
+
  document.getElementById("msg").value="";
 }
 
 db.ref("chat").on("child_added",snap=>{
- let c=snap.val();
- document.getElementById("chat").innerHTML+=`<div><b>${c.user}:</b> ${c.msg}</div>`;
+ const c=snap.val();
+ document.getElementById("chat").innerHTML +=
+ `<div><b>${c.user}:</b> ${c.msg}</div>`;
 });
 
-/* ====== LOGOUT ====== */
+/* ===== LOGOUT ===== */
 function logout(){
- auth.signOut().then(()=>{
-  location.href="login.html";
- });
+ auth.signOut().then(()=>location.href="login.html");
 }
 </script>
 
