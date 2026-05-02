@@ -3,40 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.T.O.M - Operaciones Tácticas</title>
+<title>A.T.O.M - Campo de Operaciones</title>
 
 <style>
 :root { --p:#00ff00; --f:#0b0b0b; }
 
-body {
+body{
  margin:0;
- font-family: monospace;
+ font-family:monospace;
  background:var(--f);
  color:var(--p);
- height:100vh;
  overflow:hidden;
 }
 
 /* MAPA */
-#map {
+#map{
  height:100vh;
  width:100%;
 }
 
 /* HUD */
-#hud {
+#hud{
  position:fixed;
  top:10px;
  left:50%;
  transform:translateX(-50%);
  background:#000;
- padding:6px 18px;
+ padding:6px 15px;
  border:1px solid var(--p);
  z-index:1000;
 }
 
 /* MENU */
-#menu {
+#menu{
  position:fixed;
  right:0;
  top:0;
@@ -50,7 +49,7 @@ body {
 }
 
 /* BOTONES */
-button, input, select {
+button, input{
  width:100%;
  margin-top:6px;
  padding:10px;
@@ -59,7 +58,8 @@ button, input, select {
  border:1px solid var(--p);
 }
 
-.chat {
+/* CHAT */
+.chat{
  height:150px;
  overflow:auto;
  border:1px solid #333;
@@ -67,20 +67,42 @@ button, input, select {
  font-size:12px;
  padding:5px;
 }
+
+/* ALERTA */
+#alerta{
+ position:fixed;
+ top:60px;
+ left:50%;
+ transform:translateX(-50%);
+ background:red;
+ color:#fff;
+ padding:8px 12px;
+ display:none;
+ z-index:2000;
+}
 </style>
 </head>
 
 <body>
 
 <div id="map"></div>
-<div id="hud">A.T.O.M ACTIVE</div>
+
+<div id="hud">
+⏱ <span id="timer">00:00</span> |
+🔴 <span id="rKills">0</span> |
+🔵 <span id="aKills">0</span>
+</div>
+
+<div id="alerta"></div>
+
+<button id="ptt">🎤 EQUIPO</button>
 
 <div id="menu">
-<h3>COMANDO</h3>
+<h3>OPERACIÓN</h3>
 <div id="info"></div>
 
-<input id="msg" placeholder="mensaje">
-<button onclick="enviarMsg()">ENVIAR</button>
+<input id="msg" placeholder="mensaje equipo">
+<button onclick="sendMsg()">ENVIAR</button>
 
 <div class="chat" id="chat"></div>
 <button onclick="logout()">SALIR</button>
@@ -97,7 +119,7 @@ const firebaseConfig = {
  authDomain: "atom--airsoft.firebaseapp.com",
  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
  projectId: "atom--airsoft",
- storageBucket: "atom--airsoft.appspot.com",
+ storageBucket: "atom--airsoft.firebasestorage.app",
  messagingSenderId: "310010107781",
  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
 };
@@ -107,115 +129,138 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-/* STATE */
-let user = null;
+let user=null;
 let map;
-let mode = null;
-let currentMission = null;
-let shapes = [];
+let missionId=null;
+let team=null;
+let killsR=0;
+let killsA=0;
+let startTime=null;
+let inZone=true;
 
-/* ================= MAPA ================= */
-window.initMap = function () {
-
- map = new google.maps.Map(document.getElementById("map"), {
-  center: { lat: -34.9, lng: -56.2 },
-  zoom: 15,
-  mapTypeId: "satellite"
+/* MAP */
+window.initMap=function(){
+ map=new google.maps.Map(document.getElementById("map"),{
+  center:{lat:-34.9,lng:-56.2},
+  zoom:15,
+  mapTypeId:"satellite"
  });
-
- map.addListener("click", (e) => {
-
-  if (!mode) return;
-
-  const point = {
-   type: mode,
-   lat: e.latLng.lat(),
-   lng: e.latLng.lng()
-  };
-
-  shapes.push(point);
-
-  new google.maps.Marker({
-   position: e.latLng,
-   map: map
-  });
-
- });
-
 };
 
-/* ================= AUTH ================= */
-auth.onAuthStateChanged(async u => {
- if (!u) return location.href = "login.html";
+/* LOGIN */
+auth.onAuthStateChanged(async u=>{
+ if(!u) return location.href="login.html";
 
- const snap = await db.ref("usuarios/" + u.uid).once("value");
- const data = snap.val();
+ const snap=await db.ref("usuarios/"+u.uid).once("value");
+ const d=snap.val();
+ if(!d) return auth.signOut();
 
- if (!data) {
-  auth.signOut();
-  return;
- }
+ user={id:u.uid,callsign:d.callsign};
 
- user = {
-  id: u.uid,
-  callsign: data.callsign,
-  rol: data.rol
- };
+ document.getElementById("info").innerText=user.callsign;
 
- document.getElementById("info").innerText = user.callsign;
+ const ins=await db.ref("inscripciones")
+ .orderByChild("uid").equalTo(u.uid).once("value");
 
-};
-
-/* ================= MODOS ================= */
-function setMode(m) {
- mode = m;
-}
-
-/* ================= GUARDAR MISIÓN ================= */
-function guardar() {
-
- const nombre = prompt("Nombre misión:");
- if (!nombre) return;
-
- db.ref("operaciones").push().set({
-  nombre,
-  zonas: shapes,
-  estado: { activo: false },
-  modo: "DOMINIO"
+ ins.forEach(s=>{
+  missionId=s.val().mision;
+  team=s.val().equipo;
  });
 
- alert("Misión guardada");
+ listenMission();
+ listenChat();
+ listenObjectives();
+});
+
+/* MISION */
+function listenMission(){
+ db.ref("operaciones/"+missionId+"/estado")
+ .on("value",snap=>{
+  const st=snap.val();
+  if(!st || !st.activo) return;
+
+  startTime=st.startTime;
+  setInterval(updateTimer,1000);
+ });
 }
 
-/* ================= NUEVA ================= */
-function nueva() {
- shapes = [];
- alert("Editor reiniciado");
+/* TIMER */
+function updateTimer(){
+ if(!startTime) return;
+ let t=Math.floor((Date.now()-startTime)/1000);
+ let m=Math.floor(t/60);
+ let s=t%60;
+ document.getElementById("timer")
+ .innerText=`${m}:${s.toString().padStart(2,"0")}`;
 }
 
-/* ================= CHAT ================= */
-function enviarMsg() {
-
- const msg = document.getElementById("msg").value;
- if (!msg) return;
+/* CHAT */
+function sendMsg(){
+ let msg=document.getElementById("msg").value;
+ if(!msg) return;
 
  db.ref("chat").push({
-  user: user.callsign,
+  user:user.callsign,
+  team:team,
   msg
  });
 
- document.getElementById("msg").value = "";
+ document.getElementById("msg").value="";
 }
 
-db.ref("chat").on("child_added", snap => {
- const c = snap.val();
- document.getElementById("chat").innerHTML +=
- `<div><b>${c.user}:</b> ${c.msg}</div>`;
+function listenChat(){
+ db.ref("chat").on("child_added",s=>{
+  let c=s.val();
+  if(c.team!==team) return;
+
+  document.getElementById("chat").innerHTML+=
+  `<div><b>${c.user}:</b> ${c.msg}</div>`;
+ });
+}
+
+/* OBJETIVOS */
+function listenObjectives(){
+ db.ref("objetivos").on("value",snap=>{
+  snap.forEach(s=>{
+   let o=s.val();
+
+   if(o.mision!==missionId) return;
+
+   let color="#ffff00";
+   if(o.estado==="ROJO") color="red";
+   if(o.estado==="AZUL") color="blue";
+
+   new google.maps.Circle({
+    strokeColor:color,
+    fillColor:color,
+    fillOpacity:0.3,
+    map:map,
+    center:{lat:o.lat,lng:o.lng},
+    radius:20
+   });
+  });
 });
 
-/* ================= LOGOUT ================= */
-function logout() {
- auth.signOut().then(() => location.href = "login.html");
+/* BAJAS SIMULADAS */
+function kill(teamX){
+ if(teamX==="ROJO") killsR++;
+ if(teamX==="AZUL") killsA++;
+
+ document.getElementById("rKills").innerText=killsR;
+ document.getElementById("aKills").innerText=killsA;
+}
+
+/* ALERTA ZONA */
+function showAlert(msg){
+ let a=document.getElementById("alerta");
+ a.innerText=msg;
+ a.style.display="block";
+ setTimeout(()=>a.style.display="none",3000);
+}
+
+/* LOGOUT */
+function logout(){
+ auth.signOut().then(()=>location.href="login.html");
 }
 </script>
 
