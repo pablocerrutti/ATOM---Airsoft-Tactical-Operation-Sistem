@@ -272,9 +272,9 @@ function clearMap() {
 function handleExit() {
     const userData = JSON.parse(localStorage.getItem("usuario"));
     if (userData && (userData.rol === "ADMIN" || userData.rol === "EDITOR")) {
-        location.href = "hub.html";
-    } else {
         location.href = "hub2.html";
+    } else {
+        location.href = "hub.html";
     }
 }
 
