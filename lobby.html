@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>A.T.O.M - Lobby de Despliegue</title>
+    
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -15,54 +16,64 @@
             font-family: 'Courier New', monospace; display: flex; flex-direction: column; height: 100vh;
         }
 
-        /* Cabecera Táctica */
         header { padding: 15px; border-bottom: 1px solid var(--p); background: #000; }
         .op-info { display: flex; justify-content: space-between; align-items: center; }
         .callsign { font-weight: bold; color: var(--gold); font-size: 1.2rem; }
 
-        /* Contenedor de Misión */
         #mission-container { flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
-        #mini-map { 
-            width: 100%; height: 250px; background: #111; border: 1px solid var(--p); 
-            margin-bottom: 15px; position: relative;
-        }
+        #mini-map { width: 100%; height: 250px; background: #111; border: 1px solid var(--p); margin-bottom: 15px; }
 
         .mission-card { background: var(--gray); padding: 15px; border-left: 4px solid var(--gold); margin-bottom: 10px; }
-        .mission-title { font-size: 1.1rem; margin: 0; color: #fff; }
-        .mission-desc { font-size: 0.8rem; color: #aaa; margin-top: 5px; }
+        .btn-secondary { width: 100%; padding: 12px; background: transparent; color: var(--gold); border: 1px solid var(--gold); cursor: pointer; margin-bottom: 20px; font-family: inherit; }
+        
+        .btn-enlist { width: 100%; padding: 20px; background: var(--p); color: #000; border: none; font-weight: bold; cursor: pointer; position: sticky; bottom: 0; }
+        .btn-enlist:disabled { background: #222; color: #555; }
 
-        /* Botón Secundario (Operadores) */
-        .btn-secondary {
-            width: 100%; padding: 12px; background: transparent; color: var(--gold);
-            border: 1px solid var(--gold); font-family: inherit; font-weight: bold;
-            cursor: pointer; margin-bottom: 20px; transition: 0.3s;
-        }
-        .btn-secondary:hover { background: rgba(255, 215, 0, 0.1); }
+        footer { padding: 20px; text-align: center; border-top: 1px solid var(--gray); margin-top: auto; }
+        .btn-restricted { color: #444; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer; }
 
-        /* Estado de Enlistamiento */
-        #waiting-area { 
-            display: none; text-align: center; padding: 20px; 
-            border: 1px dashed var(--gold); margin-top: 10px;
+        /* MODAL TÁCTICO PERSONALIZADO */
+        #auth-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); backdrop-filter: blur(5px);
+            z-index: 3000; align-items: center; justify-content: center;
         }
-
-        /* Botón de Acción Principal */
-        .btn-enlist { 
-            width: 100%; padding: 20px; background: var(--p); color: #000; 
-            border: none; font-weight: bold; font-size: 1.1rem; cursor: pointer;
-            position: sticky; bottom: 0;
+        .modal-content {
+            width: 90%; max-width: 400px; background: #000; border: 2px solid var(--gold);
+            padding: 30px; text-align: center; box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
         }
-        .btn-enlist:disabled { background: #222; color: #555; cursor: not-allowed; }
+        .modal-content h3 { color: var(--gold); margin-top: 0; }
+        .modal-input { 
+            width: 100%; padding: 15px; background: #111; border: 1px solid var(--gold); 
+            color: var(--gold); text-align: center; font-family: inherit; font-size: 1.2rem; margin: 20px 0;
+        }
+        .modal-btns { display: flex; gap: 10px; }
+        .btn-confirm { flex: 1; padding: 15px; background: var(--gold); color: #000; border: none; font-weight: bold; cursor: pointer; }
+        .btn-cancel { flex: 1; padding: 15px; background: #222; color: #fff; border: none; cursor: pointer; }
 
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
 
         @media (min-width: 600px) {
             body { align-items: center; }
-            #mission-container, header, .btn-enlist { width: 500px; }
+            #mission-container, header, .btn-enlist, footer { width: 500px; }
         }
     </style>
 </head>
 <body>
+
+<!-- MODAL DE VERIFICACIÓN -->
+<div id="auth-modal">
+    <div class="modal-content">
+        <h3 class="blink">AUTORIZACIÓN REQUERIDA</h3>
+        <p style="font-size: 12px; color: #888;">INGRESE SU CALLSIGN PARA VALIDAR ACCESO A NIVEL ADMIN/EDITOR</p>
+        <input type="text" id="modal-callsign-input" class="modal-input" placeholder="CALLSIGN" autocomplete="off">
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeAuthModal()">ABORTAR</button>
+            <button class="btn-confirm" onclick="confirmIdentity()">VERIFICAR</button>
+        </div>
+    </div>
+</div>
 
 <header>
     <div class="op-info">
@@ -80,32 +91,29 @@
         <div class="mission-card">
             <p id="no-mission" style="color:var(--red);">ESPERANDO ÓRDENES DEL COMANDO...</p>
             <div id="active-mission-info" style="display:none;">
-                <h3 id="m-name" class="mission-title">--</h3>
-                <p id="m-status" class="mission-desc">--</p>
+                <h3 id="m-name" style="margin:0; color:#fff;">--</h3>
+                <p id="m-status" style="font-size:0.8rem; color:#aaa;">--</p>
             </div>
         </div>
     </div>
 
-    <!-- BOTÓN DE OPERADORES OPERATIVOS -->
-    <button class="btn-secondary" onclick="location.href='operadores.html'">
-        👥 OPERADORES OPERATIVOS
-    </button>
+    <button class="btn-secondary" onclick="location.href='operadores.html'">👥 OPERADORES OPERATIVOS</button>
 
     <div id="mini-map">
-        <div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:12px; color:#444;">
-            VISTA PREVIA TÁCTICA
-        </div>
+        <div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:12px; color:#444;">VISTA PREVIA TÁCTICA</div>
     </div>
 
-    <div id="waiting-area">
+    <div id="waiting-area" style="display:none; text-align:center; padding:20px; border:1px dashed var(--gold);">
         <span class="blink" style="color:var(--gold);">[ ENLISTADO ]</span>
-        <p style="font-size: 12px; color: #888; margin-top: 10px;">
-            TU POSICIÓN HA SIDO ENVIADA AL COMANDO.<br>ESPERA ASIGNACIÓN DE BANDO.
-        </p>
+        <p style="font-size: 12px; color: #888; margin-top: 10px;">COORDENADAS ENVIADAS AL COMANDO.</p>
     </div>
 </div>
 
 <button class="btn-enlist" id="btn-action" onclick="handleEnlist()" disabled>DESPLEGAR EN MISIÓN</button>
+
+<footer>
+    <button class="btn-restricted" onclick="openAuthModal()">⚙️ ZONA RESTRINGIDA</button>
+</footer>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing"></script>
 
@@ -124,91 +132,75 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
 
-    let map;
-    let currentMissionId = null;
+let userProfile = null;
 
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            db.ref(`usuarios/${user.uid}`).once('value', snap => {
-                const data = snap.val();
-                if(data) {
-                    document.getElementById('display-callsign').innerText = data.callsign;
-                    checkActiveMission(user.uid);
-                }
-            });
-        } else {
-            location.href = "index.html";
+auth.onAuthStateChanged(user => {
+    if (user) {
+        db.ref(`usuarios/${user.uid}`).once('value', snap => {
+            userProfile = snap.val();
+            if(userProfile) {
+                document.getElementById('display-callsign').innerText = userProfile.callsign;
+                checkActiveMission(user.uid);
+            }
+        });
+    } else { location.href = "index.html"; }
+});
+
+function checkActiveMission(uid) {
+    db.ref('misiones').orderByChild('estado').equalTo('PREPARACION').on('value', snap => {
+        if (snap.exists()) {
+            const missions = snap.val();
+            const mId = Object.keys(missions)[0];
+            const m = missions[mId];
+            document.getElementById('no-mission').style.display = 'none';
+            document.getElementById('active-mission-info').style.display = 'block';
+            document.getElementById('m-name').innerText = m.nombre;
+            document.getElementById('m-status').innerText = "FASE DE RECLUTAMIENTO";
+            document.getElementById('btn-action').disabled = false;
         }
     });
+}
 
-    function checkActiveMission(uid) {
-        db.ref('misiones').orderByChild('estado').equalTo('PREPARACION').on('value', snap => {
-            if (snap.exists()) {
-                const missions = snap.val();
-                currentMissionId = Object.keys(missions)[0];
-                const mission = missions[currentMissionId];
+function handleEnlist() {
+    const user = auth.currentUser;
+    db.ref(`operacion_activa/despliegue/${user.uid}`).set({
+        callsign: userProfile.callsign,
+        enlistado: true,
+        lanzada: false,
+        pos: { lat: 0, lng: 0 }
+    }).then(() => {
+        document.getElementById('btn-action').style.display = 'none';
+        document.getElementById('waiting-area').style.display = 'block';
+    });
+}
 
-                document.getElementById('no-mission').style.display = 'none';
-                document.getElementById('active-mission-info').style.display = 'block';
-                document.getElementById('m-name').innerText = mission.nombre;
-                document.getElementById('m-status').innerText = "FASE DE RECLUTAMIENTO";
-                document.getElementById('btn-action').disabled = false;
-                
-                initMiniMap(mission.elements);
-            }
-        });
-
-        db.ref(`operacion_activa/despliegue/${uid}`).on('value', snap => {
-            if (snap.exists() && snap.val().lanzada === true) {
-                location.href = "mapa_tactico.html";
-            }
-        });
+// LÓGICA DEL MODAL PERSONALIZADO
+function openAuthModal() {
+    if (!userProfile) return alert("CARGANDO PERFIL...");
+    if (userProfile.rol === "ADMIN" || userProfile.rol === "EDITOR") {
+        document.getElementById('auth-modal').style.display = 'flex';
+        document.getElementById('modal-callsign-input').focus();
+    } else {
+        alert("ACCESO DENEGADO: NIVEL DE AUTORIZACIÓN INSUFICIENTE");
     }
+}
 
-    function initMiniMap(elements) {
-        map = new google.maps.Map(document.getElementById("mini-map"), {
-            center: {lat:-34.34, lng:-56.71}, 
-            zoom: 14,
-            mapTypeId: "satellite",
-            disableDefaultUI: true,
-            gestureHandling: "none"
-        });
+function closeAuthModal() {
+    document.getElementById('auth-modal').style.display = 'none';
+    document.getElementById('modal-callsign-input').value = "";
+}
 
-        if(elements) {
-            Object.values(elements).forEach(el => {
-                if(el.type === "GAME_ZONE") {
-                    new google.maps.Polygon({
-                        paths: el.path,
-                        strokeColor: "#00ff00",
-                        strokeOpacity: 0.8,
-                        strokeWeight: 2,
-                        fillColor: "#00ff00",
-                        fillOpacity: 0.1,
-                        map: map
-                    });
-                }
-            });
-        }
+function confirmIdentity() {
+    const input = document.getElementById('modal-callsign-input').value.trim().toUpperCase();
+    if (input === userProfile.callsign.toUpperCase()) {
+        location.href = "restricted_zone.html";
+    } else {
+        alert("ERROR: CALLSIGN INCORRECTO");
+        closeAuthModal();
     }
+}
 
-    function handleEnlist() {
-        const user = auth.currentUser;
-        const callsign = document.getElementById('display-callsign').innerText;
-
-        db.ref(`operacion_activa/despliegue/${user.uid}`).set({
-            callsign: callsign,
-            equipo: "PENDIENTE",
-            enlistado: true,
-            lanzada: false,
-            estado: "VIVO",
-            pos: { lat: 0, lng: 0 }
-        }).then(() => {
-            document.getElementById('btn-action').style.display = 'none';
-            document.getElementById('waiting-area').style.display = 'block';
-        });
-    }
-
-    function logout() { auth.signOut(); }
+function logout() { auth.signOut(); }
 </script>
 </body>
 </html>
