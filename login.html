@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.T.O.M - Acceso</title>
+<title>A.T.O.M - ACCESO</title>
 
 <style>
 :root { --p:#00ff00; --f:#050505; --red:#ff3333; }
@@ -19,7 +19,7 @@ body {
  height:100vh;
 }
 
-#login-box {
+#box {
  border:2px solid var(--p);
  padding:25px;
  width:90%;
@@ -57,20 +57,26 @@ button:hover {
 #status {
  margin-top:10px;
  font-size:12px;
+ height:15px;
+}
+
+button:disabled {
+ opacity:0.5;
+ cursor:not-allowed;
 }
 </style>
 </head>
 
 <body>
 
-<div id="login-box">
+<div id="box">
 
 <h3>A.T.O.M ACCESS</h3>
 
 <input id="email" placeholder="EMAIL">
 <input id="pass" type="password" placeholder="CLAVE">
 
-<button onclick="login()">INGRESAR</button>
+<button id="btn" onclick="login()">INGRESAR</button>
 
 <div id="status"></div>
 
@@ -82,14 +88,13 @@ button:hover {
 
 <script>
 const firebaseConfig = {
-apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-  authDomain: "atom--airsoft.firebaseapp.com",
-  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-  projectId: "atom--airsoft",
-  storageBucket: "atom--airsoft.firebasestorage.app",
-  messagingSenderId: "310010107781",
-  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
-  measurementId: "G-3X2C87MPPV"
+ apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+ authDomain: "atom--airsoft.firebaseapp.com",
+ databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+ projectId: "atom--airsoft",
+ storageBucket: "atom--airsoft.firebasestorage.app",
+ messagingSenderId: "310010107781",
+ appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -97,22 +102,29 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
+let isLoading = false;
+
 function setStatus(t,c){
  let s=document.getElementById("status");
  s.innerText=t;
  s.style.color=c;
 }
 
-/* 🔐 LOGIN */
 function login(){
 
- let email=document.getElementById("email").value;
- let pass=document.getElementById("pass").value;
+ if(isLoading) return;
+
+ const email = document.getElementById("email").value.trim();
+ const pass  = document.getElementById("pass").value.trim();
+ const btn   = document.getElementById("btn");
 
  if(!email || !pass){
   setStatus("DATOS INCOMPLETOS","orange");
   return;
  }
+
+ isLoading = true;
+ btn.disabled = true;
 
  setStatus("AUTENTICANDO...","var(--p)");
 
@@ -127,14 +139,15 @@ function login(){
   if(!data){
    setStatus("SIN PERFIL DE USUARIO","red");
    auth.signOut();
+   reset();
    return;
   }
 
   const usuario = {
    id: uid,
-   email: email,
-   callsign: data.callsign,
-   rol: data.rol
+   email,
+   callsign: data.callsign || "SIN_ALIAS",
+   rol: data.rol || "USER"
   };
 
   localStorage.setItem("usuario", JSON.stringify(usuario));
@@ -143,14 +156,17 @@ function login(){
 
   setTimeout(()=>{
 
-   if(data.rol === "ADMIN"){
-    location.href="admin.html";
-   }
-   else if(data.rol === "EDITOR"){
-    location.href="admin.html";
-   }
-   else{
-    location.href="misiones.html";
+   // 🔥 FLUJO DE ROLES
+   switch(usuario.rol){
+
+    case "ADMIN":
+    case "EDITOR":
+     location.href="admin.html";
+     break;
+
+    default:
+     location.href="misiones.html";
+     break;
    }
 
   },700);
@@ -158,10 +174,15 @@ function login(){
  })
  .catch(err=>{
   setStatus("ERROR: "+err.message,"red");
+  reset();
  });
 
 }
 
+function reset(){
+ isLoading = false;
+ document.getElementById("btn").disabled = false;
+}
 </script>
 
 </body>
