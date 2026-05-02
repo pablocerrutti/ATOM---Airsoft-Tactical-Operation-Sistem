@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.T.O.M - Campo de Operaciones</title>
+<title>A.T.O.M - Battlefield Tactical</title>
 
 <style>
 :root { --p:#00ff00; --f:#0b0b0b; }
@@ -13,56 +13,51 @@ body{
  font-family:monospace;
  background:var(--f);
  color:var(--p);
+ display:flex;
+ height:100vh;
  overflow:hidden;
 }
 
-#map{height:100vh;width:100%;}
-
-#hud{
- position:fixed;
- top:10px;
- left:50%;
- transform:translateX(-50%);
- background:#000;
- padding:6px 15px;
- border:1px solid var(--p);
- z-index:1000;
+/* PANEL IZQUIERDO (MAPA) */
+#map{
+ flex:1;
 }
 
+/* PANEL DERECHO */
 #menu{
- position:fixed;
- right:0;
- top:0;
- width:260px;
- height:100%;
+ width:300px;
  background:#050505;
  border-left:2px solid var(--p);
- padding:10px;
- overflow:auto;
- z-index:1000;
+ display:flex;
+ flex-direction:column;
 }
 
-button,input{
- width:100%;
- margin-top:6px;
+.section{
  padding:10px;
+ border-bottom:1px solid #222;
+}
+
+button, input, select{
+ width:100%;
+ padding:10px;
+ margin-top:5px;
  background:#111;
  color:var(--p);
  border:1px solid var(--p);
 }
 
-.chat{
- height:140px;
- overflow:auto;
- border:1px solid #333;
- margin-top:10px;
+.list{
  font-size:12px;
+ max-height:150px;
+ overflow:auto;
+ border:1px solid #222;
  padding:5px;
 }
 
-.team{
- font-size:12px;
- margin-top:10px;
+.badge{
+ padding:4px;
+ margin:2px 0;
+ background:#111;
 }
 </style>
 </head>
@@ -71,23 +66,32 @@ button,input{
 
 <div id="map"></div>
 
-<div id="hud">
-⏱ <span id="timer">00:00</span> |
-📡 <span id="team">-</span>
+<!-- PANEL DERECHO -->
+<div id="menu">
+
+<div class="section">
+<h3>MISIONES</h3>
+<div id="missions" class="list"></div>
 </div>
 
-<div id="menu">
-<h3>OPERACIÓN</h3>
-<div id="info"></div>
+<div class="section">
+<h3>ACCIONES</h3>
 
-<div class="team" id="teamInfo"></div>
+<button onclick="sendMed()">🚑 LLAMAR MÉDICO</button>
+<button onclick="markEnemy()">⚠ CONTACTO ENEMIGO</button>
+</div>
 
-<input id="msg" placeholder="mensaje equipo">
+<div class="section">
+<h3>CHAT EQUIPO</h3>
+<input id="msg">
 <button onclick="sendMsg()">ENVIAR</button>
+<div id="chat" class="list"></div>
+</div>
 
-<div class="chat" id="chat"></div>
-
+<div class="section">
 <button onclick="logout()">SALIR</button>
+</div>
+
 </div>
 
 <!-- FIREBASE -->
@@ -112,13 +116,11 @@ const auth = firebase.auth();
 const db = firebase.database();
 
 let user=null;
-let map;
 let missionId=null;
 let team=null;
-let escuadron=null;
-let startTime=0;
+let map;
 
-/* MAP */
+/* ===== MAPA ===== */
 window.initMap=function(){
  map=new google.maps.Map(document.getElementById("map"),{
   center:{lat:-34.9,lng:-56.2},
@@ -127,65 +129,82 @@ window.initMap=function(){
  });
 };
 
-/* AUTH */
+/* ===== AUTH ===== */
 auth.onAuthStateChanged(async u=>{
  if(!u) return location.href="login.html";
 
  const snap=await db.ref("usuarios/"+u.uid).once("value");
- const d=snap.val();
+ user=snap.val();
 
- user={id:u.uid,callsign:d.callsign};
-
- document.getElementById("info").innerText=user.callsign;
-
- // buscar inscripción
- const ins=await db.ref("inscripciones")
- .orderByChild("uid").equalTo(u.uid).once("value");
-
- ins.forEach(s=>{
-  const data=s.val();
-  missionId=data.mision;
-  team=data.equipo;
-  escuadron=data.escuadron;
- });
-
- document.getElementById("teamInfo").innerHTML=
- `Equipo: ${team}<br>Escuadrón: ${escuadron}`;
-
- listenMission();
+ loadMissions();
  listenChat();
 });
 
-/* MISION */
-function listenMission(){
- db.ref("operaciones/"+missionId+"/estado")
- .on("value",snap=>{
-  const st=snap.val();
-  if(!st || !st.activo) return;
-
-  startTime=st.startTime || Date.now();
-  setInterval(updateTimer,1000);
+/* ===== MISIONES ===== */
+function loadMissions(){
+ db.ref("operaciones").on("value",snap=>{
+  let html="";
+  snap.forEach(s=>{
+   html+=`<div class="badge" onclick="joinMission('${s.key}')">
+   ${s.val().nombre}
+   </div>`;
+  });
+  document.getElementById("missions").innerHTML=html;
  });
 }
 
-/* TIMER */
-function updateTimer(){
- let t=Math.floor((Date.now()-startTime)/1000);
- let m=Math.floor(t/60);
- let s=t%60;
- document.getElementById("timer").innerText=
- `${m}:${s.toString().padStart(2,"0")}`;
+/* ===== UNIRSE ===== */
+function joinMission(id){
+ missionId=id;
+
+ db.ref("inscripciones/"+user.callsign).set({
+  uid:user.id,
+  missionId:id,
+  equipo:"PENDIENTE"
+ });
+
+ alert("Unido a misión, esperando asignación de equipo");
+
+ focusMission(id);
 }
 
-/* CHAT SOLO EQUIPO */
+/* ===== ZOOM MAPA ===== */
+function focusMission(id){
+ db.ref("operaciones/"+id).once("value",snap=>{
+  const m=snap.val();
+  if(!m) return;
+
+  map.setCenter({lat:-34.9,lng:-56.2});
+  map.setZoom(16);
+ });
+}
+
+/* ===== MEDICO ===== */
+function sendMed(){
+ db.ref("alertas/"+missionId).push({
+  uid:user.id,
+  tipo:"MEDICO",
+  time:Date.now()
+ });
+}
+
+/* ===== CONTACTO ===== */
+function markEnemy(){
+ db.ref("alertas/"+missionId).push({
+  uid:user.id,
+  tipo:"CONTACTO",
+  time:Date.now()
+ });
+}
+
+/* ===== CHAT ===== */
 function sendMsg(){
  let msg=document.getElementById("msg").value;
- if(!msg) return;
 
- db.ref("chat").push({
+ db.ref("chat/"+missionId).push({
   user:user.callsign,
-  team:team,
-  msg
+  msg,
+  team:team
  });
 
  document.getElementById("msg").value="";
@@ -193,15 +212,15 @@ function sendMsg(){
 
 function listenChat(){
  db.ref("chat").on("child_added",s=>{
-  const c=s.val();
-  if(c.team!==team) return;
+  let c=s.val();
+  if(c.missionId!==missionId) return;
 
   document.getElementById("chat").innerHTML+=
-  `<div><b>${c.user}:</b> ${c.msg}</div>`;
+  `<div>${c.user}: ${c.msg}</div>`;
  });
 }
 
-/* LOGOUT */
+/* ===== LOGOUT ===== */
 function logout(){
  auth.signOut().then(()=>location.href="login.html");
 }
