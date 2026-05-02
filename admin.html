@@ -18,7 +18,6 @@ body {
  overflow:hidden;
 }
 
-/* PANEL */
 #panel {
  width:320px;
  background:#050505;
@@ -27,14 +26,12 @@ body {
  overflow-y:auto;
 }
 
-/* MAPA */
 #map {
  flex:1;
  height:100vh;
  width:100%;
 }
 
-/* BOTONES */
 button, input, select {
  width:100%;
  margin-top:6px;
@@ -44,12 +41,8 @@ button, input, select {
  border:1px solid var(--p);
 }
 
-/* RESPONSIVE */
 @media (max-width: 768px) {
-
- body {
-  flex-direction:column;
- }
+ body { flex-direction:column; }
 
  #panel {
   width:100%;
@@ -79,10 +72,10 @@ button, input, select {
 
 <hr>
 
-<h3>EDITOR</h3>
+<h3>EDITOR MAPA</h3>
 <button onclick="setMode('zona')">AREA DE JUEGO</button>
 <button onclick="setMode('segura')">ZONA SEGURA</button>
-<button onclick="setMode('objetivo')">OBJ</button>
+<button onclick="setMode('objetivo')">OBJETIVO</button>
 
 <hr>
 
@@ -94,9 +87,103 @@ button, input, select {
 
 <div id="map"></div>
 
+<!-- 🔥 FIREBASE REAL -->
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+ apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+ authDomain: "atom--airsoft.firebaseapp.com",
+ databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+ projectId: "atom--airsoft",
+ storageBucket: "atom--airsoft.firebasestorage.app",
+ messagingSenderId: "310010107781",
+ appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
+ measurementId: "G-3X2C87MPPV"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.database();
+
+/* ===== MAPA ===== */
+let map;
+let mode = null;
+let shapes = [];
+
+window.initMap = function () {
+
+ map = new google.maps.Map(document.getElementById("map"), {
+  center: { lat: -34.9, lng: -56.2 },
+  zoom: 15,
+  mapTypeId: "satellite"
+ });
+
+ map.addListener("click", (e) => {
+
+  if (!mode) return;
+
+  new google.maps.Marker({
+   position: e.latLng,
+   map: map
+  });
+
+  shapes.push({
+   role: mode,
+   lat: e.latLng.lat(),
+   lng: e.latLng.lng()
+  });
+
+ });
+
+};
+
+function setMode(m) {
+ mode = m;
+}
+
+function nuevaMision() {
+ shapes = [];
+ document.getElementById("nombre").value = "";
+ alert("Nueva misión iniciada");
+}
+
+function guardarMision() {
+
+ const nombre = document.getElementById("nombre").value;
+
+ if (!nombre) {
+  alert("Falta nombre");
+  return;
+ }
+
+ db.ref("operaciones").push().set({
+  nombre,
+  zonas: shapes,
+  estado: { activo: false }
+ });
+
+ alert("Misión guardada");
+}
+
+function lanzar() {
+ alert("Misión activada (placeholder)");
+}
+
+function logout() {
+ firebase.auth().signOut().then(() => {
+  location.href = "login.html";
+ });
+}
+</script>
+
+<!-- 🔥 GOOGLE MAPS CON CALLBACK CORRECTO -->
 <script
-src="https://maps.googleapis.com/maps/api/js?key=TU_KEY&callback=initMap"
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap"
 async defer>
 </script>
+
 </body>
 </html>
