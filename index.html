@@ -34,6 +34,21 @@ body {
  z-index:9999;
 }
 
+/* 🔥 LOGO NUEVO */
+#logo {
+ width:160px;
+ max-width:60%;
+ margin-bottom:20px;
+ filter: drop-shadow(0 0 10px #00ff00);
+ animation:pulse 2s infinite;
+}
+
+@keyframes pulse {
+ 0% { transform:scale(1); opacity:0.8; }
+ 50% { transform:scale(1.05); opacity:1; }
+ 100% { transform:scale(1); opacity:0.8; }
+}
+
 #boot {
  font-size:12px;
  width:90%;
@@ -111,6 +126,10 @@ body::before {
 
 <!-- SPLASH -->
 <div id="splash">
+
+ <!-- 🔥 LOGO AÑADIDO -->
+ <img id="logo" src="logo_atom.png" alt="A.T.O.M LOGO">
+
  <div id="boot"></div>
  <div id="barWrap"><div id="bar"></div></div>
 </div>
@@ -123,7 +142,6 @@ body::before {
 
 <div class="grid">
 
-<!-- SOLO 2 BOTONES INICIALES -->
 <a class="btn" href="login.html">INGRESAR A A.T.O.M</a>
 <a class="btn" href="registro_usuario.html">REGISTRARSE COMO OPERADOR</a>
 
@@ -182,7 +200,6 @@ function showMain(){
 
 window.onload = startBoot;
 
-/* ===== AUTO LOGIN CHECK (SOLO PARA FUTURO USO) ===== */
 auth.onAuthStateChanged(user=>{
  if(user){
   console.log("Usuario activo:", user.uid);
