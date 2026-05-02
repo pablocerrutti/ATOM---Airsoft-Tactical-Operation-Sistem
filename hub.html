@@ -6,7 +6,7 @@
 <title>A.T.O.M - HUB OPERATIVO</title>
 
 <style>
-:root { --p:#00ff00; --f:#0b0b0b; }
+:root { --p:#00ff00; --f:#0b0b0b; --alert:#ff3333; }
 
 body{
  margin:0;
@@ -32,11 +32,25 @@ body{
  cursor:pointer;
  background:#000;
  transition:0.2s;
+ font-weight: bold;
+ text-transform: uppercase;
 }
 
 .card:hover{
  background:var(--p);
  color:#000;
+}
+
+/* Estilo específico para el botón de salida */
+.card-exit {
+ border-color: var(--alert);
+ color: var(--alert);
+ margin-top: 30px;
+}
+
+.card-exit:hover {
+ background: var(--alert);
+ color: #000;
 }
 </style>
 </head>
@@ -58,6 +72,11 @@ MISIONES DISPONIBLES
 
 <div class="card" onclick="go('usuarios_admin.html')">
 ESCUADRONES / OPERADORES ACTIVOS
+</div>
+
+<!-- Botón de Salida -->
+<div class="card card-exit" onclick="logout()">
+SALIR DEL SISTEMA A.T.O.M.
 </div>
 
 </div>
@@ -105,6 +124,18 @@ auth.onAuthStateChanged(async u=>{
 /* NAV */
 function go(url){
  location.href = url;
+}
+
+/* LOGOUT FUNCTION */
+function logout() {
+    if(confirm("¿CONFIRMAR DESCONEXIÓN DEL SISTEMA?")) {
+        auth.signOut().then(() => {
+            console.log("Sesión cerrada");
+            location.href = "login.html";
+        }).catch((error) => {
+            console.error("Error al cerrar sesión", error);
+        });
+    }
 }
 </script>
 
