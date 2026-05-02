@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A.T.O.M - Operadores Operativos</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root { --p: #00ff00; --f: #050505; --gray: #222; --gold: #ffd700; }
+        body { 
+            margin: 0; background: var(--f); color: var(--p); 
+            font-family: 'Courier New', monospace; padding: 20px;
+        }
+        .header { text-align: center; border-bottom: 1px solid var(--p); margin-bottom: 20px; padding-bottom: 10px; }
+        
+        .operator-card {
+            background: #111;
+            border: 1px solid var(--gray);
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .callsign { font-size: 18px; font-weight: bold; color: var(--p); }
+        .stats { font-size: 12px; color: var(--gold); text-align: right; }
+        
+        .btn-back {
+            width: 100%; padding: 15px; background: transparent; 
+            border: 1px solid var(--p); color: var(--p); 
+            cursor: pointer; font-family: inherit; margin-top: 20px;
+        }
+        .loading { text-align: center; font-style: italic; opacity: 0.6; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2>OPERADORES OPERATIVOS</h2>
+    <p style="font-size: 10px;">REGISTRO CENTRAL DE FUERZAS</p>
+</div>
+
+<div id="operator-list">
+    <p class="loading">SINCRONIZANDO CON DB...</p>
+</div>
+
+<button class="btn-back" onclick="location.href='lobby.html'">VOLVER AL LOBBY</button>
+
+<script>
+    // Configuración de Firebase (Misma que usas en el index)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+      authDomain: "atom---sistem.firebaseapp.com",
+      databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+      projectId: "atom---sistem",
+      storageBucket: "atom---sistem.firebasestorage.app",
+      messagingSenderId: "151110156876",
+      appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const listContainer = document.getElementById('operator-list');
+
+    // Función para obtener y mostrar operadores
+    function loadOperators() {
+        db.ref('usuarios').on('value', (snapshot) => {
+            listContainer.innerHTML = ''; // Limpiar contenedor
+            
+            if (!snapshot.exists()) {
+                listContainer.innerHTML = '<p class="loading">NO HAY OPERADORES REGISTRADOS</p>';
+                return;
+            }
+
+            snapshot.forEach((childSnapshot) => {
+                const data = childSnapshot.val();
+                
+                // Si el usuario no tiene misiones registradas aún, ponemos 0 por defecto
+                const misiones = data.misiones_participadas || 0;
+
+                const card = document.createElement('div');
+                card.className = 'operator-card';
+                card.innerHTML = `
+                    <div class="callsign">ID: ${data.callsign}</div>
+                    <div class="stats">
+                        MISIONES: ${misiones}<br>
+                        ESTADO: ACTIVO
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        });
+    }
+
+    // Ejecutar carga al iniciar
+    loadOperators();
+</script>
+
+</body>
+</html>
