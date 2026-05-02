@@ -7,29 +7,19 @@
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
         body { margin:0; font-family: monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
-        
-        /* Panel Lateral */
-        #panel { width:320px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; overflow-y: auto; }
+        #panel { width:320px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; overflow-y: auto; z-index: 10; }
         #map { flex:1; }
-        
         .menu-drop { border-bottom: 1px solid #222; }
         .menu-header { padding:15px; background:#111; cursor:pointer; font-weight:bold; display:flex; justify-content:space-between; }
         .menu-content { padding:10px; display:none; flex-direction:column; }
         .menu-content.active { display:flex; }
-        
-        button, select, input { 
-            width:100%; padding:12px; margin-top:8px; background:#111; color:var(--p); 
-            border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; 
-        }
+        button, select, input { width:100%; padding:12px; margin-top:8px; background:#111; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; }
         button:hover { background:var(--p); color:#000; }
         button.active { background: var(--p); color: #000; }
-        
         .timer-display { font-size: 24px; text-align: center; padding: 10px; border: 1px solid var(--gold); color: var(--gold); margin-top: 10px; }
         .btn-launch { background: var(--gold); color: #000; border: none; }
         .btn-hub { background:#222; border-color:#555; margin-top:auto; padding:20px; }
-        
         #player-list { font-size: 10px; margin-top: 10px; border-top: 1px solid #333; padding-top: 10px; }
-        .player-entry { display: flex; justify-content: space-between; margin-bottom: 5px; padding: 3px; border: 1px solid #222; }
     </style>
 </head>
 <body>
@@ -48,7 +38,7 @@
         <div class="menu-header" onclick="toggleMenu(this)">⏱️ CONTROL DE MISIÓN</div>
         <div class="menu-content">
             <div id="timer" class="timer-display">00:00:00</div>
-            <button class="btn-launch" onclick="launchMission()">🚀 LANZAR / SINCRONIZAR</button>
+            <button class="btn-launch" onclick="launchMission()">🚀 LANZAR / ACTUALIZAR</button>
             <p id="status-label" style="text-align:center; font-size:10px; color:var(--gold)">STANDBY</p>
         </div>
     </div>
@@ -67,9 +57,7 @@
 
     <div class="menu-drop">
         <div class="menu-header" onclick="toggleMenu(this)">👥 OPERADORES ENROLADOS</div>
-        <div class="menu-content" id="player-list">
-            Selecciona una misión para ver personal...
-        </div>
+        <div class="menu-content" id="player-list">Selecciona una misión...</div>
     </div>
 
     <button class="btn-hub" onclick="handleExit()">🔙 VOLVER AL HUB</button>
@@ -77,7 +65,6 @@
 
 <div id="map"></div>
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
@@ -92,7 +79,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let map, drawingManager, currentMissionId = null;
-let overlays = [];
+let overlays = []; 
 let timerInterval;
 
 function initMap() {
@@ -106,40 +93,37 @@ function initMap() {
 
     drawingManager = new google.maps.drawing.DrawingManager({
         drawingControl: false,
-        polygonOptions: { editable: true, fillOpacity: 0.2, strokeWeight: 2 },
-        circleOptions: { editable: true, fillOpacity: 0.4, strokeWeight: 2 }
+        polygonOptions: { editable: false, fillOpacity: 0.2, strokeWeight: 2 },
+        circleOptions: { editable: false, fillOpacity: 0.4, strokeWeight: 2 }
     });
     drawingManager.setMap(map);
 
+    // CRÍTICO: Captura el evento de dibujo y lo manda a Firebase
     google.maps.event.addListener(drawingManager, 'overlaycomplete', (e) => {
         const mode = document.body.dataset.mode;
+        if (!currentMissionId) {
+            e.overlay.setMap(null);
+            return alert("Selecciona una misión primero");
+        }
         saveElement(e, mode);
     });
 
     loadList();
 }
 
-// --- GESTIÓN DE MISIONES EN /misiones/ ---
-
 function createNewMission() {
     const name = document.getElementById('mission-name').value;
-    if(!name) return alert("Ingresa un nombre para la operación");
+    if(!name) return alert("Nombre obligatorio");
     
-    const userData = JSON.parse(localStorage.getItem("usuario"));
     const id = db.ref('misiones').push().key;
-
-    const data = {
+    db.ref(`misiones/${id}`).set({
         id: id,
         nombre: name,
         estado: "STANDBY",
-        creador: userData ? userData.callsign : "ADMIN",
-        timestamp: Date.now(),
-        stats: { deaths_RED: 0, deaths_BLUE: 0 }
-    };
-
-    db.ref(`misiones/${id}`).set(data).then(() => {
+        timestamp: Date.now()
+    }).then(() => {
         document.getElementById('mission-name').value = "";
-        alert("Operación creada con éxito.");
+        alert("Misión creada");
     });
 }
 
@@ -157,23 +141,68 @@ function editMission(id) {
     if(!id) return;
     currentMissionId = id;
     
-    // Escuchar datos de la misión (elementos, estado, jugadores)
+    // Limpiar listener anterior si existe
+    db.ref(`misiones/${id}`).off();
+
     db.ref(`misiones/${id}`).on('value', snap => {
         const m = snap.val();
         if(!m) return;
-
         document.getElementById('status-label').innerText = m.estado;
         if(m.startTime) startTimer(m.startTime);
-        
         renderElements(m.elements);
         renderPlayers(m.players);
     });
 }
 
-// --- DIBUJO Y RENDERIZADO ---
+function saveElement(event, mode) {
+    const id = db.ref().push().key; // ID único para el elemento
+    let data = { id, type: mode };
+
+    if (event.type === 'polygon') {
+        data.path = event.overlay.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
+    } else if (event.type === 'circle') {
+        data.center = {lat: event.overlay.getCenter().lat(), lng: event.overlay.getCenter().lng()};
+        data.radius = event.overlay.getRadius();
+    } else {
+        data.pos = {lat: event.overlay.getPosition().lat(), lng: event.overlay.getPosition().lng()};
+    }
+
+    // Guardar en la rama correcta
+    db.ref(`misiones/${currentMissionId}/elements/${id}`).set(data);
+    
+    // Borramos el dibujo "temporal" del DrawingManager porque el render oficial lo dibujará
+    event.overlay.setMap(null);
+}
+
+function renderElements(elements) {
+    // 1. Limpiar mapa
+    overlays.forEach(o => o.setMap(null));
+    overlays = [];
+    
+    if(!elements) return;
+
+    Object.values(elements).forEach(e => {
+        const color = e.type.includes('RED') ? '#ff3333' : e.type.includes('BLUE') ? '#3333ff' : e.type === 'GAME_ZONE' ? '#00ff00' : '#ffd700';
+        let obj;
+
+        if(e.path) {
+            obj = new google.maps.Polygon({ paths: e.path, fillColor: color, strokeColor: color, map: map, clickable: false });
+        } else if(e.radius) {
+            obj = new google.maps.Circle({ center: e.center, radius: e.radius, fillColor: color, strokeColor: color, map: map, clickable: false });
+        } else {
+            // Etiqueta/Marcador con el nombre del tipo
+            obj = new google.maps.Marker({ 
+                position: e.pos, 
+                map: map, 
+                label: { text: e.type.replace('_', ' '), color: 'white', fontSize: '10px' } 
+            });
+        }
+        overlays.push(obj);
+    });
+}
 
 function setMode(mode, btn) {
-    if(!currentMissionId) return alert("Selecciona o crea una misión primero.");
+    if(!currentMissionId) return alert("Selecciona misión");
     document.querySelectorAll('#tools button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.body.dataset.mode = mode;
@@ -188,76 +217,14 @@ function setMode(mode, btn) {
 
     const color = mode.includes('RED') ? '#ff3333' : mode.includes('BLUE') ? '#3333ff' : mode === 'GAME_ZONE' ? '#00ff00' : '#ffd700';
     drawingManager.setOptions({
-        polygonOptions: { fillColor: color, strokeColor: color },
-        circleOptions: { fillColor: color, strokeColor: color }
+        polygonOptions: { fillColor: color, strokeColor: color, fillOpacity: 0.2 },
+        circleOptions: { fillColor: color, strokeColor: color, fillOpacity: 0.3 }
     });
 }
-
-function saveElement(event, mode) {
-    const id = Math.random().toString(36).substr(2, 9);
-    let data = { id, type: mode };
-
-    if (event.type === 'polygon') {
-        data.path = event.overlay.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
-    } else if (event.type === 'circle') {
-        data.center = {lat: event.overlay.getCenter().lat(), lng: event.overlay.getCenter().lng()};
-        data.radius = event.overlay.getRadius();
-    } else {
-        data.pos = {lat: event.overlay.getPosition().lat(), lng: event.overlay.getPosition().lng()};
-    }
-
-    db.ref(`misiones/${currentMissionId}/elements/${id}`).set(data);
-    event.overlay.setMap(null); 
-}
-
-function renderElements(elements) {
-    overlays.forEach(o => o.setMap(null));
-    overlays = [];
-    if(!elements) return;
-    
-    const bounds = new google.maps.LatLngBounds();
-
-    Object.values(elements).forEach(e => {
-        let obj;
-        const color = e.type.includes('RED') ? '#ff3333' : e.type.includes('BLUE') ? '#3333ff' : e.type === 'GAME_ZONE' ? '#00ff00' : '#ffd700';
-        
-        if(e.path) {
-            obj = new google.maps.Polygon({ paths: e.path, fillColor: color, strokeColor: color, fillOpacity: 0.2, map: map });
-            e.path.forEach(p => bounds.extend(p));
-        } else if(e.radius) {
-            obj = new google.maps.Circle({ center: e.center, radius: e.radius, fillColor: color, strokeColor: color, fillOpacity: 0.3, map: map });
-            bounds.extend(e.center);
-        } else {
-            obj = new google.maps.Marker({ position: e.pos, map: map, title: e.type });
-            bounds.extend(e.pos);
-        }
-        overlays.push(obj);
-    });
-}
-
-function renderPlayers(players) {
-    const list = document.getElementById('player-list');
-    list.innerHTML = "";
-    if(!players) { list.innerHTML = "Sin personal enrolado."; return; }
-
-    Object.values(players).forEach(p => {
-        list.innerHTML += `
-            <div class="player-entry">
-                <span>${p.callsign}</span>
-                <span style="color:${p.team === 'RED' ? 'red' : p.team === 'BLUE' ? 'blue' : 'gold'}">${p.team || 'PENDIENTE'}</span>
-            </div>
-        `;
-    });
-}
-
-// --- UTILIDADES ---
 
 function launchMission() {
     if(!currentMissionId) return;
-    db.ref(`misiones/${currentMissionId}`).update({
-        estado: "ACTIVA",
-        startTime: Date.now()
-    });
+    db.ref(`misiones/${currentMissionId}`).update({ estado: "ACTIVA", startTime: Date.now() });
 }
 
 function startTimer(start) {
@@ -272,18 +239,23 @@ function startTimer(start) {
 }
 
 function clearMap() {
-    if(confirm("¿Eliminar todos los elementos tácticos de esta misión?")) {
+    if(currentMissionId && confirm("¿Borrar todo el dibujo?")) {
         db.ref(`misiones/${currentMissionId}/elements`).remove();
     }
 }
 
+function renderPlayers(players) {
+    const list = document.getElementById('player-list');
+    list.innerHTML = "";
+    if(!players) { list.innerHTML = "Esperando personal..."; return; }
+    Object.values(players).forEach(p => {
+        list.innerHTML += `<div style="border:1px solid #333; padding:5px; margin:2px;">${p.callsign} [${p.team || '?'}]</div>`;
+    });
+}
+
 function handleExit() {
-    const userData = JSON.parse(localStorage.getItem("usuario"));
-    if (userData && (userData.rol === "ADMIN" || userData.rol === "EDITOR")) {
-        location.href = "hub.html";
-    } else {
-        location.href = "hub2.html";
-    }
+    const user = JSON.parse(localStorage.getItem("usuario"));
+    location.href = (user && (user.rol === "ADMIN" || user.rol === "EDITOR")) ? "hub.html" : "hub2.html";
 }
 
 function toggleMenu(h) { h.nextElementSibling.classList.toggle('active'); }
