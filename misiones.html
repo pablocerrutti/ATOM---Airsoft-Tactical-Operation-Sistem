@@ -91,9 +91,10 @@ body { margin:0; font-family: monospace; background:var(--f); color:var(--p); }
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
 <!-- 🔥 GOOGLE MAPS (FALTABA) -->
-<script src="https://maps.googleapis.com/maps/api/js?key=TU_GOOGLE_MAPS_KEY"></script>
-
-<script>
+<script
+src="https://maps.googleapis.com/maps/api/js?key=TU_KEY&callback=initMap"
+async defer>
+</script>
 const firebaseConfig = {
  apiKey: "TU_API_KEY_REAL",
  authDomain: "atom--airsoft.firebaseapp.com",
