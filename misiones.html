@@ -5,71 +5,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>A.T.O.M - Operativo de Campo</title>
     <style>
-        :root { --p:#00ff00; --f:#050505; --red:rgba(255,0,0,0.6); --blue:rgba(0,0,255,0.6); --neutral:rgba(128,128,128,0.5); }
+        :root { --p:#00ff00; --f:#050505; --red:#ff4444; --blue:#4444ff; }
         body { margin:0; font-family: monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; flex-direction: column; }
         
-        #hud-top { width: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: space-around; padding: 12px 0; z-index: 10; border-bottom: 1px solid var(--p); font-weight: bold; }
+        /* HUD Superior */
+        #hud-top { width: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: space-around; padding: 10px 0; z-index: 10; border-bottom: 1px solid var(--p); }
         .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
         #map { flex:1; }
 
-        #side-menu { width: 280px; background: rgba(0,0,0,0.95); border-right: 2px solid var(--p); display: flex; flex-direction: column; padding: 15px; overflow-y: auto; box-sizing: border-box; }
+        /* Panel Lateral */
+        #side-menu { width: 260px; background: rgba(0,0,0,0.95); border-right: 2px solid var(--p); display: flex; flex-direction: column; padding: 15px; overflow-y: auto; box-sizing: border-box; transition: 0.3s; }
         
-        @media (max-width: 768px) { #side-menu { width: 200px; padding: 10px; font-size: 0.8rem; } }
+        /* Selector Minimalista (Solo Flecha) */
+        .mission-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        #mission-selector { background: #111; color: var(--p); border: 1px solid var(--p); padding: 10px; flex: 1; cursor: pointer; appearance: none; text-align: center; }
+        .arrow-icon { color: var(--p); font-size: 1.2rem; }
 
-        button, select { width:100%; padding:12px; margin-top:10px; background:#111; color:var(--p); border:1px solid var(--p); font-weight: bold; cursor: pointer; font-family: inherit; }
-        button:disabled { border-color: #333; color: #555; }
+        /* Desplegables */
+        .collapsible { background: #111; cursor: pointer; padding: 12px; width: 100%; border: 1px solid var(--p); color: var(--p); text-align: left; margin-top: 10px; font-weight: bold; display: flex; justify-content: space-between; }
+        .content { display: none; flex-direction: column; background: rgba(0,255,0,0.05); padding: 5px; border: 1px solid #222; border-top: none; }
+        .active + .content { display: flex; }
+
+        button { width:100%; padding:12px; margin-top:8px; background:#000; color:var(--p); border:1px solid var(--p); font-weight: bold; cursor: pointer; font-family: inherit; }
+        button:disabled { opacity: 0.3; border-color: #333; }
         
-        .btn-enlist { background: #003300; border-color: #00ff00; }
-        .btn-ptt { background: #111; border-color: #00ffff; color: #00ffff; }
-        .btn-ptt.recording { background: #ff0000; color: white; animation: pulse 1s infinite; }
-        .btn-exit { margin-top: auto; border-color: #555; color: #888; }
-
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
+        .btn-enlist { background: #003300; border-color: #00ff00; display: none; }
+        .btn-leave { background: #200; border-color: #f44; color: #f44; display: none; margin-top: 15px; }
+        
         #mission-timer { font-size: 1.5rem; text-shadow: 0 0 5px var(--p); }
-        #respawn-screen { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,0,0,0.95); z-index:1000; flex-direction:column; align-items:center; justify-content:center; text-align: center; color: white; }
     </style>
 </head>
 <body>
 
 <div id="hud-top">
-    <div style="color:#ff4444">RED: <span id="kill-red">0</span></div>
+    <div style="color:var(--red)">R: <span id="kill-red">0</span></div>
     <div id="mission-timer">00:00:00</div>
-    <div style="color:#4444ff">BLUE: <span id="kill-blue">0</span></div>
+    <div style="color:var(--blue)">A: <span id="kill-blue">0</span></div>
 </div>
 
 <div class="main-container">
     <div id="side-menu">
-        <h3 id="user-callsign">IDENTIFICANDO...</h3>
-        <div id="team-badge" style="padding: 5px; text-align: center; border: 1px solid #444; margin-bottom: 10px;">SIN BANDO</div>
+        <h3 id="user-callsign">...</h3>
         
-        <label>OPERACIÓN ACTIVA:</label>
-        <select id="mission-selector" onchange="syncMission(this.value)">
-            <option>Cargando...</option>
-        </select>
-
-        <button id="enlist-btn" class="btn-enlist" onclick="enlistInMission()">📝 ENLISTARSE</button>
-
-        <hr style="width:100%; border:0; border-top:1px solid #333; margin: 15px 0;">
-
-        <button class="btn-ptt" id="ptt-button" disabled>🎤 PTT EQUIPO</button>
-        <button class="btn-med" onclick="requestMedic()" disabled id="med-btn">🚑 SOLICITAR MÉDICO (<span id="med-count">0</span>/2)</button>
-        <button class="btn-enemy" onclick="markEnemyContact()" style="color:#ff4444; border-color:#ff4444" disabled id="enemy-btn">⚠ CONTACTO ENEMIGO</button>
-        
-        <div id="obj-status" style="margin-top:15px; font-size: 0.9rem;">
-            <div id="obj-list">Seleccione una misión...</div>
+        <div class="mission-nav">
+            <span class="arrow-icon">▼</span>
+            <select id="mission-selector" onchange="syncMission(this.value)">
+                <option value="">SELECCIONAR OP.</option>
+            </select>
         </div>
 
-        <button class="btn-exit" onclick="logout()">✖ SALIR</button>
+        <button id="btn-enlist" class="btn-enlist" onclick="enlistPlayer()">📝 ENLISTARSE</button>
+
+        <button class="collapsible" onclick="this.classList.toggle('active')">SISTEMAS TÁCTICOS <span>+</span></button>
+        <div class="content">
+            <button id="ptt-btn" disabled>🎤 PTT EQUIPO</button>
+            <button id="med-btn" onclick="requestMedic()" disabled>🚑 MÉDICO (<span id="med-count">0</span>/2)</button>
+            <button id="enemy-btn" onclick="markEnemy()" disabled style="color:var(--red)">⚠ AVISTAMIENTO</button>
+        </div>
+
+        <div id="obj-status" style="margin-top:15px; border-top:1px solid #333; padding-top:10px; font-size: 0.8rem;">
+            <div id="obj-list">Seleccione una misión para cargar cartografía...</div>
+        </div>
+
+        <button class="btn-leave" id="btn-leave" onclick="leaveMatch()">🏳 ABANDONAR</button>
+        <button style="margin-top:auto; border-color:#555; color:#888;" onclick="logout()">✖ SALIR</button>
     </div>
 
     <div id="map"></div>
-</div>
-
-<div id="respawn-screen">
-    <h1>ELIMINADO</h1>
-    <h2 style="letter-spacing:10px;">REGRESA AL RESPAWN</h2>
-    <p>Solicitudes de médico agotadas</p>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -89,16 +91,6 @@ const auth = firebase.auth();
 
 let map, missionId, myUID, myCallsign, myTeam = null;
 let activeOverlays = [];
-let medRequests = 0;
-
-// Configuración de visualización idéntica al Admin
-const styles = {
-    GAME_ZONE: { fill: '#00ff00', opacity: 0.2 },
-    SAFE_ZONE: { fill: '#ff0000', opacity: 0.3 },
-    RESPAWN_RED: { fill: '#ff0000', opacity: 0.5 },
-    RESPAWN_BLUE: { fill: '#0000ff', opacity: 0.5 },
-    OBJ_GREY: { icon: 'http://maps.google.com/mapfiles/ms/icons/grey-dot.png' }
-};
 
 function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
@@ -109,155 +101,123 @@ function initMap() {
     });
 }
 
-/* --- AUTENTICACIÓN Y ENLISTAMIENTO --- */
 auth.onAuthStateChanged(user => {
     if (user) {
         myUID = user.uid;
-        // Obtenemos el callsign del perfil del usuario (ajusta según tu DB)
         db.ref(`usuarios/${user.uid}`).once('value', snap => {
-            myCallsign = snap.val()?.callsign || "Soldado";
+            myCallsign = snap.val()?.callsign || "Operador";
             document.getElementById('user-callsign').innerText = myCallsign;
         });
         loadMissions();
-    } else {
-        location.href = "login.html";
-    }
+    } else { location.href = "login.html"; }
 });
 
-function enlistInMission() {
-    if (!missionId) return alert("Selecciona una misión");
-    
-    // Registrarse en la lista de participantes de la misión para que el Admin lo vea
-    db.ref(`operaciones/${missionId}/participantes/${myUID}`).set({
-        callsign: myCallsign,
-        team: "PENDIENTE",
-        status: "ACTIVO",
-        lastSeen: Date.now()
-    }).then(() => {
-        alert("¡Enlistado! Espera asignación de equipo por el Admin.");
-        listenTeamAssignment();
-    });
-}
-
-function listenTeamAssignment() {
-    db.ref(`operaciones/${missionId}/participantes/${myUID}/team`).on('value', snap => {
-        myTeam = snap.val();
-        if (myTeam && myTeam !== "PENDIENTE") {
-            document.getElementById('team-badge').innerText = `EQUIPO: ${myTeam}`;
-            document.getElementById('team-badge').style.borderColor = myTeam === 'RED' ? '#ff4444' : '#4444ff';
-            enableCombatButtons();
-        }
-    });
-}
-
-function enableCombatButtons() {
-    document.getElementById('ptt-button').disabled = false;
-    document.getElementById('med-btn').disabled = false;
-    document.getElementById('enemy-btn').disabled = false;
-    document.getElementById('enlist-btn').style.display = 'none';
-}
-
-/* --- MAPA Y ELEMENTOS TÁCTICOS --- */
 function syncMission(id) {
     if(!id) return;
     missionId = id;
-    clearMap();
     
     db.ref(`operaciones/${id}`).on('value', snap => {
         const data = snap.val();
         if(!data) return;
+
+        // 1. Posicionar cámara según el editor
+        if(data.center) {
+            map.setCenter(data.center);
+            map.setZoom(data.zoom || 15);
+        }
+
+        // 2. Renderizar polígonos y marcas exactamente como el editor
+        renderTacticalElements(data.elements);
+        
+        // 3. Control de botones de enlistamiento
+        checkEnlistmentStatus();
         
         if(data.startTime) startClock(data.startTime);
-        renderTacticalData(data.elements);
-        updateScores(data.score);
     });
 }
 
-function renderTacticalData(elements) {
-    clearMap();
+function renderTacticalElements(elements) {
+    activeOverlays.forEach(o => o.setMap(null));
+    activeOverlays = [];
     const list = document.getElementById('obj-list');
-    list.innerHTML = "<strong>OBJETIVOS:</strong><br>";
+    list.innerHTML = "<strong>INTELIGENCIA DE CAMPO:</strong><br>";
 
     if(!elements) return;
 
     Object.values(elements).forEach(e => {
-        // Lógica de visibilidad: No mostramos respawn enemigo si ya tenemos equipo
-        if (myTeam === 'RED' && e.type === 'RESPAWN_BLUE') return;
-        if (myTeam === 'BLUE' && e.type === 'RESPAWN_RED') return;
-
         let overlay;
-        if (e.path) { // Polígonos (Zonas)
+        const color = e.type === 'GAME_ZONE' ? '#00ff00' : e.type.includes('RED') ? '#ff4444' : '#4444ff';
+
+        if (e.path) { // Polígonos de Zona
             overlay = new google.maps.Polygon({
                 paths: e.path,
-                fillColor: styles[e.type]?.fill || '#ffffff',
-                fillOpacity: styles[e.type]?.opacity || 0.2,
-                strokeWeight: 1,
+                fillColor: color,
+                fillOpacity: 0.2,
+                strokeColor: color,
+                strokeWeight: 2,
                 map: map
             });
-        } else if (e.radius) { // Círculos (Respawns)
+        } else if (e.radius) { // Círculos de Respawn
             overlay = new google.maps.Circle({
                 center: e.center,
                 radius: e.radius,
-                fillColor: styles[e.type]?.fill || '#ffffff',
-                fillOpacity: styles[e.type]?.opacity || 0.4,
+                fillColor: color,
+                fillOpacity: 0.4,
+                strokeColor: color,
                 strokeWeight: 1,
                 map: map
             });
-        } else if (e.pos) { // Marcadores (Objetivos)
+        } else if (e.pos) { // Marcadores de Objetivo
             overlay = new google.maps.Marker({
                 position: e.pos,
-                icon: styles.OBJ_GREY.icon,
+                icon: 'http://maps.google.com/mapfiles/ms/icons/grey-dot.png',
                 map: map
             });
-            list.innerHTML += `<div style="margin-top:5px;">🔘 Objetivo: ${e.capturedBy || 'NEUTRAL'}</div>`;
+            list.innerHTML += `<div>🔘 Objetivo Detectado</div>`;
         }
         if(overlay) activeOverlays.push(overlay);
     });
 }
 
-function clearMap() {
-    activeOverlays.forEach(o => o.setMap(null));
-    activeOverlays = [];
-}
-
-/* --- LÓGICA DE COMBATE --- */
-function requestMedic() {
-    if(++medRequests > 2) {
-        document.getElementById('respawn-screen').style.display = 'flex';
-        db.ref(`operaciones/${missionId}/alertas`).push({
-            type: 'BAJA', callsign: myCallsign, team: myTeam, time: Date.now()
-        });
-    } else {
-        document.getElementById('med-count').innerText = medRequests;
-        db.ref(`operaciones/${missionId}/alertas`).push({
-            type: 'MEDICO', callsign: myCallsign, team: myTeam, time: Date.now()
-        });
-    }
-}
-
-function markEnemyContact() {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => {
-        db.ref(`operaciones/${missionId}/contactos`).push({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            team: myTeam,
-            sender: myCallsign,
-            expires: Date.now() + 60000 // 1 minuto
-        });
+function checkEnlistmentStatus() {
+    db.ref(`operaciones/${missionId}/participantes/${myUID}`).once('value', snap => {
+        const p = snap.val();
+        if(p) {
+            document.getElementById('btn-enlist').style.display = 'none';
+            document.getElementById('btn-leave').style.display = 'block';
+            if(p.team && p.team !== "PENDIENTE") enableCombatReady(p.team);
+        } else {
+            document.getElementById('btn-enlist').style.display = 'block';
+            document.getElementById('btn-leave').style.display = 'none';
+        }
     });
 }
 
-function updateScores(score) {
-    if(!score) return;
-    document.getElementById('kill-red').innerText = score.red || 0;
-    document.getElementById('kill-blue').innerText = score.blue || 0;
+function enableCombatReady(team) {
+    myTeam = team;
+    const btns = ['ptt-btn', 'med-btn', 'enemy-btn'];
+    btns.forEach(id => document.getElementById(id).disabled = false);
+}
+
+function enlistPlayer() {
+    db.ref(`operaciones/${missionId}/participantes/${myUID}`).set({
+        callsign: myCallsign,
+        team: "PENDIENTE",
+        status: "ACTIVO"
+    });
+}
+
+function leaveMatch() {
+    if(confirm("¿CONFIRMAR RETIRADA?")) {
+        db.ref(`operaciones/${missionId}/participantes/${myUID}`).remove();
+        location.reload();
+    }
 }
 
 function loadMissions() {
     db.ref("operaciones").on("value", snap => {
         const sel = document.getElementById("mission-selector");
-        sel.innerHTML = '<option value="">-- SELECCIONAR --</option>';
+        sel.innerHTML = '<option value="">▼ SELECCIONAR</option>';
         snap.forEach(c => { sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`; });
     });
 }
@@ -265,13 +225,11 @@ function loadMissions() {
 function startClock(start) {
     setInterval(() => {
         const d = Date.now() - start;
-        if(d < 0) return;
         document.getElementById('mission-timer').innerText = new Date(d).toISOString().substr(11, 8);
     }, 1000);
 }
 
 function logout() { auth.signOut().then(() => location.href = "login.html"); }
-
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
 </body>
