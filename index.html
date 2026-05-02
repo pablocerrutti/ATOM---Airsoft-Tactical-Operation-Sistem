@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistema A.T.O.M. - Uruguay</title>
 
-<link rel="icon" type="image/png" href="favicon.png">
+<link rel="icon" type="image/png" href="logo_atom.png">
 
 <style>
 :root { --p:#00ff00; --f:#050505; }
@@ -23,7 +23,7 @@ body {
  overflow:hidden;
 }
 
-/* SPLASH */
+/* BOOT SCREEN */
 #splash-screen {
  position:fixed;
  inset:0;
@@ -36,7 +36,6 @@ body {
  padding:20px;
 }
 
-/* TERMINAL */
 #boot-text {
  width:100%;
  max-width:500px;
@@ -47,7 +46,6 @@ body {
  white-space:pre-line;
 }
 
-/* PROGRESS */
 #progress {
  width:100%;
  max-width:500px;
@@ -55,25 +53,14 @@ body {
  border:1px solid var(--p);
  margin-top:10px;
 }
+
 #bar {
  height:100%;
  width:0%;
  background:var(--p);
 }
 
-/* LOGO */
-.logo-container {
- width:200px;
- height:200px;
- margin-top:20px;
-}
-.glitch-img {
- width:100%;
- filter:drop-shadow(0 0 5px var(--p));
- animation: glitch 2s infinite;
-}
-
-/* MAIN */
+/* MAIN MENU */
 #main-content {
  display:none;
  opacity:0;
@@ -85,67 +72,49 @@ body {
 .main-title {
  font-size:2rem;
  letter-spacing:3px;
- animation:text-glitch 500ms infinite;
-}
-
-/* TITULOS SECCIONES */
-.section-title{
- margin-top:25px;
- margin-bottom:10px;
- font-size:13px;
- opacity:0.7;
- letter-spacing:2px;
-}
-
-/* GRID RESPONSIVE */
-.grid-container {
- display:grid;
- grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
- gap:15px;
- width:90%;
- max-width:900px;
- padding:10px;
-}
-
-/* BOTONES */
-.module-card {
- border:2px solid var(--p);
- padding:18px;
  text-align:center;
+}
+
+.subtitle {
+ font-size:12px;
+ opacity:0.7;
+ text-align:center;
+ margin-bottom:20px;
+}
+
+/* GRID */
+.grid {
+ display:grid;
+ grid-template-columns:1fr;
+ gap:12px;
+ width:90%;
+ max-width:380px;
+}
+
+.btn {
+ border:2px solid var(--p);
+ padding:15px;
+ text-align:center;
+ cursor:pointer;
  text-decoration:none;
  color:var(--p);
- text-transform:uppercase;
- cursor:pointer;
  transition:0.2s;
- font-size:14px;
- letter-spacing:1px;
+ text-transform:uppercase;
 }
 
-.module-card:hover {
+.btn:hover {
  background:var(--p);
  color:#000;
- transform:scale(1.03);
 }
 
-/* FX */
-@keyframes glitch {
- 0%{transform:translate(0);}
- 20%{transform:translate(-2px,2px);}
- 40%{transform:translate(2px,-2px);}
- 100%{transform:translate(0);}
+/* ADMIN BUTTON */
+#adminBtn {
+ display:none;
+ border-color:#444;
+ opacity:0.5;
 }
 
-@keyframes text-glitch {
- 0%{transform:translate(0);}
- 50%{transform:translate(1px,-1px);}
- 100%{transform:translate(0);}
-}
-
-@keyframes fadeIn {
- from{opacity:0;transform:translateY(10px);}
- to{opacity:1;transform:translateY(0);}
-}
-
+/* SCAN EFFECT */
 body::before {
  content:"";
  position:absolute;
@@ -155,28 +124,27 @@ body::before {
  pointer-events:none;
 }
 
-/* MOBILE */
-@media (max-width:480px){
- .main-title{font-size:1.4rem;}
- .module-card{font-size:12px;padding:14px;}
+/* ANIM */
+@keyframes fadeIn {
+ from {opacity:0; transform:translateY(10px);}
+ to {opacity:1; transform:translateY(0);}
 }
+
 </style>
 </head>
 
 <body>
 
-<!-- SPLASH -->
+<!-- BOOT -->
 <div id="splash-screen">
 
 <div id="boot-text"></div>
 
 <div id="progress">
-<div id="bar"></div>
+ <div id="bar"></div>
 </div>
 
-<div class="logo-container">
-<img src="logo_atom.png" class="glitch-img">
-</div>
+<img src="logo_atom.png" width="160" style="margin-top:20px;">
 
 </div>
 
@@ -184,33 +152,26 @@ body::before {
 <div id="main-content">
 
 <div class="main-title">A.T.O.M SYSTEM</div>
-<p style="opacity:0.7;font-size:12px;">AIRSOFT TACTICAL OPERATION MAPS</p>
-<p style="opacity:0.7;font-size:12px;">Creado por Pablo Cerrutti - Florida</p>
+<div class="subtitle">AIRSOFT TACTICAL OPERATIONS MAP</div>
 
-<div class="section-title">INGRESO A LA PLATAFORMA A.T.O.M</div>
+<div class="grid">
 
-<div class="grid-container">
+<!-- ACCESO -->
+<a class="btn" href="login.html">Ingresar a A.T.O.M</a>
 
-<a href="login.html" class="module-card">INGRESAR A LA PLATAFORMA</a>
+<!-- REGISTRO OPERADOR -->
+<a class="btn" href="registro_usuario.html">Registro de Operadores</a>
 
-<a href="registro_usuario.html" class="module-card">REGISTRO DE OPERADORES</a>
+<!-- USUARIOS -->
+<a class="btn" href="misiones.html">Misiones disponibles</a>
 
-<a href="escuadrones.html" class="module-card">REGISTRO DE ESCUADRONES</a>
+<a class="btn" href="escuadrones.html">Registro de Escuadrones</a>
 
-<a href="misiones.html" class="module-card">MISIONES DISPONIBLES</a>
+<a class="btn" href="usuarios_admin.html">Escuadrones y Operadores Activos</a>
 
-<a href="escuadrones.html" class="module-card">ESCUADRONES Y OPERADORES ACTIVOS</a>
-
-</div>
-
-<div class="section-title">ZONA DE EDITOR / ADMINISTRADOR</div>
-
-<div class="grid-container">
-
-<a href="login.html" class="module-card">INGRESO ADMIN</a>
-
-<a href="admin.html" class="module-card" style="border-color:#555;">
-EDITOR DE MISIONES
+<!-- ADMIN / EDITOR -->
+<a id="adminBtn" class="btn" href="admin.html">
+Zona Editor / Comando Central
 </a>
 
 </div>
@@ -230,8 +191,7 @@ const firebaseConfig = {
  projectId:"atom--airsoft",
  storageBucket:"atom--airsoft.firebasestorage.app",
  messagingSenderId:"310010107781",
- appId:"1:310010107781:web:c7ced7f288a77e0f2bd6ec",
- measurementId:"G-3X2C87MPPV"
+ appId:"1:310010107781:web:c7ced7f288a77e0f2bd6ec"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -239,62 +199,69 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-/* SESSION DETECT */
-auth.onAuthStateChanged(user=>{
- if(user){
-  db.ref("usuarios/"+user.uid).once("value").then(snap=>{
-   const data = snap.val();
-   if(data){
-    localStorage.setItem("usuario", JSON.stringify({
-     id:user.uid,
-     callsign:data.callsign,
-     rol:data.rol
-    }));
-   }
-  });
- }
+/* 🔐 CONTROL DE ROLES */
+auth.onAuthStateChanged(user => {
+ if (!user) return;
+
+ db.ref("usuarios/" + user.uid).once("value").then(snap => {
+  const data = snap.val();
+  if (!data) return;
+
+  const rol = data.rol;
+
+  localStorage.setItem("usuario", JSON.stringify({
+   id: user.uid,
+   callsign: data.callsign,
+   rol: rol
+  }));
+
+  // SOLO ADMIN / EDITOR
+  if (rol === "ADMIN" || rol === "EDITOR") {
+   document.getElementById("adminBtn").style.display = "block";
+   document.getElementById("adminBtn").style.opacity = "1";
+  }
+ });
 });
 
-/* BOOT */
+/* BOOT SEQUENCE */
 const bootLines = [
 "> BOOTING A.T.O.M SYSTEM...",
-"> CHECKING MODULES...",
+"> INITIALIZING MODULES...",
 "> GPS MODULE ........ OK",
-"> DATABASE LINK ..... OK",
-"> ENCRYPTION LAYER .. OK",
+"> DATABASE .......... OK",
 "> AUTH SYSTEM ....... OK",
-"> LOADING TACTICAL MAPS...",
-"> CONNECTING OPERATORS...",
+"> MAP ENGINE ........ OK",
+"> CONNECTING USERS...",
 "> SYSTEM READY"
 ];
 
-let i=0;
-let textEl=document.getElementById("boot-text");
-let bar=document.getElementById("bar");
+let i = 0;
+const text = document.getElementById("boot-text");
+const bar = document.getElementById("bar");
 
-function typeLine(){
- if(i<bootLines.length){
-  textEl.innerHTML+=bootLines[i]+"\n";
+function boot() {
+ if (i < bootLines.length) {
+  text.innerHTML += bootLines[i] + "\n";
+  bar.style.width = ((i+1)/bootLines.length)*100 + "%";
   i++;
-  bar.style.width=(i/bootLines.length*100)+"%";
-  setTimeout(typeLine,250);
- }else{
-  setTimeout(startMain,700);
+  setTimeout(boot, 250);
+ } else {
+  setTimeout(startApp, 700);
  }
 }
 
-function startMain(){
- document.getElementById("splash-screen").style.opacity="0";
+function startApp() {
+ document.getElementById("splash-screen").style.opacity = "0";
 
- setTimeout(()=>{
-  document.getElementById("splash-screen").style.display="none";
-  let main=document.getElementById("main-content");
-  main.style.display="flex";
-  main.style.animation="fadeIn 1s forwards";
- },800);
+ setTimeout(() => {
+  document.getElementById("splash-screen").style.display = "none";
+  const main = document.getElementById("main-content");
+  main.style.display = "flex";
+  main.style.animation = "fadeIn 1s forwards";
+ }, 800);
 }
 
-window.onload=typeLine;
+window.onload = boot;
 </script>
 
 </body>
