@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.T.O.M - TERMINAL OPERADOR</title>
+
+<style>
+:root { --p:#00ff00; --f:#0b0b0b; --dim:#004400; }
+
+body{
+ margin:0;
+ font-family:monospace;
+ background:var(--f);
+ color:var(--p);
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ height:100vh;
+}
+
+.container{
+ width:90%;
+ max-width:400px;
+ text-align:center;
+}
+
+#user {
+ font-size: 14px;
+ border: 1px solid var(--dim);
+ padding: 8px;
+ background: #000;
+ margin-bottom: 20px;
+}
+
+.card{
+ border:2px solid var(--p);
+ padding:15px;
+ margin:10px 0;
+ cursor:pointer;
+ background:#000;
+ transition:0.2s;
+ font-weight: bold;
+ letter-spacing: 1px;
+}
+
+.card:hover{
+ background:var(--p);
+ color:#000;
+ box-shadow: 0 0 15px var(--p);
+}
+
+/* Estilo para botón de salida */
+.btn-exit {
+ margin-top: 25px;
+ color: #ff3333;
+ border-color: #ff3333;
+ padding: 10px;
+ border: 1px solid;
+ cursor: pointer;
+ background: transparent;
+ width: 100%;
+ font-family: inherit;
+}
+
+.btn-exit:hover {
+ background: #ff3333;
+ color: #000;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>A.T.O.M TERMINAL</h2>
+<div id="user">CARGANDO CREDENCIALES...</div>
+
+<!-- Botón solicitado para registrar y subir equipo -->
+<div class="card" onclick="go('escuadrones.html')">
+🛡️ REGISTRAR / SUBIR ESCUADRÓN
+</div>
+
+<div class="card" onclick="go('misiones.html')">
+📡 MISIONES ACTIVAS
+</div>
+
+<!-- Enlace para ver listado de operadores/escuadrones activos -->
+<div class="card" onclick="go('listado_activos.html')">
+👥 OPERADORES EN CAMPO
+</div>
+
+<button class="btn-exit" onclick="logout()">CERRAR SESIÓN</button>
+
+</div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+ apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+ authDomain: "atom--airsoft.firebaseapp.com",
+ databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+ projectId: "atom--airsoft",
+ storageBucket: "atom--airsoft.firebasestorage.app",
+ messagingSenderId: "310010107781",
+ appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.database();
+
+/* LOGIN CHECK */
+auth.onAuthStateChanged(async u=>{
+ if(!u){
+  location.href="login.html";
+  return;
+ }
+
+ const snap = await db.ref("usuarios/"+u.uid).once("value");
+ const d = snap.val();
+
+ if(!d){
+  auth.signOut();
+  return;
+ }
+
+ // Mostrar información del operador logueado
+ document.getElementById("user").innerText =
+ "OPERADOR: " + d.callsign + " | " + d.rol;
+});
+
+/* NAVEGACIÓN */
+function go(url){
+ location.href = url;
+}
+
+function logout(){
+ auth.signOut().then(()=>{
+  location.href="login.html";
+ });
+}
+</script>
+
+</body>
+</html>
