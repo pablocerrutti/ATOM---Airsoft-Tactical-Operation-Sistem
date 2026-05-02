@@ -27,7 +27,7 @@ body {
  margin-top:20px;
 }
 
-input, button {
+input, button, select {
  width:100%;
  padding:10px;
  margin-top:10px;
@@ -37,24 +37,35 @@ input, button {
 }
 
 .item {
- padding:8px;
+ padding:10px;
  border-bottom:1px solid #222;
  font-size:14px;
+}
+
+.small {
+ font-size:12px;
+ opacity:0.7;
 }
 </style>
 </head>
 
 <body>
 
-<h2>ESCUADRONES</h2>
+<h2>ESCUADRONES A.T.O.M</h2>
 
 <div class="box">
 <input id="nombre" placeholder="Nombre escuadrón">
+
+<select id="equipo">
+<option value="ROJO">ROJO</option>
+<option value="AZUL">AZUL</option>
+</select>
+
 <button onclick="crearEscuadron()">CREAR ESCUADRÓN</button>
 </div>
 
 <div class="box">
-<h3>LISTA</h3>
+<h3>ESCUADRONES ACTIVOS</h3>
 <div id="lista"></div>
 </div>
 
@@ -78,50 +89,76 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-let user=null;
+let user = null;
 
-auth.onAuthStateChanged(async u=>{
- if(!u){ location.href="login.html"; return; }
+/* LOGIN CHECK */
+auth.onAuthStateChanged(async u => {
+ if (!u) {
+  location.href = "login.html";
+  return;
+ }
 
- const snap = await db.ref("usuarios/"+u.uid).once("value");
- user = snap.val();
+ const snap = await db.ref("usuarios/" + u.uid).once("value");
+ const data = snap.val();
 
- cargar();
+ if (!data) {
+  auth.signOut();
+  return;
+ }
+
+ user = {
+  uid: u.uid,
+  callsign: data.callsign,
+  rol: data.rol
+ };
+
+ cargarEscuadrones();
 });
 
+/* CREAR ESCUADRÓN */
 function crearEscuadron(){
 
- let nombre = document.getElementById("nombre").value.trim();
- if(!nombre) return;
+ const nombre = document.getElementById("nombre").value.trim();
+ const equipo = document.getElementById("equipo").value;
 
- let ref = db.ref("escuadrones").push();
+ if(!nombre) return alert("Nombre requerido");
+
+ const ref = db.ref("escuadrones").push();
 
  ref.set({
-  nombre:nombre,
-  lider:user.callsign,
-  miembros:{[user.callsign]:true}
+  nombre,
+  equipo,
+  lider: user.callsign,
+  miembros: {
+   [user.callsign]: true
+  },
+  creado: Date.now()
  });
 
- document.getElementById("nombre").value="";
- cargar();
+ document.getElementById("nombre").value = "";
 }
 
-function cargar(){
+/* CARGAR ESCUADRONES (SIN DUPLICAR LISTENERS) */
+function cargarEscuadrones(){
 
- db.ref("escuadrones").on("value",snap=>{
+ db.ref("escuadrones").off(); // 🔥 evita duplicados
 
-  let html="";
+ db.ref("escuadrones").on("value", snap => {
 
-  snap.forEach(s=>{
-   let d=s.val();
+  let html = "";
+
+  snap.forEach(s => {
+   const d = s.val();
+
    html += `
    <div class="item">
     <b>${d.nombre}</b><br>
-    líder: ${d.lider}
+    <span class="small">Equipo: ${d.equipo}</span><br>
+    <span class="small">Líder: ${d.lider}</span>
    </div>`;
   });
 
-  document.getElementById("lista").innerHTML=html;
+  document.getElementById("lista").innerHTML = html;
 
  });
 
