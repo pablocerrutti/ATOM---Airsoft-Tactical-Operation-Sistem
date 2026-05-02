@@ -16,23 +16,26 @@
         .menu-content { padding:10px; display:none; flex-direction:column; }
         .menu-content.active { display:flex; }
 
-        button, select, input { width:100%; padding:12px; margin-top:8px; background:#111; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; }
+        button, select, input { width:100%; padding:12px; margin-top:8px; background:#111; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; transition: 0.3s; }
         button:hover { background:var(--p); color:#000; }
         
         .timer-display { font-size: 24px; text-align: center; padding: 10px; border: 1px solid var(--gold); color: var(--gold); margin-top: 10px; }
         .btn-launch { background: var(--gold); color: #000; border: none; font-size: 1.1rem; }
         .btn-hub { background:#222; border-color:#555; margin-top:auto; padding:20px; }
+        
+        select option { background: #000; color: var(--p); }
     </style>
 </head>
 <body>
 
 <div id="panel">
     <div style="padding:15px; border-bottom:2px solid var(--p)">
-        <h3>A.T.O.M EDITOR V2</h3>
+        <h3 style="margin:0 0 10px 0;">A.T.O.M EDITOR V2</h3>
+        <!-- Selector de Misiones Limpio -->
         <select id="mission-selector" onchange="editMission(this.value)">
-            <option value="">-- MISIONES EN PARALELO --</option>
+            <option value="">-- SELECCIONAR OPERACIÓN --</option>
         </select>
-        <input id="mission-name" placeholder="Nombre de Misión">
+        <input id="mission-name" placeholder="Nombre de Nueva Misión">
         <button onclick="createNewMission()" style="background:#003300">NUEVA MISIÓN</button>
     </div>
 
@@ -62,8 +65,7 @@
     <div class="menu-drop">
         <div class="menu-header" onclick="toggleMenu(this)">💾 GESTIÓN CLOUD <span>+</span></div>
         <div class="menu-content">
-            <button onclick="saveCurrentMission()">GUARDAR CAMBIOS</button>
-            <button onclick="deleteCurrentMission()" style="color:var(--red); border-color:var(--red)">ELIMINAR</button>
+            <button onclick="deleteCurrentMission()" style="color:var(--red); border-color:var(--red)">ELIMINAR MISIÓN ACTUAL</button>
         </div>
     </div>
 
@@ -93,10 +95,11 @@ let missionInterval;
 
 function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
-        center: {lat:-34.5, lng:-56.2},
+        center: {lat:-34.34, lng:-56.71}, // Centro por defecto (Uruguay)
         zoom: 15,
         mapTypeId: "satellite",
-        disableDefaultUI: false
+        disableDefaultUI: false,
+        tilt: 45
     });
 
     drawingManager = new google.maps.drawing.DrawingManager({
@@ -115,7 +118,7 @@ function initMap() {
 }
 
 function setMode(mode) {
-    if(!currentMissionId) return alert("Selecciona una misión activa.");
+    if(!currentMissionId) return alert("Primero selecciona o crea una misión.");
     document.body.dataset.mode = mode;
     
     const isCircle = mode.includes("RESPAWN");
@@ -126,7 +129,6 @@ function setMode(mode) {
         isPolygon ? google.maps.drawing.OverlayType.POLYGON : google.maps.drawing.OverlayType.MARKER
     );
 
-    // Estilos visuales dinámicos para el editor
     const color = mode === 'GAME_ZONE' ? '#00ff00' : 
                   mode === 'SAFE_ZONE' ? '#ff3333' : 
                   mode.includes('RED') ? '#ff3333' : '#3333ff';
@@ -137,7 +139,6 @@ function setMode(mode) {
     });
 }
 
-// 💾 PROCESO DE GUARDADO MEJORADO
 function processOverlay(event, mode) {
     const id = Math.random().toString(36).substr(2, 9);
     let elementData = { id, type: mode };
@@ -151,13 +152,95 @@ function processOverlay(event, mode) {
         elementData.pos = {lat: event.overlay.getPosition().lat(), lng: event.overlay.getPosition().lng()};
     }
 
-    // Guardado inmediato en Firebase para persistencia real
+    // Guardado y limpieza inmediata
     db.ref(`operaciones/${currentMissionId}/elements/${id}`).set(elementData);
-    event.overlay.setMap(null); // Limpiamos el temporal para que el render oficial lo dibuje
+    event.overlay.setMap(null); 
     drawingManager.setDrawingMode(null);
 }
 
-// 🚀 LANZAMIENTO DE MISIÓN Y RELOJ
+function editMission(id) {
+    if(!id) return;
+    currentMissionId = id;
+    
+    // Escuchar cambios de la misión
+    db.ref(`operaciones/${id}`).on('value', snap => {
+        const m = snap.val();
+        if(!m) return;
+        
+        document.getElementById('mission-name').value = m.nombre;
+        document.getElementById('status-label').innerText = "ESTADO: " + (m.estado || "STANDBY");
+        
+        if(m.startTime) updateTimer(m.startTime);
+        renderMission(m.elements);
+    });
+}
+
+function renderMission(elements) {
+    currentOverlays.forEach(o => o.setMap(null));
+    currentOverlays = [];
+    if(!elements) return;
+
+    const bounds = new google.maps.LatLngBounds();
+    let hasElements = false;
+
+    Object.values(elements).forEach(e => {
+        let obj;
+        const color = e.type === 'GAME_ZONE' ? '#00ff00' : 
+                      e.type === 'SAFE_ZONE' ? '#ff3333' : 
+                      e.type.includes('RED') ? '#ff3333' : '#3333ff';
+
+        if(e.path) {
+            obj = new google.maps.Polygon({ paths: e.path, fillColor: color, strokeColor: color, fillOpacity: 0.15, map: map, zIndex: e.type === 'GAME_ZONE' ? 1 : 2 });
+            e.path.forEach(p => bounds.extend(p));
+            hasElements = true;
+        } else if(e.radius) {
+            obj = new google.maps.Circle({ center: e.center, radius: e.radius, fillColor: color, strokeColor: color, fillOpacity: 0.3, map: map });
+            bounds.extend(e.center);
+            hasElements = true;
+        } else {
+            obj = new google.maps.Marker({ position: e.pos, map: map, icon: 'http://maps.google.com/mapfiles/ms/icons/grey-dot.png' });
+            bounds.extend(e.pos);
+            hasElements = true;
+        }
+        currentOverlays.push(obj);
+    });
+
+    // Auto-centrado lógico: vuela a la zona si hay elementos
+    if(hasElements) {
+        map.fitBounds(bounds);
+    }
+}
+
+function createNewMission() {
+    const name = document.getElementById('mission-name').value;
+    if(!name) return alert("Asigna un nombre a la operación.");
+    
+    currentMissionId = db.ref('operaciones').push().key;
+    db.ref(`operaciones/${currentMissionId}`).set({ 
+        nombre: name, 
+        estado: "STANDBY",
+        created: Date.now() 
+    });
+    
+    // Seleccionar automáticamente la nueva misión
+    setTimeout(() => {
+        document.getElementById('mission-selector').value = currentMissionId;
+        editMission(currentMissionId);
+    }, 500);
+}
+
+function loadMissionsList() {
+    db.ref("operaciones").on("value", s => {
+        const sel = document.getElementById("mission-selector");
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="">-- SELECCIONAR OPERACIÓN --</option>';
+        s.forEach(child => {
+            sel.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
+        });
+        sel.value = currentVal;
+    });
+}
+
 function launchMission() {
     if(!currentMissionId) return;
     const startTime = Date.now();
@@ -165,7 +248,6 @@ function launchMission() {
         estado: "ACTIVA",
         startTime: startTime
     });
-    alert("MISIÓN LANZADA: Reloj sincronizado para todos los operadores.");
 }
 
 function updateTimer(startTime) {
@@ -179,87 +261,18 @@ function updateTimer(startTime) {
     }, 1000);
 }
 
-function editMission(id) {
-    if(!id) return;
-    currentMissionId = id;
-    db.ref(`operaciones/${id}`).on('value', snap => {
-        const m = snap.val();
-        if(!m) return;
-        document.getElementById('mission-name').value = m.nombre;
-        document.getElementById('status-label').innerText = "ESTADO: " + (m.estado || "STANDBY");
-        if(m.startTime) updateTimer(m.startTime);
-        renderMission(m.elements);
-    });
-}
-
-// 🗺️ RENDERIZADO TÁCTICO PARA OPERADORES
-function renderMission(elements) {
-    currentOverlays.forEach(o => o.setMap(null));
-    currentOverlays = [];
-    if(!elements) return;
-
-    Object.values(elements).forEach(e => {
-        let obj;
-        const color = e.type === 'GAME_ZONE' ? '#00ff00' : 
-                      e.type === 'SAFE_ZONE' ? '#ff3333' : 
-                      e.type.includes('RED') ? '#ff3333' : '#3333ff';
-
-        if(e.path) {
-            obj = new google.maps.Polygon({ 
-                paths: e.path, 
-                fillColor: color, 
-                strokeColor: color, 
-                fillOpacity: 0.15, 
-                map: map,
-                zIndex: e.type === 'GAME_ZONE' ? 1 : 2
-            });
-        } else if(e.radius) {
-            obj = new google.maps.Circle({ 
-                center: e.center, 
-                radius: e.radius, 
-                fillColor: color, 
-                strokeColor: color, 
-                fillOpacity: 0.3, 
-                map: map 
-            });
-        } else {
-            obj = new google.maps.Marker({ 
-                position: e.pos, 
-                map: map, 
-                icon: 'http://maps.google.com/mapfiles/ms/icons/grey-dot.png',
-                title: "OBJETIVO"
-            });
-        }
-        currentOverlays.push(obj);
-    });
-}
-
-function createNewMission() {
-    const name = document.getElementById('mission-name').value;
-    if(!name) return alert("Asigna un nombre a la operación.");
-    currentMissionId = db.ref('operaciones').push().key;
-    db.ref(`operaciones/${currentMissionId}`).set({ 
-        nombre: name, 
-        estado: "STANDBY",
-        created: Date.now() 
-    });
-}
-
-function loadMissionsList() {
-    db.ref("operaciones").on("value", s => {
-        const sel = document.getElementById("mission-selector");
-        sel.innerHTML = '<option value="">-- SELECCIONAR OPERACIÓN --</option>';
-        s.forEach(child => {
-            sel.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
-        });
-    });
+function deleteCurrentMission() {
+    if(!currentMissionId) return;
+    if(confirm("¿Seguro que deseas ELIMINAR esta operación de la nube?")) {
+        db.ref(`operaciones/${currentMissionId}`).remove();
+        location.reload();
+    }
 }
 
 function toggleMenu(header) {
     header.nextElementSibling.classList.toggle('active');
 }
 </script>
-<!-- API de Google Maps con Librería de Dibujo -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing&callback=initMap" async defer></script>
 </body>
 </html>
