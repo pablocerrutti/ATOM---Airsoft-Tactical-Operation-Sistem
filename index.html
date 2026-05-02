@@ -88,27 +88,43 @@ body {
  animation:text-glitch 500ms infinite;
 }
 
-.grid-container {
- display:grid;
- grid-template-columns:1fr;
- gap:15px;
- width:90%;
- max-width:380px;
+/* TITULOS SECCIONES */
+.section-title{
+ margin-top:25px;
+ margin-bottom:10px;
+ font-size:13px;
+ opacity:0.7;
+ letter-spacing:2px;
 }
 
+/* GRID RESPONSIVE */
+.grid-container {
+ display:grid;
+ grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+ gap:15px;
+ width:90%;
+ max-width:900px;
+ padding:10px;
+}
+
+/* BOTONES */
 .module-card {
  border:2px solid var(--p);
- padding:20px;
+ padding:18px;
  text-align:center;
  text-decoration:none;
  color:var(--p);
  text-transform:uppercase;
  cursor:pointer;
+ transition:0.2s;
+ font-size:14px;
+ letter-spacing:1px;
 }
 
 .module-card:hover {
  background:var(--p);
  color:#000;
+ transform:scale(1.03);
 }
 
 /* FX */
@@ -138,6 +154,12 @@ body::before {
  background-size:100% 4px;
  pointer-events:none;
 }
+
+/* MOBILE */
+@media (max-width:480px){
+ .main-title{font-size:1.4rem;}
+ .module-card{font-size:12px;padding:14px;}
+}
 </style>
 </head>
 
@@ -163,18 +185,32 @@ body::before {
 
 <div class="main-title">A.T.O.M SYSTEM</div>
 <p style="opacity:0.7;font-size:12px;">AIRSOFT TACTICAL OPERATION MAPS</p>
-<p style="opacity:0.7;font-size:12px;">creado por Pablo Cerrutti - Florida</p>
+<p style="opacity:0.7;font-size:12px;">Creado por Pablo Cerrutti - Florida</p>
+
+<div class="section-title">INGRESO A LA PLATAFORMA A.T.O.M</div>
 
 <div class="grid-container">
 
-<a href="login.html" class="module-card">INGRESAR</a>
+<a href="login.html" class="module-card">INGRESAR A LA PLATAFORMA</a>
 
-<a href="registro_usuario.html" class="module-card">REGISTRARSE</a>
+<a href="registro_usuario.html" class="module-card">REGISTRO DE OPERADORES</a>
 
-<a href="misiones.html" class="module-card">OPERACIONES</a>
+<a href="escuadrones.html" class="module-card">REGISTRO DE ESCUADRONES</a>
 
-<a id="adminBtn" href="admin.html" class="module-card" style="border-color:#444;opacity:0.5;display:none;">
-COMANDO CENTRAL
+<a href="misiones.html" class="module-card">MISIONES DISPONIBLES</a>
+
+<a href="escuadrones.html" class="module-card">ESCUADRONES Y OPERADORES ACTIVOS</a>
+
+</div>
+
+<div class="section-title">ZONA DE EDITOR / ADMINISTRADOR</div>
+
+<div class="grid-container">
+
+<a href="login.html" class="module-card">INGRESO ADMIN</a>
+
+<a href="admin.html" class="module-card" style="border-color:#555;">
+EDITOR DE MISIONES
 </a>
 
 </div>
@@ -189,7 +225,13 @@ COMANDO CENTRAL
 <script>
 const firebaseConfig = {
  apiKey:"AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
- databaseURL:"https://atom--airsoft-default-rtdb.firebaseio.com"
+ authDomain:"atom--airsoft.firebaseapp.com",
+ databaseURL:"https://atom--airsoft-default-rtdb.firebaseio.com",
+ projectId:"atom--airsoft",
+ storageBucket:"atom--airsoft.firebasestorage.app",
+ messagingSenderId:"310010107781",
+ appId:"1:310010107781:web:c7ced7f288a77e0f2bd6ec",
+ measurementId:"G-3X2C87MPPV"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -197,24 +239,17 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
-/* 🔒 DETECTAR SESIÓN */
+/* SESSION DETECT */
 auth.onAuthStateChanged(user=>{
  if(user){
   db.ref("usuarios/"+user.uid).once("value").then(snap=>{
    const data = snap.val();
-
    if(data){
     localStorage.setItem("usuario", JSON.stringify({
      id:user.uid,
      callsign:data.callsign,
      rol:data.rol
     }));
-
-    // 🎯 Mostrar admin solo si corresponde
-    if(data.rol === "ADMIN" || data.rol === "EDITOR"){
-     document.getElementById("adminBtn").style.display = "block";
-     document.getElementById("adminBtn").style.opacity = "1";
-    }
    }
   });
  }
@@ -233,34 +268,33 @@ const bootLines = [
 "> SYSTEM READY"
 ];
 
-let i = 0;
-let textEl = document.getElementById("boot-text");
-let bar = document.getElementById("bar");
+let i=0;
+let textEl=document.getElementById("boot-text");
+let bar=document.getElementById("bar");
 
 function typeLine(){
- if(i < bootLines.length){
-  textEl.innerHTML += bootLines[i] + "\n";
+ if(i<bootLines.length){
+  textEl.innerHTML+=bootLines[i]+"\n";
   i++;
-  bar.style.width = (i / bootLines.length * 100) + "%";
-  setTimeout(typeLine, 250);
- } else {
-  setTimeout(startMain, 700);
+  bar.style.width=(i/bootLines.length*100)+"%";
+  setTimeout(typeLine,250);
+ }else{
+  setTimeout(startMain,700);
  }
 }
 
 function startMain(){
- document.getElementById("splash-screen").style.opacity = "0";
+ document.getElementById("splash-screen").style.opacity="0";
 
  setTimeout(()=>{
-  document.getElementById("splash-screen").style.display = "none";
-  let main = document.getElementById("main-content");
-  main.style.display = "flex";
-  main.style.animation = "fadeIn 1s forwards";
+  document.getElementById("splash-screen").style.display="none";
+  let main=document.getElementById("main-content");
+  main.style.display="flex";
+  main.style.animation="fadeIn 1s forwards";
  },800);
 }
 
-window.onload = typeLine;
-
+window.onload=typeLine;
 </script>
 
 </body>
