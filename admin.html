@@ -13,27 +13,23 @@ body {
  font-family: monospace;
  background:var(--f);
  color:var(--p);
- height:100vh;
  display:flex;
+ height:100vh;
  overflow:hidden;
 }
 
-/* PANEL */
 #panel {
  width:320px;
  background:#050505;
  border-right:2px solid var(--p);
  padding:10px;
- overflow-y:auto;
+ overflow:auto;
 }
 
-/* MAPA */
 #map {
  flex:1;
- height:100vh;
 }
 
-/* UI */
 button, input, select {
  width:100%;
  margin-top:6px;
@@ -43,20 +39,10 @@ button, input, select {
  border:1px solid var(--p);
 }
 
-/* RESPONSIVE */
-@media (max-width: 768px) {
- body { flex-direction:column; }
-
- #panel {
-  width:100%;
-  height:45vh;
-  border-right:none;
-  border-top:2px solid var(--p);
- }
-
- #map {
-  height:55vh;
- }
+@media (max-width:768px){
+ body{flex-direction:column;}
+ #panel{width:100%;height:45vh;}
+ #map{height:55vh;}
 }
 </style>
 </head>
@@ -64,33 +50,33 @@ button, input, select {
 <body>
 
 <div id="panel">
+
 <h3>COMANDO</h3>
 
-<select id="misiones"></select>
+<select id="misiones" onchange="loadMission(this.value)"></select>
 
 <input id="nombre" placeholder="Nombre misión">
 
-<button onclick="guardarMision()">GUARDAR</button>
-<button onclick="nuevaMision()">NUEVA</button>
+<button onclick="saveMission()">GUARDAR MISIÓN</button>
+<button onclick="newMission()">NUEVA MISIÓN</button>
 
 <hr>
 
-<h3>EDITOR MAPA</h3>
-<button onclick="setMode('zona')">AREA DE JUEGO</button>
-<button onclick="setMode('segura')">ZONA SEGURA</button>
-<button onclick="setMode('objetivo')">OBJETIVO</button>
+<h3>HERRAMIENTAS</h3>
+<button onclick="setMode('ZONA')">ZONA JUEGO</button>
+<button onclick="setMode('OBJETIVO')">OBJETIVO</button>
+<button onclick="setMode('NEUTRO')">NEUTRO</button>
+
+<button onclick="clearMode()">DESACTIVAR DIBUJO</button>
 
 <hr>
 
-<div id="jugadores"></div>
-
-<button onclick="lanzar()">LANZAR</button>
 <button onclick="logout()">SALIR</button>
+
 </div>
 
 <div id="map"></div>
 
-<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -107,40 +93,16 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-
-const auth = firebase.auth();
 const db = firebase.database();
+const auth = firebase.auth();
 
 let map;
 let mode = null;
+let missionId = null;
 let shapes = [];
-let currentUser = null;
+let objectives = {};
 
-/* 🔒 CONTROL DE ACCESO */
-auth.onAuthStateChanged(user => {
- if (!user) {
-  location.href = "login.html";
-  return;
- }
-
- db.ref("usuarios/" + user.uid).once("value").then(snap => {
-  const data = snap.val();
-
-  if (!data || (data.rol !== "ADMIN" && data.rol !== "EDITOR")) {
-   alert("ACCESO DENEGADO");
-   location.href = "misiones.html";
-   return;
-  }
-
-  currentUser = data;
-
-  initMap();
- });
-});
-
-/* 🔥 MAPA GLOBAL (IMPORTANTE FIX GOOGLE MAPS) */
 window.initMap = function () {
-
  map = new google.maps.Map(document.getElementById("map"), {
   center: { lat: -34.9, lng: -56.2 },
   zoom: 15,
@@ -148,69 +110,88 @@ window.initMap = function () {
  });
 
  map.addListener("click", (e) => {
-  if (!mode) return;
+  if (!mode || !missionId) return;
+
+  const obj = {
+   type: mode,
+   lat: e.latLng.lat(),
+   lng: e.latLng.lng()
+  };
+
+  shapes.push(obj);
 
   new google.maps.Marker({
    position: e.latLng,
-   map: map
-  });
-
-  shapes.push({
-   role: mode,
-   lat: e.latLng.lat(),
-   lng: e.latLng.lng()
+   map: map,
+   icon: mode === "OBJETIVO"
+     ? "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
+     : "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
   });
  });
-
 };
 
 /* MODOS */
-function setMode(m) {
- mode = m;
+function setMode(m){ mode = m; }
+function clearMode(){ mode = null; }
+
+/* MISIONES */
+function loadMissions(){
+ db.ref("operaciones").on("value",snap=>{
+  let sel=document.getElementById("misiones");
+  sel.innerHTML="";
+  snap.forEach(s=>{
+   sel.innerHTML += `<option value="${s.key}">${s.val().nombre}</option>`;
+  });
+ });
 }
 
-/* RESET */
-function nuevaMision() {
+function loadMission(id){
+ missionId = id;
  shapes = [];
- document.getElementById("nombre").value = "";
- alert("Nueva misión iniciada");
+
+ db.ref("operaciones/"+id).once("value",snap=>{
+  const m = snap.val();
+  document.getElementById("nombre").value = m.nombre;
+ });
+
 }
 
 /* GUARDAR */
-function guardarMision() {
+function saveMission(){
+ if(!missionId){
+  missionId = db.ref("operaciones").push().key;
+ }
 
- const nombre = document.getElementById("nombre").value.trim();
+ const nombre = document.getElementById("nombre").value;
 
- if (!nombre) return alert("Falta nombre");
-
- db.ref("operaciones").push().set({
+ db.ref("operaciones/"+missionId).set({
   nombre,
   zonas: shapes,
-  estado: { activo: false },
-  creadoPor: currentUser.callsign
+  estado: { activo:false },
+  modo:"DOMINIO"
  });
 
- alert("Misión guardada");
+ alert("Guardado");
 }
 
-/* LANZAR */
-function lanzar() {
- alert("Misión activada (placeholder)");
+/* NUEVA */
+function newMission(){
+ shapes = [];
+ missionId = null;
+ document.getElementById("nombre").value="";
 }
 
 /* LOGOUT */
-function logout() {
- auth.signOut().then(() => {
-  location.href = "login.html";
- });
+function logout(){
+ auth.signOut().then(()=>location.href="login.html");
 }
+
+/* INIT */
+loadMissions();
+
 </script>
 
-<!-- GOOGLE MAPS (IMPORTANTE: CALLBACK GLOBAL) -->
-<script
-src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap"
-async defer>
-</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
 
 </body>
 </html>
