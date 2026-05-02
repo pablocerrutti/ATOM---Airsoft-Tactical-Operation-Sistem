@@ -98,9 +98,13 @@ function login(){
 
   setTimeout(()=>{
    // REDIRECCIÓN SEGÚN ROL SOLICITADO
-   if(rol === "ADMIN" || rol === "EDITOR") {
+   if(rol === "ADMIN" ) {
     location.href = "hub.html";
-   } else {
+   }
+   if( rol === "EDITOR") {
+    location.href = "hub.html";
+   }
+   else {
     location.href = "hub2.html";
    }
   }, 600);
