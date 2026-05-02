@@ -3,63 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.O.M - COMANDO CENTRAL</title>
+    <title>A.T.O.M - Editor de Operaciones</title>
     <style>
-        :root { --p:#00ff00; --f:#050505; --red:#ff4444; --blue:#4444ff; }
-        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
+        :root { --p:#00ff00; --f:#050505; --red:rgba(255,0,0,0.4); --blue:rgba(0,0,255,0.4); --game:rgba(0,255,0,0.2); }
+        body { margin:0; font-family: monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
         
-        /* Paneles Laterales */
-        .side-panel { width: 300px; background:#000; border:1px solid #222; padding:15px; overflow-y:auto; transition: 0.3s; z-index: 10; }
-        #left-menu { border-right: 2px solid var(--p); }
-        #right-menu { border-left: 2px solid var(--p); }
+        #panel { width:320px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; z-index:10; }
         #map { flex:1; }
 
-        button, select, input { width:100%; margin-top:8px; padding:10px; background:#111; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family: inherit; }
-        button:hover { background: var(--p); color: #000; }
+        .menu-drop { border-bottom: 1px solid #222; }
+        .menu-header { padding:15px; background:#111; cursor:pointer; font-weight:bold; display:flex; justify-content:space-between; }
+        .menu-content { padding:10px; display:none; flex-direction:column; }
+        .menu-content.active { display:flex; }
+
+        button, select, input { width:100%; padding:12px; margin-top:8px; background:#111; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; }
+        button:hover { background:var(--p); color:#000; }
         
-        .section { margin-top:15px; border-top:1px solid #333; padding-top:10px; }
-        .player-row { display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #222; font-size: 0.8rem; }
-        .btn-team { width: 30px; height: 30px; padding: 0; font-size: 10px; }
-        
-        #mission-timer { font-size: 1.5rem; text-align: center; color: var(--p); text-shadow: 0 0 10px var(--p); margin: 10px 0; }
-        .deploy-active { background: var(--red) !important; color: white !important; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        .btn-hub { background:#222; border-color:#555; margin-top:auto; padding:20px; }
     </style>
 </head>
 <body>
 
-<!-- PANEL IZQUIERDO: HERRAMIENTAS Y MISIÓN -->
-<div id="left-menu" class="side-panel">
-    <h3>MISIÓN</h3>
-    <select id="misiones" onchange="loadMission(this.value)"></select>
-    <input id="nombre" placeholder="Nombre de Operación">
-    <div id="mission-timer">00:00:00</div>
-    <button id="btn-launch" onclick="launchMission()">LANZAR MISIÓN (START)</button>
-    <button onclick="saveMission()">GUARDAR MAPA</button>
-
-    <div class="section">
-        <h4>EDITOR TÁCTICO</h4>
-        <button onclick="setDrawingMode('polygon')">DIBUJAR POLÍGONO</button>
-        <button onclick="setDrawingMode('marker')">MARCAR PUNTO</button>
-        <select id="pointType">
-            <option value="OBJ_NEUTRAL">OBJETIVO NEUTRO</option>
-            <option value="RESPAWN_RED">RESPAWN ROJO</option>
-            <option value="RESPAWN_BLUE">RESPAWN AZUL</option>
-            <option value="SAFE_ZONE">ZONA SEGURA</option>
+<div id="panel">
+    <div style="padding:15px; border-bottom:2px solid var(--p)">
+        <h3>A.T.O.M EDITOR</h3>
+        <select id="mission-selector" onchange="editMission(this.value)">
+            <option value="">-- MISIONES EN PARALELO --</option>
         </select>
+        <input id="mission-name" placeholder="Nombre de Misión">
+        <button onclick="createNewMission()" style="background:#003300">NUEVA MISIÓN</button>
     </div>
+
+    <!-- Menú Desplegable: Herramientas -->
+    <div class="menu-drop">
+        <div class="menu-header" onclick="toggleMenu(this)">⚒ HERRAMIENTAS <span>+</span></div>
+        <div class="menu-content active">
+            <button onclick="setMode('GAME_ZONE')">🟢 ZONA DE JUEGO</button>
+            <button onclick="setMode('SAFE_ZONE')">🔴 ZONA SEGURA (POLÍGONO)</button>
+            <button onclick="setMode('RESPAWN_RED')">⭕ RESP. ROJO (CÍRCULO)</button>
+            <button onclick="setMode('RESPAWN_BLUE')">⭕ RESP. AZUL (CÍRCULO)</button>
+            <button onclick="setMode('OBJ_GREY')">🔘 OBJETIVO (GRIS)</button>
+        </div>
+    </div>
+
+    <!-- Menú Desplegable: Acciones -->
+    <div class="menu-drop">
+        <div class="menu-header" onclick="toggleMenu(this)">💾 GESTIÓN <span>+</span></div>
+        <div class="menu-content">
+            <button onclick="saveCurrentMission()">GUARDAR MISIÓN</button>
+            <button onclick="deleteCurrentMission()" style="color:red; border-color:red">ELIMINAR</button>
+        </div>
+    </div>
+
+    <button class="btn-hub" onclick="location.href='hub.html'">🔙 VOLVER AL HUB</button>
 </div>
 
 <div id="map"></div>
-
-<!-- PANEL DERECHO: PARTICIPANTES -->
-<div id="right-menu" class="side-panel">
-    <h3>OPERADORES</h3>
-    <button onclick="autoBalanceTeams()">AUTO-ASIGNAR (50%+1)</button>
-    <div id="player-list">
-        <!-- Cargado dinámicamente -->
-    </div>
-</div>
 
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -73,116 +72,127 @@ firebase.initializeApp({
 });
 
 const db = firebase.database();
-let map, drawingManager, currentMissionId;
-let timerInterval;
+let map, drawingManager, currentMissionId = null;
+let currentOverlays = [];
 
 function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
-        center: {lat: -34.52, lng: -56.21}, // Zona Florida, UY
+        center: {lat:-34.5, lng:-56.2},
         zoom: 15,
         mapTypeId: "satellite"
     });
 
     drawingManager = new google.maps.drawing.DrawingManager({
-        drawingMode: null,
-        polygonOptions: { fillColor: '#00ff00', fillOpacity: 0.3, strokeWeight: 2, editable: true }
+        drawingControl: false,
+        markerOptions: { icon: 'http://maps.google.com/mapfiles/ms/icons/ltblue-dot.png' }
     });
     drawingManager.setMap(map);
 
     google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
-        const type = document.getElementById('pointType').value;
-        const data = event.type === 'polygon' 
-            ? { path: event.overlay.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()})), type }
-            : { pos: {lat: event.overlay.getPosition().lat(), lng: event.overlay.getPosition().lng()}, type };
-        
-        db.ref(`operaciones/${currentMissionId}/elements`).push(data);
-        drawingManager.setDrawingMode(null);
+        const mode = document.body.dataset.mode;
+        processOverlay(event, mode);
+    });
+    
+    loadMissionsList();
+}
+
+function setMode(mode) {
+    if(!currentMissionId) return alert("Crea o selecciona una misión primero");
+    document.body.dataset.mode = mode;
+    
+    const isCircle = mode.includes("RESPAWN");
+    const isPolygon = mode.includes("ZONE");
+    
+    drawingManager.setDrawingMode(
+        isCircle ? google.maps.drawing.OverlayType.CIRCLE :
+        isPolygon ? google.maps.drawing.OverlayType.POLYGON : google.maps.drawing.OverlayType.MARKER
+    );
+
+    // Ajustar estilos visuales según el modo[cite: 1]
+    drawingManager.setOptions({
+        polygonOptions: {
+            fillColor: mode === 'GAME_ZONE' ? '#00ff00' : '#ff0000',
+            strokeColor: mode === 'GAME_ZONE' ? '#00ff00' : '#ff0000',
+            fillOpacity: 0.3
+        },
+        circleOptions: {
+            fillColor: mode.includes('RED') ? '#ff0000' : '#0000ff',
+            strokeColor: mode.includes('RED') ? '#ff0000' : '#0000ff',
+            fillOpacity: 0.5
+        }
     });
 }
 
-// LANZAR MISIÓN Y RELOJ
-function launchMission() {
-    if(!currentMissionId) return alert("Selecciona una misión");
-    const startTime = Date.now();
-    db.ref(`operaciones/${currentMissionId}`).update({
-        estado: "ACTIVA",
-        startTime: startTime
-    });
-    document.getElementById('btn-launch').classList.add('deploy-active');
-    startLocalTimer(startTime);
+function processOverlay(event, mode) {
+    let data = { type: mode };
+    
+    if (event.type === 'polygon') {
+        data.path = event.overlay.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
+    } else if (event.type === 'circle') {
+        data.center = {lat: event.overlay.getCenter().lat(), lng: event.overlay.getCenter().lng()};
+        data.radius = event.overlay.getRadius();
+    } else {
+        data.pos = {lat: event.overlay.getPosition().lat(), lng: event.overlay.getPosition().lng()};
+    }
+
+    db.ref(`operaciones/${currentMissionId}/elements`).push(data);
+    drawingManager.setDrawingMode(null);
 }
 
-function startLocalTimer(start) {
-    clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-        const diff = Date.now() - start;
-        const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-        const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-        const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-        document.getElementById('mission-timer').innerText = `${h}:${m}:${s}`;
-    }, 1000);
+function createNewMission() {
+    const name = document.getElementById('mission-name').value;
+    if(!name) return alert("Escribe un nombre");
+    currentMissionId = db.ref('operaciones').push().key;
+    db.ref(`operaciones/${currentMissionId}`).set({ nombre: name, created: Date.now() });
+    alert("Misión ID: " + currentMissionId + " Creada");
 }
 
-// GESTIÓN DE EQUIPOS (50%+1)
-function autoBalanceTeams() {
-    db.ref("usuarios").once("value", snapshot => {
-        let players = [];
-        snapshot.forEach(child => { players.push({id: child.key, ...child.val()}); });
-        
-        // Barajar aleatoriamente
-        players.sort(() => Math.random() - 0.5);
-        
-        players.forEach((p, index) => {
-            const team = (index % 2 === 0) ? "RED" : "BLUE";
-            db.ref(`usuarios/${p.id}`).update({ equipo: team });
-        });
-        alert("Equipos balanceados automáticamente.");
+function saveCurrentMission() {
+    const name = document.getElementById('mission-name').value;
+    db.ref(`operaciones/${currentMissionId}`).update({ nombre: name });
+    alert("CAMBIOS GUARDADOS EN CLOUD");
+}
+
+function editMission(id) {
+    if(!id) return;
+    currentMissionId = id;
+    db.ref(`operaciones/${id}`).on('value', snap => {
+        const m = snap.val();
+        document.getElementById('mission-name').value = m.nombre;
+        renderMission(m.elements);
     });
 }
 
-// ESCUCHA DE JUGADORES
-db.ref("usuarios").on("value", snapshot => {
-    const list = document.getElementById("player-list");
-    list.innerHTML = "";
-    snapshot.forEach(child => {
-        const u = child.val();
-        const row = document.createElement("div");
-        row.className = "player-row";
-        row.innerHTML = `
-            <span>${u.callsign || 'Anon'} [${u.equipo || '?'}]</span>
-            <div>
-                <button class="btn-team" onclick="setTeam('${child.key}','RED')" style="border-color:red">R</button>
-                <button class="btn-team" onclick="setTeam('${child.key}','BLUE')" style="border-color:blue">A</button>
-            </div>
-        `;
-        list.appendChild(row);
+function renderMission(elements) {
+    currentOverlays.forEach(o => o.setMap(null));
+    if(!elements) return;
+
+    Object.values(elements).forEach(e => {
+        let obj;
+        if(e.path) {
+            obj = new google.maps.Polygon({ paths: e.path, fillColor: e.type === 'GAME_ZONE' ? '#00ff00' : '#ff0000', map });
+        } else if(e.radius) {
+            obj = new google.maps.Circle({ center: e.center, radius: e.radius, fillColor: e.type.includes('RED') ? '#ff0000' : '#0000ff', map });
+        } else {
+            obj = new google.maps.Marker({ position: e.pos, map, icon: 'http://maps.google.com/mapfiles/ms/icons/grey-dot.png' });
+        }
+        currentOverlays.push(obj);
     });
-});
+}
 
-function setTeam(uid, team) { db.ref(`usuarios/${uid}`).update({ equipo: team }); }
-
-function setDrawingMode(mode) {
-    drawingManager.setDrawingMode(mode === 'polygon' ? google.maps.drawing.OverlayType.POLYGON : google.maps.drawing.OverlayType.MARKER);
+function toggleMenu(header) {
+    header.nextElementSibling.classList.toggle('active');
 }
 
 function loadMissionsList() {
     db.ref("operaciones").on("value", s => {
-        const sel = document.getElementById("misiones");
-        sel.innerHTML = "<option>Cargar Misión...</option>";
-        s.forEach(x => { sel.innerHTML += `<option value="${x.key}">${x.val().nombre}</option>`; });
+        const sel = document.getElementById("mission-selector");
+        sel.innerHTML = '<option value="">-- MISIONES EN PARALELO --</option>';
+        s.forEach(child => {
+            sel.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
+        });
     });
 }
-
-function loadMission(id) {
-    currentMissionId = id;
-    db.ref(`operaciones/${id}`).on("value", s => {
-        const m = s.val();
-        if(m.startTime) startLocalTimer(m.startTime);
-        document.getElementById('nombre').value = m.nombre;
-    });
-}
-
-window.onload = loadMissionsList;
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing&callback=initMap" async defer></script>
 </body>
