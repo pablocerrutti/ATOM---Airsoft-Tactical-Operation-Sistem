@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.T.O.M - HUB OPERATIVO</title>
+
+<style>
+:root { --p:#00ff00; --f:#0b0b0b; }
+
+body{
+ margin:0;
+ font-family:monospace;
+ background:var(--f);
+ color:var(--p);
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ height:100vh;
+}
+
+.container{
+ width:90%;
+ max-width:400px;
+ text-align:center;
+}
+
+.card{
+ border:2px solid var(--p);
+ padding:15px;
+ margin:10px 0;
+ cursor:pointer;
+ background:#000;
+ transition:0.2s;
+}
+
+.card:hover{
+ background:var(--p);
+ color:#000;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>A.T.O.M SYSTEM</h2>
+<p id="user"></p>
+
+<div class="card" onclick="go('escuadrones.html')">
+REGISTRAR ESCUADRÓN
+</div>
+
+<div class="card" onclick="go('misiones.html')">
+MISIONES DISPONIBLES
+</div>
+
+<div class="card" onclick="go('usuarios_admin.html')">
+ESCUADRONES / OPERADORES ACTIVOS
+</div>
+
+</div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+ apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+ authDomain: "atom--airsoft.firebaseapp.com",
+ databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+ projectId: "atom--airsoft",
+ storageBucket: "atom--airsoft.firebasestorage.app",
+ messagingSenderId: "310010107781",
+ appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.database();
+
+/* LOGIN CHECK */
+auth.onAuthStateChanged(async u=>{
+ if(!u){
+  location.href="login.html";
+  return;
+ }
+
+ const snap = await db.ref("usuarios/"+u.uid).once("value");
+ const d = snap.val();
+
+ if(!d){
+  auth.signOut();
+  return;
+ }
+
+ document.getElementById("user").innerText =
+ "Operador: " + d.callsign + " | Rol: " + d.rol;
+});
+
+/* NAV */
+function go(url){
+ location.href = url;
+}
+</script>
+
+</body>
+</html>
