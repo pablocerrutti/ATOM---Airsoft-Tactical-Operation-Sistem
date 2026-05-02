@@ -3,154 +3,129 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.T.O.M. - Escuadrones</title>
+<title>A.T.O.M - Escuadrones</title>
 
 <style>
-:root { --p:#00ff00; --f:#0b0b0b; }
+:root { --p:#00ff00; --f:#050505; }
 
 body {
  margin:0;
  font-family: monospace;
  background:var(--f);
  color:var(--p);
-}
-
-#container {
  display:flex;
- height:100vh;
+ flex-direction:column;
+ align-items:center;
+ padding:20px;
 }
 
-#left, #right {
- flex:1;
- padding:10px;
- overflow:auto;
-}
-
-.card {
- border:1px solid var(--p);
- padding:10px;
- margin-bottom:10px;
- background:#050505;
-}
-
-img {
+.box {
  width:100%;
- max-height:120px;
- object-fit:contain;
+ max-width:500px;
+ border:1px solid var(--p);
+ padding:15px;
+ margin-top:20px;
 }
 
-.member {
- font-size:12px;
+input, button {
+ width:100%;
+ padding:10px;
+ margin-top:10px;
+ background:#111;
+ color:var(--p);
+ border:1px solid var(--p);
+}
+
+.item {
+ padding:8px;
  border-bottom:1px solid #222;
- padding:2px;
+ font-size:14px;
 }
 </style>
 </head>
 
 <body>
 
-<div id="container">
+<h2>ESCUADRONES</h2>
 
-<div id="left">
-<h2>🛡️ ESCUADRONES</h2>
-<div id="escuadrones"></div>
+<div class="box">
+<input id="nombre" placeholder="Nombre escuadrón">
+<button onclick="crearEscuadron()">CREAR ESCUADRÓN</button>
 </div>
 
-<div id="right">
-<h2>🧍 OPERADORES</h2>
-<div id="operadores"></div>
-</div>
-
+<div class="box">
+<h3>LISTA</h3>
+<div id="lista"></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
 <script>
 const firebaseConfig = {
-apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
-  authDomain: "atom--airsoft.firebaseapp.com",
-  databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
-  projectId: "atom--airsoft",
-  storageBucket: "atom--airsoft.firebasestorage.app",
-  messagingSenderId: "310010107781",
-  appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec",
-  measurementId: "G-3X2C87MPPV"
+ apiKey: "AIzaSyBd8oZjbQCahwDa539TPirLaG-0DflHTzw",
+ authDomain: "atom--airsoft.firebaseapp.com",
+ databaseURL: "https://atom--airsoft-default-rtdb.firebaseio.com",
+ projectId: "atom--airsoft",
+ storageBucket: "atom--airsoft.firebasestorage.app",
+ messagingSenderId: "310010107781",
+ appId: "1:310010107781:web:c7ced7f288a77e0f2bd6ec"
 };
 
 firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
 const db = firebase.database();
 
-let usuarios = {};
-let miembrosUsados = {};
+let user=null;
 
-// CARGAR USUARIOS
-function cargarUsuarios(){
- db.ref("usuarios").once("value", snap=>{
+auth.onAuthStateChanged(async u=>{
+ if(!u){ location.href="login.html"; return; }
+
+ const snap = await db.ref("usuarios/"+u.uid).once("value");
+ user = snap.val();
+
+ cargar();
+});
+
+function crearEscuadron(){
+
+ let nombre = document.getElementById("nombre").value.trim();
+ if(!nombre) return;
+
+ let ref = db.ref("escuadrones").push();
+
+ ref.set({
+  nombre:nombre,
+  lider:user.callsign,
+  miembros:{[user.callsign]:true}
+ });
+
+ document.getElementById("nombre").value="";
+ cargar();
+}
+
+function cargar(){
+
+ db.ref("escuadrones").on("value",snap=>{
+
+  let html="";
+
   snap.forEach(s=>{
-   usuarios[s.key] = s.val();
+   let d=s.val();
+   html += `
+   <div class="item">
+    <b>${d.nombre}</b><br>
+    líder: ${d.lider}
+   </div>`;
   });
 
-  cargarEscuadrones();
- });
-}
+  document.getElementById("lista").innerHTML=html;
 
-// ESCUADRONES
-function cargarEscuadrones(){
-
- db.ref("escuadrones").on("value", snap=>{
-
-  let cont = document.getElementById("escuadrones");
-  cont.innerHTML = "";
-
-  miembrosUsados = {};
-
-  snap.forEach(s=>{
-   let e = s.val();
-
-   let html = `
-   <div class="card">
-    <h3>${e.nombre}</h3>
-    <img src="${e.escudo || ''}">
-   `;
-
-   if(e.miembros){
-    Object.keys(e.miembros).forEach(uid=>{
-     miembrosUsados[uid] = true;
-
-     let user = usuarios[uid];
-     if(user){
-      html += `<div class="member">${user.callsign}</div>`;
-     }
-    });
-   }
-
-   html += `</div>`;
-
-   cont.innerHTML += html;
-  });
-
-  cargarOperadores();
- });
-}
-
-// OPERADORES SUELTOS
-function cargarOperadores(){
-
- let cont = document.getElementById("operadores");
- cont.innerHTML = "";
-
- Object.keys(usuarios).forEach(uid=>{
-  if(!miembrosUsados[uid]){
-   cont.innerHTML += `<div class="card">${usuarios[uid].callsign}</div>`;
-  }
  });
 
 }
-
-// INIT
-cargarUsuarios();
-
 </script>
 
 </body>
