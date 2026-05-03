@@ -2,73 +2,84 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.O.M - Zona Restringida</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M - Centro de Mando</title>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <style>
         :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; --gray: #222; }
-        body { margin: 0; background: var(--f); color: var(--p); font-family: 'Courier New', monospace; padding: 10px; }
-        h2 { border-bottom: 1px solid var(--p); padding-bottom: 10px; font-size: 1.2rem; }
+        body { margin: 0; background: var(--f); color: var(--p); font-family: 'Courier New', monospace; padding: 10px; box-sizing: border-box; }
         
-        .section { background: #111; border: 1px solid #333; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
-        .player-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #222; font-size: 0.9rem; }
+        /* Ajustes Responsivos */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        h2 { border-bottom: 1px solid var(--p); padding-bottom: 5px; font-size: 1.1rem; margin: 0; flex-grow: 1; }
         
-        .btn { padding: 8px 12px; border: none; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.8rem; }
+        .section { background: #0a0a0a; border: 1px solid #333; padding: 15px; margin-bottom: 20px; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        
+        /* Lista de Jugadores */
+        .player-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #1a1a1a; gap: 10px; }
+        .player-info { display: flex; flex-direction: column; font-size: 0.85rem; }
+        .team-tag { font-size: 0.7rem; font-weight: bold; margin-top: 3px; }
+
+        /* Botonera */
+        .controls-group { display: flex; gap: 5px; }
+        .btn { padding: 8px 10px; border: none; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.75rem; border-radius: 2px; text-transform: uppercase; }
         .btn-red { background: var(--red); color: white; }
         .btn-blue { background: var(--blue); color: white; }
-        .btn-launch { background: var(--p); color: black; width: 100%; padding: 15px; margin-top: 10px; font-weight: bold; cursor: pointer; border: none; }
-        .btn-editor { background: var(--gold); color: black; margin-bottom: 10px; }
+        .btn-launch { background: var(--p); color: black; width: 100%; padding: 18px; margin-top: 15px; font-weight: 900; font-size: 1rem; border: none; cursor: pointer; transition: 0.2s; }
+        .btn-launch:active { transform: scale(0.98); opacity: 0.8; }
+        .btn-editor { background: var(--gold); color: black; margin-bottom: 10px; width: 100%; }
         
-        .badge { font-size: 0.7rem; padding: 2px 5px; border-radius: 3px; margin-left: 5px; }
+        .badge { font-size: 0.65rem; padding: 2px 4px; border-radius: 2px; margin-left: 5px; }
         .badge-admin { background: var(--gold); color: black; }
         .badge-editor { background: var(--p); color: black; }
         
-        .admin-label { color: var(--gold); font-size: 12px; margin-bottom: 10px; display: block; }
+        .admin-label { color: var(--gold); font-size: 10px; margin-bottom: 8px; display: block; letter-spacing: 1px; }
+
+        @media (max-width: 480px) {
+            .player-row { flex-direction: column; align-items: flex-start; }
+            .controls-group { width: 100%; margin-top: 8px; }
+            .btn { flex: 1; }
+        }
     </style>
 </head>
 <body>
 
-    <header style="display:flex; justify-content:space-between; align-items:center;">
+    <header>
         <h2>SISTEMA DE MANDO A.T.O.M</h2>
-        <button onclick="location.href='index.html'" style="background:none; border:1px solid #444; color:#888; font-size:10px; cursor:pointer;">CERRAR SESIÓN</button>
+        <button onclick="location.href='index.html'" style="background:none; border:1px solid #444; color:#888; font-size:10px; padding:5px; cursor:pointer;">SALIR</button>
     </header>
 
-    <!-- 1. GESTIÓN DE MISIONES (NUEVO BOTÓN) -->
+    <!-- MÓDULO DE INGENIERÍA -->
     <div class="section" style="border-color: var(--gold);">
         <span class="admin-label">MÓDULO DE INGENIERÍA</span>
-        <h3 style="margin: 0 0 10px 0;">OPERACIONES TÁCTICAS</h3>
-        <p style="font-size: 11px; color: #888; margin-bottom: 15px;">DIBUJA LÍMITES DE CAMPO, PUNTOS DE CONTROL Y ZONAS DE RESPAWN.</p>
-        <button class="btn-launch btn-editor" onclick="location.href='editor.html'">
-            🗺️ CREAR NUEVA MISIÓN
-        </button>
+        <h3 style="margin: 0 0 5px 0; font-size: 1rem;">OPERACIONES TÁCTICAS</h3>
+        <p style="font-size: 10px; color: #777; margin-bottom: 15px;">DIBUJO DE CAMPO Y GESTIÓN DE MAPAS.</p>
+        <button class="btn btn-editor" onclick="location.href='editor.html'">🗺️ GESTIONAR MISIONES (EDITOR)</button>
     </div>
 
-    <!-- 2. GESTIÓN DE ENLISTADOS -->
+    <!-- CONTROL DE DESPLIEGUE -->
     <div class="section">
         <span class="admin-label">CONTROL DE DESPLIEGUE</span>
-        <h3 style="margin-top:0;">OPERADORES EN ESPERA</h3>
-        <div id="list-enlisted">Cargando enlistados...</div>
-        <button class="btn-launch" onclick="launchMission()">🚀 INICIAR OPERACIÓN EN CAMPO</button>
+        <h3 style="margin-top:0; font-size: 1rem;">OPERADORES EN ESPERA (LOGUEADOS)</h3>
+        <div id="list-enlisted">Sincronizando con satélite...</div>
+        
+        <button class="btn-launch" onclick="launchMission()">🚀 INICIAR OPERACIÓN EN CURSO</button>
     </div>
 
-    <!-- 3. GESTIÓN DE USUARIOS (Solo visible para ADMIN) -->
+    <!-- BASE DE DATOS (Solo ADMIN) -->
     <div id="admin-only-section" class="section" style="display:none; border-color: #444;">
-        <span class="admin-label">BASE DE DATOS DE PERSONAL</span>
-        <h3>COMUNIDAD REGISTRADA</h3>
+        <span class="admin-label">SEGURIDAD DE SISTEMAS</span>
+        <h3 style="font-size: 1rem;">GESTIÓN DE RANGOS</h3>
         <div id="list-all-users">Cargando base de datos...</div>
     </div>
 
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-        authDomain: "atom---sistem.firebaseapp.com",
         databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
         projectId: "atom---sistem",
-        storageBucket: "atom---sistem.firebasestorage.app",
-        messagingSenderId: "151110156876",
-        appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -79,14 +90,13 @@
             db.ref(`usuarios/${user.uid}`).once('value', snap => {
                 const userData = snap.val();
                 if (userData && (userData.rol === "ADMIN" || userData.rol === "EDITOR")) {
-                    // Si es ADMIN, mostrar sección de usuarios
                     if (userData.rol === "ADMIN") {
                         document.getElementById('admin-only-section').style.display = 'block';
                         loadAllUsers();
                     }
                     loadEnlisted();
                 } else {
-                    alert("ACCESO DENEGADO: SE REQUIEREN PERMISOS DE MANDO");
+                    alert("SISTEMA BLOQUEADO: SE REQUIEREN PERMISOS DE MANDO");
                     location.href = "index.html";
                 }
             });
@@ -95,19 +105,33 @@
         }
     });
 
+    // ESTA FUNCIÓN AHORA SOLO MUESTRA A LOS QUE ESTÁN EN EL LOBBY ESPERANDO
     function loadEnlisted() {
-        db.ref('operacion_activa/despliegue').on('value', snap => {
+        // Apuntamos al nodo de "jugadores_enlistados" que creamos en el lobby
+        db.ref('jugadores_enlistados').on('value', snap => {
             const list = document.getElementById('list-enlisted');
             list.innerHTML = "";
-            if (!snap.exists()) { list.innerHTML = "<small style='color:#666'>No hay operadores enlistados en el lobby.</small>"; return; }
+            if (!snap.exists()) { 
+                list.innerHTML = "<small style='color:#555'>No hay operadores esperando en el lobby.</small>"; 
+                return; 
+            }
 
             snap.forEach(child => {
                 const p = child.val();
                 const div = document.createElement('div');
                 div.className = "player-row";
+                
+                // Color dinámico según bando
+                let teamColor = '#666';
+                if(p.equipo === 'ROJO') teamColor = 'var(--red)';
+                if(p.equipo === 'AZUL') teamColor = 'var(--blue)';
+
                 div.innerHTML = `
-                    <span>${p.callsign} <b style="color:${p.equipo === 'AZUL' ? 'var(--blue)' : p.equipo === 'ROJO' ? 'var(--red)' : '#666'}">[${p.equipo || 'SIN ASIGNAR'}]</b></span>
-                    <div>
+                    <div class="player-info">
+                        <span style="font-weight:bold">${p.callsign}</span>
+                        <span class="team-tag" style="color:${teamColor}">[${p.equipo || 'S/E'}]</span>
+                    </div>
+                    <div class="controls-group">
                         <button class="btn btn-red" onclick="assignTeam('${child.key}', 'ROJO')">ROJO</button>
                         <button class="btn btn-blue" onclick="assignTeam('${child.key}', 'AZUL')">AZUL</button>
                     </div>
@@ -117,18 +141,17 @@
         });
     }
 
-    function assignTeam(uid, team) {
-        db.ref(`operacion_activa/despliegue/${uid}`).update({ equipo: team });
+    function assignTeam(callsign, team) {
+        db.ref(`jugadores_enlistados/${callsign}`).update({ equipo: team });
     }
 
     function launchMission() {
-        if(confirm("¿CONFIRMAS DESPLIEGUE? Los operadores entrarán al modo combate.")){
-            db.ref('operacion_activa/despliegue').once('value', snap => {
-                snap.forEach(child => {
-                    db.ref(`operacion_activa/despliegue/${child.key}`).update({ lanzada: true });
-                });
+        if(confirm("¿INICIAR DESPLIEGUE? Los operadores pasarán a modo mapa táctico.")){
+            // Cambiamos el estado global de la operación
+            db.ref('operacion_activa/control').set({ 
+                status: 'EN_CURSO',
+                startTime: Date.now()
             });
-            alert("SISTEMAS ACTIVADOS EN EL CAMPO");
         }
     }
 
@@ -142,7 +165,7 @@
                 div.className = "player-row";
                 div.innerHTML = `
                     <span>${u.callsign} <span class="badge ${u.rol === 'ADMIN' ? 'badge-admin' : (u.rol === 'EDITOR' ? 'badge-editor' : '')}">${u.rol}</span></span>
-                    <button class="btn" onclick="toggleRole('${child.key}', '${u.rol}')" style="background:#222; color:var(--p)">SUBIR RANGO</button>
+                    <button class="btn" onclick="toggleRole('${child.key}', '${u.rol}')" style="background:#222; color:var(--p); border:1px solid var(--p)">↑ RANGO</button>
                 `;
                 list.appendChild(div);
             });
