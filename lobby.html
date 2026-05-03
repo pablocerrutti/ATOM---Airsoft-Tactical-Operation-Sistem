@@ -5,9 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>A.T.O.M - Operative Lobby</title>
     
+    <!-- Firebase Legacy SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+
+    <!-- Leaflet Assets -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#444; }
@@ -15,11 +20,10 @@
         .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); }
         .active { display: flex !important; }
         
-        /* Botón Salir al Inicio */
         .btn-logout {
             position: absolute; top: 10px; right: 10px;
-            background: none; border: 1px solid var(--red); color: var(--red);
-            padding: 5px 10px; font-size: 10px; cursor: pointer; z-index: 100;
+            background: rgba(0,0,0,0.7); border: 1px solid var(--red); color: var(--red);
+            padding: 5px 10px; font-size: 10px; cursor: pointer; z-index: 1100;
             text-transform: uppercase; font-weight: bold;
         }
 
@@ -33,13 +37,18 @@
         #radar-static {
             height: 45%; width: 100%; border-bottom: 1px solid var(--p);
             background: #000; position: relative; overflow: hidden;
-            display: flex; align-items: center; justify-content: center;
         }
-        #radar-static::after {
-            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: repeating-linear-gradient(0deg, rgba(0,255,0,0.03) 0px, rgba(0,255,0,0.03) 1px, transparent 1px, transparent 2px);
-            pointer-events: none; animation: scanline 10s linear infinite;
+        
+        .tactical-label {
+            background: rgba(0,0,0,0.8); border: 1px solid var(--p); color: var(--p);
+            padding: 2px 6px; font-size: 10px; font-weight: bold; border-radius: 2px;
+            white-space: nowrap; text-transform: uppercase; box-shadow: 0 0 5px rgba(0,255,0,0.5);
         }
+
+        /* Ajuste visual para el mapa de satélite */
+        .leaflet-container { background: #000 !important; }
+        /* Ya no invertimos los colores para que el satélite se vea real */
+        .leaflet-tile-container { filter: brightness(1.1) contrast(1.1); }
 
         .nav-links { display: flex; gap: 10px; margin-top: 15px; }
         .nav-links a { 
@@ -55,7 +64,6 @@
         .radar-circle { width: 120px; height: 120px; border: 2px solid var(--p); border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite; margin-bottom: 20px; }
         .bando-msg { font-size: 1.4em; font-weight: bold; margin: 20px 0; padding: 15px; border: 2px solid var(--p); display: none; text-align: center; width: 80%; }
 
-        @keyframes scanline { from { transform: translateY(0); } to { transform: translateY(100%); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes blink { 50% { opacity: 0; } }
         .blink { animation: blink 1.5s infinite; }
@@ -65,7 +73,6 @@
 
     <button class="btn-logout" onclick="logout()">✖ SALIR</button>
 
-    <!-- SELECTOR DE MISIONES -->
     <div id="screen-selector" class="screen active">
         <h1 style="letter-spacing: 5px; color: var(--gold); margin: 40px 0 5px 0;">A.T.O.M SYSTEM</h1>
         <p id="op-display" style="font-size: 10px; color: var(--p); margin-bottom: 20px;">[ VALIDANDO CREDENCIALES... ]</p>
@@ -79,16 +86,15 @@
         <button class="btn-secondary" onclick="window.location.href='operadores.html'">👤 VER OPERADORES ACTIVOS</button>
     </div>
 
-    <!-- PREVISUALIZACIÓN TÁCTICA -->
     <div id="screen-preview" class="screen">
         <div id="radar-static">
-            <div id="preview-map" style="width: 100%; height: 100%; position: absolute; top:0; left:0;"></div>
-            <div id="no-signal" class="blink" style="z-index: 5; font-weight: bold; letter-spacing: 5px; pointer-events: none;">RECUPERANDO DATOS...</div>
+            <div id="preview-map" style="width: 100%; height: 100%;"></div>
+            <div id="no-signal" class="blink" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 1000; font-weight: bold; letter-spacing: 5px; pointer-events: none; text-shadow: 2px 2px #000;">RECUPERANDO DATOS...</div>
         </div>
         
         <div style="padding: 20px; flex-grow: 1;">
             <h2 id="prev-name" style="margin:0; color: var(--gold); text-transform: uppercase;">SIN SELECCIÓN</h2>
-            <p style="font-size: 12px; color: var(--p); opacity: 0.7;">REFERENCIAS TÁCTICAS DESBLOQUEADAS</p>
+            <p style="font-size: 12px; color: var(--p); opacity: 0.7;">VISTA DE SATÉLITE OPERATIVA</p>
             
             <div class="nav-links">
                 <a id="link-google" target="_blank">MAPS GOOGLE</a>
@@ -100,13 +106,9 @@
         </div>
     </div>
 
-    <!-- PANTALLA DE ESPERA Y ASIGNACIÓN -->
     <div id="screen-waiting" class="screen">
         <div class="radar-circle"></div>
         <h2 class="blink" style="margin-top: 0; letter-spacing: 2px;">ESPERANDO ÓRDENES</h2>
-        <p id="wait-msg" style="font-size: 12px; color: var(--gold); text-align: center; padding: 0 40px;">
-            TU PERFIL HA SIDO ENVIADO AL COMANDO.<br>MANTENTE A LA ESPERA DE TU BANDO.
-        </p>
         <div id="bando-display" class="bando-msg"></div>
         <p style="font-size: 10px; color: var(--gray); position: absolute; bottom: 30px;">ID OPERATIVO: <span id="id-tag">--</span></p>
     </div>
@@ -125,8 +127,7 @@ const auth = firebase.auth();
 let userCallsign = null;
 let selectedMissionId = null;
 let previewMap;
-let mapOverlays = [];
-let mapLabels = [];
+let drawnItems;
 
 auth.onAuthStateChanged(user => {
     if (user) {
@@ -142,12 +143,6 @@ auth.onAuthStateChanged(user => {
     } else { window.location.href = 'login.html'; }
 });
 
-function logout() {
-    auth.signOut().then(() => {
-        window.location.href = 'index.html';
-    });
-}
-
 function initLobby() {
     db.ref('misiones').on('value', snap => {
         const dropdown = document.getElementById('mission-dropdown');
@@ -162,79 +157,73 @@ function initLobby() {
     listenGlobalStatus();
 }
 
-function clearPreviewMap() {
-    mapOverlays.forEach(o => o.setMap(null));
-    mapLabels.forEach(l => l.setMap(null));
-    mapOverlays = [];
-    mapLabels = [];
-}
-
 function viewMission(id) {
     if(!id) return;
     selectedMissionId = id;
+    showScreen('screen-preview');
     
+    if(!previewMap) {
+        previewMap = L.map('preview-map', { 
+            zoomControl: false, 
+            attributionControl: false 
+        }).setView([0,0], 2);
+
+        // VISTA DE SATÉLITE ACTUALIZADA (Esri World Imagery)
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19
+        }).addTo(previewMap);
+
+        drawnItems = L.featureGroup().addTo(previewMap);
+    }
+
+    drawnItems.clearLayers();
+    document.getElementById('no-signal').style.display = 'block';
+
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
-        showScreen('screen-preview');
         document.getElementById('prev-name').innerText = m.nombre;
         document.getElementById('no-signal').style.display = 'none';
-        
-        if(!previewMap) {
-            previewMap = new google.maps.Map(document.getElementById("preview-map"), {
-                center: {lat: -34.34, lng: -56.71}, zoom: 15, mapTypeId: "hybrid", 
-                disableDefaultUI: true, gestureHandling: "none"
-            });
-        }
-
-        clearPreviewMap();
 
         if(m.elementos) {
-            const bounds = new google.maps.LatLngBounds();
-            let firstPos = null;
+            m.elementos.forEach(el => {
+                let color = '#00ff00';
+                if(el.type.includes('RED')) color = '#ff3333';
+                if(el.type.includes('BLUE')) color = '#3333ff';
+                if(el.type.includes('OBJ')) color = '#ffd700';
 
-            Object.values(m.elementos).forEach(el => {
-                let overlay;
-                const style = { fillColor: el.color, strokeColor: el.color, fillOpacity: 0.35, strokeWeight: 2, map: previewMap };
-                let labelPos;
+                const style = { color: color, fillColor: color, fillOpacity: 0.4, weight: 3 };
 
-                if (el.path) {
-                    overlay = new google.maps.Polygon({ path: el.path, ...style });
-                    el.path.forEach(p => bounds.extend(p));
-                    labelPos = el.path[0];
-                    if(!firstPos) firstPos = el.path[0];
-                } else {
-                    overlay = new google.maps.Circle({ center: el.center, radius: el.radius, ...style });
-                    bounds.extend(el.center);
-                    const r = el.radius;
-                    bounds.extend(google.maps.geometry.spherical.computeOffset(el.center, r, 0));
-                    bounds.extend(google.maps.geometry.spherical.computeOffset(el.center, r, 180));
-                    labelPos = el.center;
-                    if(!firstPos) firstPos = el.center;
-                }
-                mapOverlays.push(overlay);
+                let layer;
+                if (el.path) layer = L.polygon(el.path, style);
+                else if (el.radius) layer = L.circle(el.center, { radius: el.radius, ...style });
+                else layer = L.circleMarker(el.center, { radius: 8, ...style });
 
-                const label = new google.maps.Marker({
-                    position: labelPos,
-                    map: previewMap,
-                    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
-                    label: { 
-                        text: el.label.toUpperCase(), 
-                        color: el.color, 
-                        fontWeight: "900", 
-                        fontSize: "12px" 
-                    }
+                // Etiqueta táctica flotante
+                const centerPos = layer.getBounds?.().getCenter() || el.center;
+                const label = L.marker(centerPos, {
+                    icon: L.divIcon({
+                        className: 'tactical-label',
+                        html: el.type.replace('_', ' '),
+                        iconAnchor: [50, 0]
+                    }),
+                    interactive: false
                 });
-                mapLabels.push(label);
+
+                drawnItems.addLayer(layer);
+                drawnItems.addLayer(label);
             });
 
-            previewMap.fitBounds(bounds);
-            if(firstPos) {
-                document.getElementById('link-google').href = `https://www.google.com/maps/dir/?api=1&destination=${firstPos.lat},${firstPos.lng}`;
-                document.getElementById('link-waze').href = `https://waze.com/ul?ll=${firstPos.lat},${firstPos.lng}&navigate=yes`;
-            }
+            const bounds = drawnItems.getBounds();
+            previewMap.fitBounds(bounds, { padding: [40, 40] });
+
+            const center = bounds.getCenter();
+            document.getElementById('link-google').href = `https://www.google.com/maps/dir/?api=1&destination=${center.lat},${center.lng}`;
+            document.getElementById('link-waze').href = `https://waze.com/ul?ll=${center.lat},${center.lng}&navigate=yes`;
         }
     });
 }
+
+// ... Resto de funciones (enlistOperative, listenMyAssignment, etc.) se mantienen igual ...
 
 function enlistOperative() {
     db.ref(`jugadores_enlistados/${userCallsign}`).set({
@@ -255,8 +244,7 @@ function listenMyAssignment() {
             display.style.display = 'block';
             display.innerText = `TU BANDO ES: ${p.equipo}`;
             display.style.borderColor = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
-            display.style.color = display.style.borderColor;
-            document.getElementById('wait-msg').innerText = "BANDO ASIGNADO. PREPÁRESE PARA EL DESPLIEGUE.";
+            display.style.color = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
         }
     });
 }
@@ -275,10 +263,13 @@ function listenGlobalStatus() {
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
+    if(id === 'screen-preview' && previewMap) {
+        setTimeout(() => previewMap.invalidateSize(), 200);
+    }
 }
 
+function logout() { auth.signOut().then(() => window.location.href = 'index.html'); }
 window.onload = initLobby;
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=geometry" async defer></script>
 </body>
 </html>
