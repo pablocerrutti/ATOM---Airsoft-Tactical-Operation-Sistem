@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Tactical Editor (Leaflet)</title>
+    <title>A.T.O.M - Tactical Editor Pro</title>
     
     <!-- Firebase Legacy SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
-    <!-- Leaflet Assets (Alternativa gratuita) -->
+    <!-- Leaflet Assets -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
@@ -31,28 +31,34 @@
         #menu-toggle {
             position: absolute; top: 15px; left: 15px; z-index: 1100; background: var(--f);
             color: var(--p); border: 1px solid var(--p); padding: 10px; cursor: pointer;
-            border-radius: 4px; font-weight: bold;
         }
 
-        #map { flex:1; width: 100%; height: 100%; background: #0a0a0a; }
+        #map { flex:1; width: 100%; height: 100%; background: #000; }
         .menu-header { padding: 60px 15px 15px 15px; background:#111; border-bottom:1px solid var(--p); text-align: center; }
         
         details { border-bottom: 1px solid #222; background: #080808; }
-        summary { padding: 15px; cursor: pointer; outline: none; font-weight: bold; font-size: 13px; color: var(--gold); list-style: none; display: flex; justify-content: space-between; align-items: center; }
+        summary { padding: 15px; cursor: pointer; outline: none; font-weight: bold; font-size: 13px; color: var(--gold); list-style: none; }
         
-        .tool-content { padding: 15px; display: flex; flex-direction: column; gap: 8px; }
-        button { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; transition: 0.2s; font-size: 11px; text-transform: uppercase; }
-        button.active { background: var(--p); color: #000; box-shadow: 0 0 15px var(--p); }
+        .tool-content { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+        button { width:100%; padding:10px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; font-size: 10px; text-transform: uppercase; }
+        button.active { background: var(--p); color: #000; box-shadow: 0 0 10px var(--p); }
         
-        .btn-save { background: var(--gold); color: #000; border: none; font-size: 13px; margin-top: 10px; }
-        .btn-exit-menu { margin-top: 20px; border-color: var(--red); color: var(--red); background: rgba(255,0,0,0.05); }
-        .btn-exit-menu:hover { background: var(--red); color: #fff; }
+        .btn-save { background: var(--gold); color: #000; border: none; font-size: 12px; }
+        .btn-delete { background: var(--red); color: #fff; border: none; font-size: 10px; margin-top: 5px; }
 
-        .player-item { padding: 8px; border-bottom: 1px solid #222; font-size: 12px; display: flex; justify-content: space-between; }
-        
-        .leaflet-container { background: #000 !important; }
-        .leaflet-tile { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
-        
+        /* Control de Misión */
+        .mission-control-box { background: #111; padding: 10px; border: 1px solid var(--gold); border-radius: 4px; }
+        #timer-display { font-size: 24px; font-weight: 900; text-align: center; color: var(--gold); display: block; margin: 5px 0; }
+        .score-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 10px; }
+
+        .player-item { 
+            padding: 5px; border-bottom: 1px solid #222; font-size: 11px; 
+            display: flex; align-items: center; gap: 5px;
+        }
+        .team-btn { padding: 2px 5px; font-size: 9px; border: 1px solid var(--gray); cursor: pointer; }
+        .team-red { color: var(--red); border-color: var(--red); }
+        .team-blue { color: var(--blue); border-color: var(--blue); }
+
         @media (min-width: 1024px) { #panel { position: relative; transform: translateX(0); width: 350px; } #menu-toggle { display: none; } .menu-header { padding: 15px; } }
     </style>
 </head>
@@ -63,17 +69,36 @@
 <div class="wrapper">
     <div id="panel" class="panel-hidden">
         <div class="menu-header">
-            <h3 style="margin:0; font-size: 1.2rem;">A.T.O.M EDITOR</h3>
+            <h3 style="margin:0; font-size: 1rem;">A.T.O.M COMMAND CENTER</h3>
         </div>
 
         <details open>
-            <summary>📂 OPERACIONES</summary>
+            <summary>📂 GESTIÓN DE MISIÓN</summary>
             <div class="tool-content">
-                <select id="mission-selector" onchange="loadMissionToEdit(this.value)">
+                <select id="mission-selector" onchange="loadMissionToEdit(this.value)" style="width:100%; padding:8px; background:#000; color:var(--p); border:1px solid #333;">
                     <option value="">-- NUEVA MISIÓN --</option>
                 </select>
-                <input id="mission-name" placeholder="NOMBRE DE OP..." style="width:100%; padding:10px; background:#000; border:1px solid #333; color:var(--p);">
-                <button class="btn-save" onclick="saveMission()">💾 GUARDAR EN FIREBASE</button>
+                <input id="mission-name" placeholder="NOMBRE DE OPERACIÓN..." style="width:100%; padding:8px; background:#000; border:1px solid #333; color:var(--p); box-sizing: border-box;">
+                <button class="btn-save" onclick="saveMission()">💾 GUARDAR / ACTUALIZAR</button>
+                <button id="btn-delete-mission" class="btn-delete" style="display:none;" onclick="deleteCurrentMission()">🗑️ ELIMINAR MISIÓN</button>
+                <button onclick="toggleMapStyle()" id="btn-map-style" style="margin-top:5px; border-color:var(--gray);">🛰️ VISTA: SATÉLITE</button>
+            </div>
+        </details>
+
+        <details open>
+            <summary>⏱️ CONTROL DE PARTIDA</summary>
+            <div class="tool-content mission-control-box">
+                <div class="score-row">
+                    <span style="color:var(--red)">RED BAJAS: <b id="kills-red">0</b></span>
+                    <span style="color:var(--blue)">BLUE BAJAS: <b id="kills-blue">0</b></span>
+                </div>
+                <span id="timer-display">00:00:00</span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                    <button id="btn-start" onclick="launchMission()" style="border-color:var(--gold); color:var(--gold);">🚀 LANZAR</button>
+                    <button onclick="pauseMission()">⏸ PAUSAR</button>
+                    <button onclick="resetMission()" style="color:var(--red); border-color:var(--red);">🔄 RESET</button>
+                    <button onclick="endMission()">🏁 FINALIZAR</button>
+                </div>
             </div>
         </details>
 
@@ -81,22 +106,20 @@
             <summary>🛠️ HERRAMIENTAS TÁCTICAS</summary>
             <div class="tool-content">
                 <button onclick="startDraw('polygon', 'GAME_ZONE', this)">🟢 LÍMITE JUEGO</button>
+                <button onclick="startDraw('polygon', 'SAFE_ZONE', this)" style="border-color:var(--gold); color:var(--gold);">🟡 ZONA SEGURA</button>
                 <button onclick="startDraw('circle', 'RESPAWN_RED', this)">🔴 RESPAWN RED</button>
                 <button onclick="startDraw('circle', 'RESPAWN_BLUE', this)">🔵 RESPAWN BLUE</button>
                 <button onclick="startDraw('marker', 'OBJ_POINT', this)">⚪ OBJETIVO</button>
-                <button onclick="clearMap()" style="border-color:#444; color:#666; margin-top:10px;">LIMPIAR MAPA</button>
+                <button onclick="clearMap()" style="border-color:#444; color:#666; margin-top:5px;">LIMPIAR LIENZO</button>
             </div>
         </details>
 
         <details>
-            <summary>👥 OPERADORES</summary>
+            <summary>👥 OPERADORES EN ESPERA</summary>
             <div class="tool-content">
-                <div id="player-list" style="max-height: 200px; overflow-y: auto;"></div>
-                <button onclick="autoBalanceTeams()" style="border-color: var(--gold); color: var(--gold);">⚖️ AUTOBALANCEAR</button>
-                
-                <button class="btn-exit-menu" onclick="window.location.href='index.html'">
-                    ✖ SALIR AL MENÚ PRINCIPAL
-                </button>
+                <div id="player-list" style="max-height: 180px; overflow-y: auto; background: #000; padding: 5px;"></div>
+                <button onclick="autoBalanceTeams()" style="border-color: var(--gold); color: var(--gold); margin-top:10px;">⚖️ AUTOBALANCEAR EQUIPOS</button>
+                <button onclick="window.location.href='index.html'" style="margin-top:20px; border-color:var(--red); color:var(--red);">⬅ VOLVER AL MENÚ</button>
             </div>
         </details>
     </div>
@@ -104,14 +127,11 @@
 </div>
 
 <script>
+// -- CONFIGURACIÓN FIREBASE (Mantener tu config original) --
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-    authDomain: "atom---sistem.firebaseapp.com",
     databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
     projectId: "atom---sistem",
-    storageBucket: "atom---sistem.firebasestorage.app",
-    messagingSenderId: "151110156876",
-    appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -119,120 +139,195 @@ const db = firebase.database();
 
 let map, drawnItems, currentMissionId = null;
 let currentAtomType = '';
+let isSatellite = false;
+let missionTimerInterval;
+
+// Capas de Mapa
+const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
 
 function initMap() {
     map = L.map('map', { zoomControl: false }).setView([-34.34, -56.71], 15);
+    streetLayer.addTo(map);
+    drawnItems = new L.FeatureGroup().addTo(map);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
-
-    drawnItems = new L.FeatureGroup();
-    map.addLayer(drawnItems);
-
-    map.on(L.Draw.Event.CREATED, function (event) {
-        const layer = event.layer;
+    map.on(L.Draw.Event.CREATED, (e) => {
+        const layer = e.layer;
         layer.atomType = currentAtomType;
         
-        if(currentAtomType.includes('RED')) layer.setStyle?.({color: '#ff3333', fillColor: '#ff3333'});
-        if(currentAtomType.includes('BLUE')) layer.setStyle?.({color: '#3333ff', fillColor: '#3333ff'});
-        if(currentAtomType === 'GAME_ZONE') layer.setStyle?.({color: '#00ff00', fillColor: '#00ff00'});
+        const colors = {
+            'GAME_ZONE': '#00ff00',
+            'SAFE_ZONE': '#ffd700',
+            'RESPAWN_RED': '#ff3333',
+            'RESPAWN_BLUE': '#3333ff',
+            'OBJ_POINT': '#ffffff'
+        };
 
+        if(layer.setStyle) layer.setStyle({ color: colors[currentAtomType], fillColor: colors[currentAtomType], fillOpacity: 0.3 });
         drawnItems.addLayer(layer);
         resetButtons();
     });
 
     loadMissionList();
     syncPlayers();
+    listenMissionControl();
 }
 
-function startDraw(type, atomType, btn) {
-    resetButtons();
-    btn.classList.add('active');
-    currentAtomType = atomType;
-
-    let drawer;
-    if(type === 'polygon') drawer = new L.Draw.Polygon(map);
-    if(type === 'circle') drawer = new L.Draw.Circle(map);
-    if(type === 'marker') drawer = new L.Draw.Marker(map);
-    
-    drawer.enable();
+// GESTIÓN DE MAPA Y CAPAS
+function toggleMapStyle() {
+    isSatellite = !isSatellite;
+    if(isSatellite) {
+        map.removeLayer(streetLayer);
+        satelliteLayer.addTo(map);
+        document.getElementById('btn-map-style').innerText = "🗺️ VISTA: CALLES";
+        document.querySelector('.leaflet-tile-container').style.filter = "none";
+    } else {
+        map.removeLayer(satelliteLayer);
+        streetLayer.addTo(map);
+        document.getElementById('btn-map-style').innerText = "🛰️ VISTA: SATÉLITE";
+        document.querySelector('.leaflet-tile-container').style.filter = "invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%)";
+    }
 }
 
-function resetButtons() {
-    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-}
-
-function clearMap() { drawnItems.clearLayers(); }
-
+// CONTROL DE MISIONES
 function saveMission() {
     const name = document.getElementById('mission-name').value;
-    if (!name) return alert("Asigna un nombre");
+    if (!name) return alert("Indica nombre de Operación");
 
     let elementos = [];
     drawnItems.eachLayer(layer => {
         let item = { type: layer.atomType };
         if (layer instanceof L.Polygon) item.path = layer.getLatLngs()[0];
-        if (layer instanceof L.Circle) { item.center = layer.getLatLng(); item.radius = layer.getRadius(); }
-        if (layer instanceof L.Marker) item.center = layer.getLatLng();
+        else if (layer instanceof L.Circle) { item.center = layer.getLatLng(); item.radius = layer.getRadius(); }
+        else if (layer instanceof L.Marker) item.center = layer.getLatLng();
         elementos.push(item);
     });
 
     const mId = currentMissionId || db.ref('misiones').push().key;
     db.ref(`misiones/${mId}`).set({ id: mId, nombre: name, elementos: elementos })
-      .then(() => alert("OPERACIÓN GUARDADA"));
+      .then(() => alert("BASE DE DATOS ACTUALIZADA"));
+}
+
+function deleteCurrentMission() {
+    if(!currentMissionId) return;
+    if(confirm("¿ELIMINAR ESTA MISIÓN PERMANENTEMENTE?")) {
+        db.ref(`misiones/${currentMissionId}`).remove();
+        location.reload();
+    }
 }
 
 function loadMissionToEdit(id) {
-    if(!id) return location.reload();
     currentMissionId = id;
     clearMap();
+    document.getElementById('btn-delete-mission').style.display = id ? 'block' : 'none';
+    if(!id) return;
+
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
         document.getElementById('mission-name').value = m.nombre;
         if(m.elementos) {
             m.elementos.forEach(el => {
                 let layer;
-                if(el.path) layer = L.polygon(el.path);
-                else if(el.radius) layer = L.circle(el.center, {radius: el.radius});
+                const style = { weight: 2, fillOpacity: 0.3 };
+                if(el.type === 'GAME_ZONE') style.color = '#00ff00';
+                if(el.type === 'SAFE_ZONE') style.color = '#ffd700';
+                if(el.type.includes('RED')) style.color = '#ff3333';
+                if(el.type.includes('BLUE')) style.color = '#3333ff';
+
+                if(el.path) layer = L.polygon(el.path, style);
+                else if(el.radius) layer = L.circle(el.center, {radius: el.radius, ...style});
                 else layer = L.marker(el.center);
                 
                 layer.atomType = el.type;
                 drawnItems.addLayer(layer);
             });
-
-            // AUTO-ENFOQUE: Posiciona el mapa sobre los elementos cargados
-            if (drawnItems.getLayers().length > 0) {
-                map.fitBounds(drawnItems.getBounds(), { padding: [50, 50] });
-            }
+            if (drawnItems.getLayers().length > 0) map.fitBounds(drawnItems.getBounds());
         }
     });
 }
 
+// CONTROL DE TIEMPO Y ESTADOS
+function launchMission() {
+    if(!currentMissionId) return alert("Selecciona una misión primero");
+    db.ref('operacion_activa/control').update({
+        status: 'EN_CURSO',
+        startTime: Date.now(),
+        missionId: currentMissionId,
+        paused: false
+    });
+}
+
+function pauseMission() {
+    db.ref('operacion_activa/control').update({ paused: true });
+}
+
+function resetMission() {
+    if(confirm("¿RESETEAR RELOJ Y BAJAS?")) {
+        db.ref('operacion_activa/control').update({ startTime: Date.now(), killsRed: 0, killsBlue: 0 });
+    }
+}
+
+function endMission() {
+    db.ref('operacion_activa/control').update({ status: 'RECLUTAMIENTO', paused: false });
+}
+
+function listenMissionControl() {
+    db.ref('operacion_activa/control').on('value', snap => {
+        const data = snap.val() || {};
+        document.getElementById('kills-red').innerText = data.killsRed || 0;
+        document.getElementById('kills-blue').innerText = data.killsBlue || 0;
+        
+        clearInterval(missionTimerInterval);
+        if(data.status === 'EN_CURSO' && !data.paused) {
+            missionTimerInterval = setInterval(() => {
+                const diff = Date.now() - data.startTime;
+                document.getElementById('timer-display').innerText = new Date(diff).toISOString().substr(11, 8);
+            }, 1000);
+        }
+    });
+}
+
+// OPERADORES Y ASIGNACIÓN
 function syncPlayers() {
     db.ref('jugadores_enlistados').on('value', snap => {
         const listDiv = document.getElementById('player-list');
         listDiv.innerHTML = '';
         snap.forEach(child => {
             const p = child.val();
-            listDiv.innerHTML += `<div class="player-item"><span>${p.callsign}</span> <span style="color:var(--gold)">${p.equipo || 'S/E'}</span></div>`;
+            listDiv.innerHTML += `
+                <div class="player-item">
+                    <span style="flex-grow:1">${p.callsign}</span>
+                    <button class="team-btn team-red" onclick="assignTeam('${p.callsign}', 'RED')">R</button>
+                    <button class="team-btn team-blue" onclick="assignTeam('${p.callsign}', 'BLUE')">B</button>
+                    <button class="team-btn" onclick="assignTeam('${p.callsign}', 'S/E')">--</button>
+                    <button onclick="kickPlayer('${p.callsign}')" style="width:auto; padding:2px 5px; border-color:var(--red); color:var(--red);">✖</button>
+                </div>`;
         });
     });
 }
+
+function assignTeam(callsign, team) { db.ref(`jugadores_enlistados/${callsign}`).update({ equipo: team }); }
+function kickPlayer(callsign) { if(confirm(`¿ELIMINAR A ${callsign}?`)) db.ref(`jugadores_enlistados/${callsign}`).remove(); }
 
 function autoBalanceTeams() {
     db.ref('jugadores_enlistados').once('value', snap => {
-        let players = []; snap.forEach(c => players.push({id: c.key}));
+        let players = []; snap.forEach(c => players.push(c.key));
         players.sort(() => Math.random() - 0.5);
-        players.forEach((p, i) => {
-            db.ref(`jugadores_enlistados/${p.id}`).update({ equipo: i % 2 === 0 ? 'RED' : 'BLUE' });
-        });
+        players.forEach((id, i) => assignTeam(id, i % 2 === 0 ? 'RED' : 'BLUE'));
     });
 }
 
+// UTILIDADES
+function startDraw(type, atomType, btn) {
+    resetButtons();
+    btn.classList.add('active');
+    currentAtomType = atomType;
+    let drawer = (type === 'polygon') ? new L.Draw.Polygon(map) : (type === 'circle') ? new L.Draw.Circle(map) : new L.Draw.Marker(map);
+    drawer.enable();
+}
+function resetButtons() { document.querySelectorAll('button').forEach(b => b.classList.remove('active')); }
+function clearMap() { drawnItems.clearLayers(); }
 function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
-
 function loadMissionList() {
     db.ref('misiones').on('value', snap => {
         const sel = document.getElementById('mission-selector');
