@@ -23,31 +23,44 @@
 
         #mission-container { flex: 1; display: flex; flex-direction: column; padding: 10px; overflow-y: auto; }
         
-        /* Mapa más grande y responsivo */
         #mini-map { 
             width: 100%; 
-            height: 45vh; /* Aumentado de 250px a 45% de la altura de pantalla */
-            min-height: 300px;
+            height: 40vh; 
+            min-height: 250px;
             background: #000; 
             border: 1px solid var(--p); 
-            margin-bottom: 15px; 
+            margin-bottom: 10px; 
             position: relative;
             border-radius: 4px;
         }
 
+        /* Enlaces de Navegación */
+        #nav-links {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .btn-nav {
+            padding: 10px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .waze-link { background: #33f3ff; color: #000; }
+        .gmaps-link { background: #fff; color: #000; }
+
         .mission-selector-box { margin-bottom: 15px; }
-        
         select { 
             width: 100%; padding: 15px; background: #111; border: 1px solid var(--p); 
             color: var(--p); font-family: inherit; font-size: 1rem; cursor: pointer;
         }
 
-        .stats-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;
-        }
-        .stat-card {
-            background: #111; border: 1px solid #333; padding: 10px; text-align: center;
-        }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .stat-card { background: #111; border: 1px solid #333; padding: 10px; text-align: center; }
         .stat-val { display: block; font-size: 18px; color: var(--gold); font-weight: bold; }
         .stat-lab { font-size: 9px; color: #888; text-transform: uppercase; }
 
@@ -58,7 +71,6 @@
         }
         .btn-enlist:disabled { background: #1a331a; color: #004400; cursor: not-allowed; }
 
-        /* MODAL ADMIN */
         #auth-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); backdrop-filter: blur(5px); z-index: 3000; align-items: center; justify-content: center;
@@ -69,11 +81,10 @@
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
 
-        /* Responsividad para escritorio */
         @media (min-width: 768px) {
             body { align-items: center; }
             header, #mission-container, .btn-enlist, footer { width: 600px; border-left: 1px solid var(--gray); border-right: 1px solid var(--gray); }
-            #mini-map { height: 400px; }
+            #mini-map { height: 350px; }
         }
     </style>
 </head>
@@ -103,6 +114,12 @@
 
 <div id="mission-container">
     <div id="mini-map"></div>
+
+    <!-- Enlaces de navegación -->
+    <div id="nav-links">
+        <a id="link-gmaps" target="_blank" class="btn-nav gmaps-link">📍 Google Maps</a>
+        <a id="link-waze" target="_blank" class="btn-nav waze-link">🚙 Waze Nav</a>
+    </div>
 
     <div class="stats-grid">
         <div class="stat-card">
@@ -176,24 +193,12 @@ auth.onAuthStateChanged(user => {
     } else { location.href = "index.html"; }
 });
 
-function checkIfAlreadyEnlisted(uid) {
-    db.ref(`operacion_activa/despliegue/${uid}`).once('value', snap => {
-        if(snap.exists()) {
-            showWaitingStatus();
-        }
-    });
-}
-
 function loadMissions() {
     db.ref('misiones').on('value', snap => {
         const select = document.getElementById('mission-select');
         select.innerHTML = '<option value="" disabled selected>SELECCIONE OPERACIÓN...</option>';
         allMissions = {};
-
-        if (!snap.exists()) {
-            select.innerHTML = '<option value="">SIN MISIONES DISPONIBLES</option>';
-            return;
-        }
+        if (!snap.exists()) return;
 
         snap.forEach(child => {
             const m = child.val();
@@ -221,12 +226,13 @@ function selectMission(id, data) {
     document.getElementById('stat-status').innerText = data.estado;
     document.getElementById('stat-status').style.color = data.estado === "EN_CURSO" ? "var(--red)" : "var(--gold)";
 
-    // Limpiar dibujos previos
     miniMapOverlays.forEach(o => o.setMap(null));
     miniMapOverlays = [];
 
     if(data.elementos) {
         const bounds = new google.maps.LatLngBounds();
+        let firstCoord = null;
+
         Object.values(data.elementos).forEach(el => {
             let overlay;
             if(el.type.includes("ZONE")) {
@@ -234,33 +240,42 @@ function selectMission(id, data) {
                     path: el.path, map: map, clickable: false,
                     fillColor: el.type === 'GAME_ZONE' ? '#00ff00' : '#ffa500',
                     strokeColor: el.type === 'GAME_ZONE' ? '#00ff00' : '#ffa500',
-                    fillOpacity: 0.15, strokeWeight: 2
+                    fillOpacity: 0.2, strokeWeight: 2
                 });
                 el.path.forEach(p => bounds.extend(p));
+                if(!firstCoord) firstCoord = el.path[0];
             } else {
-                // Círculos (Respawn y Objetivos)
-                let color = '#808080';
+                let color = '#ffffff';
                 if(el.type === 'RESPAWN_RED') color = '#ff0000';
                 if(el.type === 'RESPAWN_BLUE') color = '#0000ff';
-                if(el.type === 'OBJ_POINT') color = '#ffffff';
-
+                
                 overlay = new google.maps.Circle({
                     center: el.center, radius: el.radius, map: map, clickable: false,
                     fillColor: color, strokeColor: color,
                     fillOpacity: 0.4, strokeWeight: 1
                 });
                 bounds.extend(el.center);
+                if(!firstCoord) firstCoord = el.center;
             }
             if(overlay) miniMapOverlays.push(overlay);
         });
+
         map.fitBounds(bounds);
+        
+        // Configurar enlaces de GPS
+        if(firstCoord) {
+            const lat = firstCoord.lat;
+            const lng = firstCoord.lng;
+            document.getElementById('nav-links').style.display = 'grid';
+            document.getElementById('link-gmaps').href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+            document.getElementById('link-waze').href = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+        }
     }
 }
 
 function handleEnlist() {
     if(!selectedMission) return;
     const user = auth.currentUser;
-    
     db.ref(`operacion_activa/despliegue/${user.uid}`).set({
         callsign: userProfile.callsign,
         misionId: selectedMission.id,
@@ -268,9 +283,7 @@ function handleEnlist() {
         equipo: 'NEUTRO',
         enlistado: true,
         timestamp: firebase.database.ServerValue.TIMESTAMP
-    }).then(() => {
-        showWaitingStatus();
-    });
+    }).then(() => showWaitingStatus());
 }
 
 function showWaitingStatus() {
@@ -298,6 +311,11 @@ function confirmIdentity() {
 }
 
 function logout() { auth.signOut(); }
+function checkIfAlreadyEnlisted(uid) {
+    db.ref(`operacion_activa/despliegue/${uid}`).once('value', snap => {
+        if(snap.exists()) showWaitingStatus();
+    });
+}
 </script>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
