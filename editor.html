@@ -41,15 +41,15 @@
         button:active { background:var(--p); color:#000; }
         button.active { background: var(--p); color: #000; box-shadow: 0 0 15px var(--p); }
         
-        .btn-delete { border-color: var(--red); color: var(--red); }
         .btn-save { background: var(--gold); color: #000; border: none; font-size: 13px; margin-top: 10px; }
         .btn-launch { background: var(--red); color: #fff; border: none; font-size: 14px; animation: blink 2s infinite; }
+        .btn-reset { border-color: var(--gray); color: var(--gray); margin-top: 15px; font-size: 10px; }
         
         input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:var(--p); font-family: inherit; box-sizing: border-box; font-size: 14px; }
         #timer-display { font-size: 2.5rem; text-align: center; color: var(--gold); font-weight: bold; margin: 10px 0; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
         
-        .player-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #111; }
-        .player-row select { width: 90px; padding: 2px; font-size: 10px; height: 25px; }
+        /* Etiquetas del Mapa */
+        .map-label { color: white; font-weight: bold; text-shadow: 2px 2px 2px black; font-size: 12px; text-transform: uppercase; pointer-events: none; }
 
         @media (min-width: 1024px) { #panel { position: relative; transform: translateX(0); width: 350px; } #menu-toggle { display: none; } .menu-header { padding: 15px; } }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
@@ -63,9 +63,6 @@
     <div id="panel" class="panel-hidden">
         <div class="menu-header">
             <h3 style="margin:0; font-size: 1.2rem;">A.T.O.M EDITOR</h3>
-            <div id="edit-tag" style="font-size: 10px; color: var(--gold); display:none; margin-top:5px;">
-                EDITANDO ID: <span id="active-id"></span>
-            </div>
         </div>
 
         <details open>
@@ -82,8 +79,7 @@
                     <option value="EN_CURSO">ESTADO: EN CURSO</option>
                     <option value="FINALIZADA">ESTADO: FINALIZADA</option>
                 </select>
-                <button class="btn-save" onclick="saveMission()">💾 GUARDAR CAMBIOS</button>
-                <button id="delete-mission-btn" class="btn-delete" style="display:none;" onclick="deleteMission()">❌ BORRAR MISIÓN</button>
+                <button class="btn-save" onclick="saveMission()">💾 GUARDAR CON ETIQUETAS</button>
             </div>
         </details>
 
@@ -107,12 +103,7 @@
             <div class="tool-content">
                 <div id="timer-display">00:00:00</div>
                 <button id="btn-launch" class="btn-launch" onclick="launchMission()">⚡ INICIAR OPERACIÓN</button>
-                
-                <h4 style="margin-top:10px;">Operadores en Lobby</h4>
-                <div id="player-lobby" style="background:#000; padding:10px; border:1px solid #222; max-height:200px; overflow-y:auto; font-size:11px; border-radius:4px;">
-                    Sincronizando...
-                </div>
-                <button onclick="autoBalance()" style="font-size:10px; border-color:var(--gold); color:var(--gold); margin-top:5px;">⚖️ BALANCEAR EQUIPOS</button>
+                <button class="btn-reset" onclick="resetToLobby()">🔄 FINALIZAR Y VOLVER AL LOBBY</button>
             </div>
         </details>
     </div>
@@ -120,7 +111,7 @@
 </div>
 
 <script>
-// --- CONFIGURACIÓN FIREBASE ---
+// --- CONFIGURACIÓN ---
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
     authDomain: "atom---sistem.firebaseapp.com",
@@ -136,17 +127,23 @@ const db = firebase.database();
 let map, drawingManager;
 let currentMissionId = null;
 let mapOverlays = [];
-let timerInterval = null;
+let mapLabels = []; // Para limpiar etiquetas
 
-// --- INICIALIZACIÓN ---
+const MODE_DEFS = {
+    'GAME_ZONE': { label: 'LÍMITE JUEGO', color: '#00ff00' },
+    'SAFE_ZONE': { label: 'ZONA SEGURA', color: '#ffa500' },
+    'RESPAWN_RED': { label: 'RESPAWN ROJO', color: '#ff3333' },
+    'RESPAWN_BLUE': { label: 'RESPAWN AZUL', color: '#3333ff' },
+    'OBJ_POINT': { label: 'OBJETIVO', color: '#ffffff' }
+};
+
 function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
         center: {lat:-34.34, lng:-56.71}, 
         zoom: 15,
         mapTypeId: "hybrid",
         disableDefaultUI: true,
-        zoomControl: true,
-        tilt: 45
+        zoomControl: true
     });
 
     drawingManager = new google.maps.drawing.DrawingManager({
@@ -159,223 +156,129 @@ function initMap() {
     google.maps.event.addListener(drawingManager, 'overlaycomplete', (e) => {
         const mode = document.body.dataset.mode;
         if (!mode) { e.overlay.setMap(null); return; }
+        
         e.overlay.atomType = mode;
-        e.overlay.setOptions(getStyleByMode(mode));
+        const config = MODE_DEFS[mode];
+        e.overlay.setOptions({ fillColor: config.color, strokeColor: config.color });
+        
+        // Crear etiqueta temporal para el editor
+        addMarkerLabel(e.overlay, config.label);
         mapOverlays.push(e.overlay);
-        if(window.innerWidth < 1024) togglePanel();
     });
 
     loadMissionList();
-    loadEnlistedPlayers();
-    syncTimer();
 }
 
-function togglePanel() {
-    const p = document.getElementById('panel');
-    p.classList.toggle('panel-hidden');
-    const btn = document.getElementById('menu-toggle');
-    btn.innerText = p.classList.contains('panel-hidden') ? '☰ MENÚ' : '✕ CERRAR';
-}
-
-// --- GESTIÓN DE MAPA ---
-function getStyleByMode(mode) {
-    const styles = {
-        'GAME_ZONE': { fillColor: '#00ff00', strokeColor: '#00ff00' },
-        'SAFE_ZONE': { fillColor: '#ffa500', strokeColor: '#ffa500' },
-        'RESPAWN_RED': { fillColor: '#ff0000', strokeColor: '#ff0000' },
-        'RESPAWN_BLUE': { fillColor: '#0000ff', strokeColor: '#0000ff' },
-        'OBJ_POINT': { fillColor: '#ffffff', strokeColor: '#ffffff', fillOpacity: 0.6 }
-    };
-    return styles[mode] || {};
-}
-
-function setMode(mode, btn) {
-    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.body.dataset.mode = mode;
-    if (mode.includes("RESPAWN") || mode === 'OBJ_POINT') {
-        drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE);
+function addMarkerLabel(overlay, text) {
+    let position;
+    if (overlay.getPaths) {
+        const bounds = new google.maps.LatLngBounds();
+        overlay.getPath().forEach(p => bounds.extend(p));
+        position = bounds.getCenter();
     } else {
-        drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+        position = overlay.getCenter();
     }
+
+    const label = new google.maps.Marker({
+        position: position,
+        map: map,
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }, // Invisible
+        label: { text: text, color: "white", fontWeight: "bold", fontSize: "12px" }
+    });
+    mapLabels.push(label);
 }
 
-function undoLast() { if(mapOverlays.length) mapOverlays.pop().setMap(null); }
-function clearMap() { mapOverlays.forEach(o => o.setMap(null)); mapOverlays = []; }
-
-// --- PERSISTENCIA DE MISIONES ---
 function saveMission() {
     const name = document.getElementById('mission-name').value;
-    if (!name) return alert("Asigna un nombre a la operación");
+    if (!name) return alert("Asigna un nombre");
 
     let elements = {};
     mapOverlays.forEach((obj, i) => {
-        const id = "el_" + i;
-        let data = { type: obj.atomType };
+        const config = MODE_DEFS[obj.atomType];
+        let data = { 
+            type: obj.atomType, 
+            label: config.label,
+            color: config.color
+        };
+
         if (obj.getPaths) {
             data.path = obj.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
         } else {
             data.center = {lat: obj.getCenter().lat(), lng: obj.getCenter().lng()};
             data.radius = obj.getRadius();
         }
-        elements[id] = data;
+        elements["el_" + i] = data;
     });
 
     const mId = currentMissionId || db.ref('misiones').push().key;
-    db.ref(`misiones/${mId}`).update({
-        id: mId,
-        nombre: name,
-        estado: document.getElementById('mission-status').value,
-        elementos: elements,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-    }).then(() => alert("SINCRIZADO"));
-}
-
-function loadMissionList() {
-    db.ref('misiones').on('value', snap => {
-        const sel = document.getElementById('mission-selector');
-        sel.innerHTML = '<option value="">-- NUEVA MISIÓN --</option>';
-        snap.forEach(c => {
-            sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`;
-        });
+    db.ref(`misiones/${mId}`).set({ 
+        id: mId, 
+        nombre: name, 
+        estado: document.getElementById('mission-status').value, 
+        elementos: elements 
     });
+    alert("MISIÓN Y ETIQUETAS GUARDADAS");
 }
 
 function loadMissionToEdit(id) {
     if(!id) return location.reload();
     currentMissionId = id;
     clearMap();
-    
+
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
         document.getElementById('mission-name').value = m.nombre;
-        document.getElementById('edit-tag').style.display = 'block';
-        document.getElementById('active-id').innerText = id;
-        document.getElementById('delete-mission-btn').style.display = 'block';
-        
         if(m.elementos) {
-            const bounds = new google.maps.LatLngBounds();
             Object.values(m.elementos).forEach(el => {
                 let overlay;
-                if(el.path) {
-                    overlay = new google.maps.Polygon({ 
-                        path: el.path, map: map, ...getStyleByMode(el.type), editable:true 
-                    });
-                    el.path.forEach(point => bounds.extend(point));
+                const style = { fillColor: el.color, strokeColor: el.color, editable: true };
+                
+                if (el.path) {
+                    overlay = new google.maps.Polygon({ path: el.path, map: map, ...style });
                 } else {
-                    overlay = new google.maps.Circle({ 
-                        center: el.center, radius: el.radius, map: map, ...getStyleByMode(el.type), editable:true 
-                    });
-                    bounds.union(overlay.getBounds());
+                    overlay = new google.maps.Circle({ center: el.center, radius: el.radius, map: map, ...style });
                 }
+                
                 overlay.atomType = el.type;
                 mapOverlays.push(overlay);
+                addMarkerLabel(overlay, el.label);
             });
-            if(!bounds.isEmpty()) {
-                map.fitBounds(bounds);
-                google.maps.event.addListenerOnce(map, 'idle', () => { if(map.getZoom() > 19) map.setZoom(18); });
-            }
         }
     });
 }
 
-// --- CRONÓMETRO Y CONTROL DE CAMPO ---
-function launchMission() {
-    if (!currentMissionId) return alert("Carga o guarda una misión primero.");
-    
-    const startTime = Date.now();
-    db.ref('operacion_activa/control').set({
-        missionId: currentMissionId,
-        startTime: startTime,
-        status: 'EN_CURSO'
-    }).then(() => {
-        alert("¡OPERACIÓN INICIADA!");
+function clearMap() {
+    mapOverlays.forEach(o => o.setMap(null));
+    mapLabels.forEach(l => l.setMap(null));
+    mapOverlays = [];
+    mapLabels = [];
+}
+
+function setMode(mode, btn) {
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.body.dataset.mode = mode;
+    drawingManager.setDrawingMode(mode.includes("RESPAWN") || mode === 'OBJ_POINT' ? google.maps.drawing.OverlayType.CIRCLE : google.maps.drawing.OverlayType.POLYGON);
+}
+
+function togglePanel() {
+    const p = document.getElementById('panel');
+    p.classList.toggle('panel-hidden');
+}
+
+function loadMissionList() {
+    db.ref('misiones').on('value', snap => {
+        const sel = document.getElementById('mission-selector');
+        sel.innerHTML = '<option value="">-- NUEVA MISIÓN --</option>';
+        snap.forEach(c => { sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`; });
     });
 }
 
-function syncTimer() {
-    db.ref('operacion_activa/control').on('value', snap => {
-        const data = snap.val();
-        if (data && data.status === 'EN_CURSO') {
-            if (timerInterval) clearInterval(timerInterval);
-            
-            const btn = document.getElementById('btn-launch');
-            btn.innerText = "⚠️ OPERACIÓN ACTIVA";
-            btn.style.background = "#444";
-            btn.classList.remove('btn-launch');
-
-            timerInterval = setInterval(() => {
-                const now = Date.now();
-                const diff = now - data.startTime;
-                
-                const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-                const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                
-                document.getElementById('timer-display').innerText = `${h}:${m}:${s}`;
-            }, 1000);
-        }
-    });
-}
-
-// --- GESTIÓN DE JUGADORES Y EQUIPOS ---
-function loadEnlistedPlayers() {
-    db.ref('operacion_activa/despliegue').on('value', snap => {
-        const lobby = document.getElementById('player-lobby');
-        lobby.innerHTML = "";
-        
-        if(!snap.exists()) {
-            lobby.innerHTML = "Esperando operadores...";
-            return;
-        }
-
-        snap.forEach(c => {
-            const p = c.val();
-            const pId = c.key;
-            const color = p.equipo === 'ROJO' ? 'var(--red)' : (p.equipo === 'AZUL' ? 'var(--blue)' : '#fff');
-            
-            lobby.innerHTML += `
-                <div class="player-row">
-                    <span style="color:${color}; font-weight:bold;">• ${p.callsign || 'S/N'}</span>
-                    <select onchange="assignTeam('${pId}', this.value)" style="border-color:${color};">
-                        <option value="NONE" ${p.equipo === 'NONE' ? 'selected' : ''}>LIBRE</option>
-                        <option value="ROJO" ${p.equipo === 'ROJO' ? 'selected' : ''}>ROJO</option>
-                        <option value="AZUL" ${p.equipo === 'AZUL' ? 'selected' : ''}>AZUL</option>
-                    </select>
-                </div>`;
-        });
-    });
-}
-
-function assignTeam(pId, team) {
-    db.ref(`operacion_activa/despliegue/${pId}`).update({ equipo: team });
-}
-
-function autoBalance() {
-    db.ref('operacion_activa/despliegue').once('value', snap => {
-        if(!snap.exists()) return;
-        
-        let players = [];
-        snap.forEach(c => { players.push({ id: c.key }); });
-
-        // Mezclar aleatoriamente
-        players.sort(() => Math.random() - 0.5);
-
-        const updates = {};
-        players.forEach((p, index) => {
-            // El operador % 2 garantiza que se repartan 50/50. 
-            // Si el total es impar, el equipo ROJO tendrá 1 más.
-            const team = (index % 2 === 0) ? 'ROJO' : 'AZUL';
-            updates[`${p.id}/equipo`] = team;
-        });
-
-        db.ref('operacion_activa/despliegue').update(updates)
-          .then(() => alert("BALANCEO COMPLETADO"));
-    });
-}
+// Funciones de control simplificadas para el ejemplo
+function launchMission() { db.ref('operacion_activa/control').set({ startTime: Date.now(), status: 'EN_CURSO' }); }
+function resetToLobby() { db.ref('operacion_activa/control').set({ status: 'RECLUTANDO', startTime: 0 }); alert("RESET"); }
 
 </script>
-<!-- API KEY DE GOOGLE MAPS -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing,geometry&callback=initMap" async defer></script>
 </body>
 </html>
