@@ -12,87 +12,34 @@
 
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#808080; }
-        
         body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
-        
-        /* Contenedor Principal */
         .wrapper { display: flex; height: 100vh; width: 100vw; position: relative; }
-
-        /* Panel Lateral Desplegable */
         #panel { 
-            width: 320px; 
-            background: rgba(0,0,0,0.95); 
-            border-right: 1px solid var(--p); 
-            display: flex; 
-            flex-direction: column; 
-            overflow-y: auto; 
-            z-index: 1000;
-            transition: transform 0.3s ease;
-            position: absolute;
-            height: 100%;
-            backdrop-filter: blur(10px);
+            width: 320px; background: rgba(0,0,0,0.95); border-right: 1px solid var(--p); 
+            display: flex; flex-direction: column; overflow-y: auto; z-index: 1000;
+            transition: transform 0.3s ease; position: absolute; height: 100%; backdrop-filter: blur(10px);
         }
-
-        /* Estado del Panel (Cerrado por defecto en móvil) */
         .panel-hidden { transform: translateX(-100%); }
-
-        /* Botón de Toggle para el Panel */
         #menu-toggle {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            z-index: 1100;
-            background: var(--f);
-            color: var(--p);
-            border: 1px solid var(--p);
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 4px;
-            font-weight: bold;
-            box-shadow: 0 0 10px rgba(0,255,0,0.3);
+            position: absolute; top: 15px; left: 15px; z-index: 1100; background: var(--f);
+            color: var(--p); border: 1px solid var(--p); padding: 10px; cursor: pointer;
+            border-radius: 4px; font-weight: bold; box-shadow: 0 0 10px rgba(0,255,0,0.3);
         }
-
         #map { flex:1; width: 100%; height: 100%; }
-
-        /* UI Interna del Panel */
         .menu-header { padding: 60px 15px 15px 15px; background:#111; border-bottom:1px solid var(--p); text-align: center; }
-        
         details { border-bottom: 1px solid #222; background: #080808; }
         summary { padding: 15px; cursor: pointer; outline: none; font-weight: bold; font-size: 13px; color: var(--gold); list-style: none; display: flex; justify-content: space-between; align-items: center; }
-        summary::-webkit-details-marker { display: none; }
-        summary::after { content: '▼'; font-size: 10px; }
-        details[open] summary::after { content: '▲'; }
-
         .tool-content { padding: 15px; display: flex; flex-direction: column; gap: 8px; }
-        
         h4 { margin: 0; font-size: 10px; text-transform: uppercase; color: #666; letter-spacing: 1px; }
-        
-        button { 
-            width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); 
-            cursor:pointer; font-family:inherit; font-weight: bold; transition: 0.2s; font-size: 11px; 
-            text-transform: uppercase;
-        }
+        button { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; transition: 0.2s; font-size: 11px; text-transform: uppercase; }
         button:active { background:var(--p); color:#000; }
         button.active { background: var(--p); color: #000; box-shadow: 0 0 15px var(--p); }
-
         .btn-delete { border-color: var(--red); color: var(--red); }
         .btn-save { background: var(--gold); color: #000; border: none; font-size: 13px; margin-top: 10px; }
         .btn-launch { background: var(--red); color: #fff; border: none; font-size: 14px; animation: blink 2s infinite; }
-        
-        input, select { 
-            width:100%; padding:12px; background:#000; border:1px solid #333; 
-            color:var(--p); font-family: inherit; box-sizing: border-box; font-size: 14px;
-        }
-
+        input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:var(--p); font-family: inherit; box-sizing: border-box; font-size: 14px; }
         #timer-display { font-size: 2rem; text-align: center; color: var(--gold); font-weight: bold; margin: 10px 0; }
-
-        /* Media Queries para Escritorio */
-        @media (min-width: 1024px) {
-            #panel { position: relative; transform: translateX(0); width: 350px; }
-            #menu-toggle { display: none; }
-            .menu-header { padding: 15px; }
-        }
-
+        @media (min-width: 1024px) { #panel { position: relative; transform: translateX(0); width: 350px; } #menu-toggle { display: none; } .menu-header { padding: 15px; } }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
@@ -148,7 +95,6 @@
             <div class="tool-content">
                 <div id="timer-display">00:00:00</div>
                 <button id="btn-launch" class="btn-launch" onclick="launchMission()">⚡ INICIAR OPERACIÓN</button>
-                
                 <h4 style="margin-top:10px;">Operadores en Lobby</h4>
                 <div id="player-lobby" style="background:#000; padding:10px; border:1px solid #222; max-height:150px; overflow-y:auto; font-size:11px; border-radius:4px;">
                     Sincronizando...
@@ -157,12 +103,10 @@
             </div>
         </details>
     </div>
-
     <div id="map"></div>
 </div>
 
 <script>
-// Configuración de Firebase (Se mantiene igual)
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
     authDomain: "atom---sistem.firebaseapp.com",
@@ -178,9 +122,7 @@ const db = firebase.database();
 let map, drawingManager;
 let currentMissionId = null;
 let mapOverlays = [];
-let clockInterval = null;
 
-// Función para abrir/cerrar panel en móvil
 function togglePanel() {
     const p = document.getElementById('panel');
     p.classList.toggle('panel-hidden');
@@ -193,7 +135,7 @@ function initMap() {
         center: {lat:-34.34, lng:-56.71}, 
         zoom: 15,
         mapTypeId: "hybrid",
-        disableDefaultUI: true, // Mapa limpio
+        disableDefaultUI: true,
         zoomControl: true,
         tilt: 45
     });
@@ -211,7 +153,6 @@ function initMap() {
         e.overlay.atomType = mode;
         e.overlay.setOptions(getStyleByMode(mode));
         mapOverlays.push(e.overlay);
-        // En móvil, cerramos el panel automáticamente al empezar a dibujar
         if(window.innerWidth < 1024) togglePanel();
     });
 
@@ -234,7 +175,6 @@ function setMode(mode, btn) {
     document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.body.dataset.mode = mode;
-    
     if (mode.includes("RESPAWN") || mode === 'OBJ_POINT') {
         drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE);
     } else {
@@ -242,7 +182,6 @@ function setMode(mode, btn) {
     }
 }
 
-// Lógica de Persistencia y Firebase (Optimizada)
 function saveMission() {
     const name = document.getElementById('mission-name').value;
     if (!name) return alert("Asigna un nombre a la operación");
@@ -251,7 +190,7 @@ function saveMission() {
     mapOverlays.forEach((obj, i) => {
         const id = "el_" + i;
         let data = { type: obj.atomType };
-        if (obj.atomType.includes("ZONE")) {
+        if (obj.getPaths) {
             data.path = obj.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
         } else {
             data.center = {lat: obj.getCenter().lat(), lng: obj.getCenter().lng()};
@@ -280,10 +219,12 @@ function loadMissionList() {
     });
 }
 
+// CORRECCIÓN: Función de carga con Auto-Zoom dinámico
 function loadMissionToEdit(id) {
     if(!id) return location.reload();
     currentMissionId = id;
     clearMap();
+    
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
         document.getElementById('mission-name').value = m.nombre;
@@ -292,16 +233,33 @@ function loadMissionToEdit(id) {
         document.getElementById('delete-mission-btn').style.display = 'block';
         
         if(m.elementos) {
+            const bounds = new google.maps.LatLngBounds();
+            
             Object.values(m.elementos).forEach(el => {
                 let overlay;
-                if(el.type.includes("ZONE")) {
-                    overlay = new google.maps.Polygon({ path: el.path, map: map, ...getStyleByMode(el.type), editable:true });
+                if(el.path) {
+                    overlay = new google.maps.Polygon({ 
+                        path: el.path, map: map, ...getStyleByMode(el.type), editable:true 
+                    });
+                    el.path.forEach(point => bounds.extend(point));
                 } else {
-                    overlay = new google.maps.Circle({ center: el.center, radius: el.radius, map: map, ...getStyleByMode(el.type), editable:true });
+                    overlay = new google.maps.Circle({ 
+                        center: el.center, radius: el.radius, map: map, ...getStyleByMode(el.type), editable:true 
+                    });
+                    bounds.union(overlay.getBounds());
                 }
                 overlay.atomType = el.type;
                 mapOverlays.push(overlay);
             });
+            
+            // Ajuste fundamental de zoom y centrado
+            if(!bounds.isEmpty()) {
+                map.fitBounds(bounds);
+                // Pequeño retardo para asegurar que el zoom sea correcto tras el fitBounds
+                google.maps.event.addListenerOnce(map, 'idle', () => {
+                    if(map.getZoom() > 19) map.setZoom(18);
+                });
+            }
         }
     });
 }
@@ -321,8 +279,6 @@ function loadEnlistedPlayers() {
     });
 }
 </script>
-
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing,geometry&callback=initMap" async defer></script>
-
 </body>
 </html>
