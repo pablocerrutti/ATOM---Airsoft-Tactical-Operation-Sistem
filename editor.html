@@ -47,8 +47,20 @@
         .btn-reset { border-color: var(--gray); color: var(--gray); margin-top: 15px; font-size: 10px; }
         
         input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:var(--p); font-family: inherit; box-sizing: border-box; font-size: 14px; }
-        #timer-display { font-size: 2.5rem; text-align: center; color: var(--gold); font-weight: bold; margin: 10px 0; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
         
+        /* Estilos Reloj y Bajas */
+        .timer-container { display: flex; align-items: center; justify-content: space-around; margin: 10px 0; background: #111; padding: 10px 0; border-radius: 8px; }
+        .kill-counter { text-align: center; width: 60px; }
+        .kill-count { font-size: 1.5rem; font-weight: bold; display: block; }
+        .kill-label { font-size: 8px; color: var(--gray); }
+        #timer-display { font-size: 1.8rem; text-align: center; color: var(--gold); font-weight: bold; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        
+        /* Estilos Lista de Jugadores */
+        .player-item { display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #222; font-size: 12px; }
+        .team-red { color: var(--red); }
+        .team-blue { color: var(--blue); }
+        .team-none { color: var(--gray); }
+
         @media (min-width: 1024px) { #panel { position: relative; transform: translateX(0); width: 350px; } #menu-toggle { display: none; } .menu-header { padding: 15px; } }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
@@ -81,6 +93,18 @@
             </div>
         </details>
 
+        <!-- NUEVA CAJA DE HERRAMIENTAS: OPERADORES -->
+        <details>
+            <summary>👥 OPERADORES ENLISTADOS</summary>
+            <div class="tool-content">
+                <div id="player-list" style="max-height: 200px; overflow-y: auto; background: #000; border: 1px solid #222; margin-bottom: 10px;">
+                    <!-- Los callsigns aparecerán aquí -->
+                    <div class="player-item team-none">Esperando enlistados...</div>
+                </div>
+                <button onclick="autoBalanceTeams()" style="border-color: var(--gold); color: var(--gold);">⚖️ AUTOBALANCEAR EQUIPOS</button>
+            </div>
+        </details>
+
         <details>
             <summary>🛠️ HERRAMIENTAS TÁCTICAS</summary>
             <div class="tool-content">
@@ -99,7 +123,17 @@
         <details>
             <summary>🚀 CONTROL DE CAMPO</summary>
             <div class="tool-content">
-                <div id="timer-display">00:00:00</div>
+                <div class="timer-container">
+                    <div class="kill-counter">
+                        <span class="kill-count" id="red-kills" style="color:var(--red)">0</span>
+                        <span class="kill-label">BAJAS R</span>
+                    </div>
+                    <div id="timer-display">00:00:00</div>
+                    <div class="kill-counter">
+                        <span class="kill-count" id="blue-kills" style="color:var(--blue)">0</span>
+                        <span class="kill-label">BAJAS B</span>
+                    </div>
+                </div>
                 <button id="btn-launch" class="btn-launch" onclick="launchMission()">⚡ INICIAR OPERACIÓN</button>
                 <button id="btn-stop" class="btn-stop" onclick="stopMission()">🛑 FINALIZAR MISIÓN (STOP)</button>
                 <button class="btn-reset" onclick="resetToLobby()">🔄 RESETEAR TODO AL LOBBY</button>
@@ -165,6 +199,7 @@ function initMap() {
 
     loadMissionList();
     syncTimer();
+    syncPlayersAndStats(); // Nueva sincronización
 }
 
 function addMarkerLabel(overlay, text) {
@@ -185,7 +220,6 @@ function addMarkerLabel(overlay, text) {
     mapLabels.push(label);
 }
 
-// --- FUNCIÓN CRÍTICA: ZOOM SOBRE ZONA DE JUEGO ---
 function fitMapToContents() {
     if (mapOverlays.length === 0) return;
     const bounds = new google.maps.LatLngBounds();
@@ -194,7 +228,6 @@ function fitMapToContents() {
             overlay.getPath().forEach(p => bounds.extend(p));
         } else {
             bounds.extend(overlay.getCenter());
-            // Para círculos, extendemos un poco más para cubrir el radio aproximado
             const radius = overlay.getRadius();
             const center = overlay.getCenter();
             bounds.extend(google.maps.geometry.spherical.computeOffset(center, radius, 0));
@@ -202,7 +235,6 @@ function fitMapToContents() {
         }
     });
     map.fitBounds(bounds);
-    // Un pequeño delay para asegurar que el zoom sea suave
     setTimeout(() => { if (map.getZoom() > 18) map.setZoom(18); }, 200);
 }
 
@@ -239,11 +271,61 @@ function loadMissionToEdit(id) {
                 mapOverlays.push(overlay);
                 addMarkerLabel(overlay, el.label);
             });
-            // Ejecutar zoom automático después de cargar elementos
             fitMapToContents();
         }
     });
 }
+
+// --- NUEVAS FUNCIONES DE SINCRONIZACIÓN Y BALANCEO ---
+
+function syncPlayersAndStats() {
+    // Sincronizar Bajas
+    db.ref('operacion_activa/stats').on('value', snap => {
+        const stats = snap.val() || { redKills: 0, blueKills: 0 };
+        document.getElementById('red-kills').innerText = stats.redKills;
+        document.getElementById('blue-kills').innerText = stats.blueKills;
+    });
+
+    // Sincronizar Lista de Jugadores
+    db.ref('jugadores_enlistados').on('value', snap => {
+        const listDiv = document.getElementById('player-list');
+        listDiv.innerHTML = '';
+        if(!snap.exists()) {
+            listDiv.innerHTML = '<div class="player-item team-none">Sin jugadores</div>';
+            return;
+        }
+        snap.forEach(child => {
+            const p = child.val();
+            const teamClass = p.equipo === 'RED' ? 'team-red' : (p.equipo === 'BLUE' ? 'team-blue' : 'team-none');
+            listDiv.innerHTML += `
+                <div class="player-item ${teamClass}">
+                    <span>${p.callsign}</span>
+                    <span>${p.equipo || 'S/E'}</span>
+                </div>`;
+        });
+    });
+}
+
+function autoBalanceTeams() {
+    db.ref('jugadores_enlistados').once('value', snap => {
+        if(!snap.exists()) return alert("No hay jugadores para balancear");
+        let players = [];
+        snap.forEach(c => { players.push({ id: c.key, ...c.val() }); });
+        
+        // Mezcla aleatoria
+        players.sort(() => Math.random() - 0.5);
+        
+        let updates = {};
+        players.forEach((p, index) => {
+            const team = (index % 2 === 0) ? 'RED' : 'BLUE';
+            updates[`jugadores_enlistados/${p.id}/equipo`] = team;
+        });
+        
+        db.ref().update(updates).then(() => alert("EQUIPOS BALANCEADOS"));
+    });
+}
+
+// --- FIN NUEVAS FUNCIONES ---
 
 function launchMission() {
     if (!currentMissionId) return alert("Carga una misión primero.");
@@ -286,6 +368,7 @@ function updateTimerDisplay(ms) {
 function resetToLobby() {
     if(!confirm("¿Resetear?")) return;
     db.ref('operacion_activa/control').set({ status: 'RECLUTANDO', startTime: 0, endTime: null });
+    db.ref('operacion_activa/stats').set({ redKills: 0, blueKills: 0 }); // Reset stats también
 }
 
 function clearMap() {
