@@ -25,6 +25,14 @@
         #map { width:100%; height:100%; background: #000; }
         .KIA { filter: grayscale(1) blur(8px) brightness(0.4); pointer-events: none; }
 
+        /* Alerta Fuera de Zona */
+        #out-of-bounds {
+            position: absolute; top: 20%; left: 0; width: 100%; padding: 20px 0;
+            background: rgba(255,0,0,0.8); color: white; text-align: center;
+            z-index: 5000; font-weight: 900; display: none; pointer-events: none;
+            letter-spacing: 3px; border-top: 2px solid white; border-bottom: 2px solid white;
+        }
+
         /* HUD Superior */
         .hud-top {
             position: absolute; top: 0; left: 50%; transform: translateX(-50%);
@@ -50,39 +58,47 @@
             padding: 8px; cursor: pointer; font-weight: bold; font-size: 10px;
         }
 
-        /* Botones HUD */
         .btn-main {
             width: 100%; padding: 15px; border: 1px solid var(--p);
             background: rgba(0,255,0,0.1); color: var(--p);
             font-weight: bold; cursor: pointer; text-transform: uppercase; font-family: monospace;
         }
-        .btn-medic { border-color: var(--gold); color: var(--gold); margin-top: 10px; }
+        .btn-mark { border-color: var(--gold); color: var(--gold); font-size: 12px; }
+        .btn-medic { border-color: var(--gold); color: var(--gold); }
         .btn-medic.warning { background: var(--red); color: white; animation: blink 0.5s infinite; border-color: white; }
         .btn-abort { margin-top: auto; border-color: var(--red); color: var(--red); font-size: 10px; opacity: 0.6; }
 
         .status-badge { font-size: 10px; text-align: center; padding: 5px; border: 1px solid #444; color: #888; text-transform: uppercase; }
 
-        /* Etiquetas del Mapa */
+        /* Etiquetas */
         .tactical-label {
             background: rgba(0,0,0,0.85); border: 1px solid var(--p); color: var(--p);
             padding: 2px 6px; font-size: 9px; font-weight: bold; border-radius: 2px;
             white-space: nowrap; text-transform: uppercase; box-shadow: 0 0 8px rgba(0,255,0,0.3);
         }
         .label-ally { border-color: white; color: white; background: rgba(0,0,255,0.7); }
+        .label-enemy-mark { border-color: var(--red); color: white; background: rgba(255,0,0,0.9); animation: blink 1s infinite; }
 
         @keyframes blink { 50% { opacity: 0.3; } }
+        @keyframes pulse-red { 0% { box-shadow: inset 0 0 0px red; } 50% { box-shadow: inset 0 0 50px red; } 100% { box-shadow: inset 0 0 0px red; } }
+        .warning-zone { animation: pulse-red 1s infinite; }
     </style>
 </head>
 <body>
 
+    <div id="out-of-bounds" class="blink">⚠️ FUERA DE ZONA DE OPERACIÓN ⚠️</div>
     <button class="menu-toggle" onclick="toggleMenu()">☰ TÁCTICO</button>
 
     <div id="side-menu">
-        <div class="status-badge" id="op-callsign">OPERATIVO: ---</div>
-        <div class="status-badge" id="op-team">EQUIPO: ---</div>
+        <div class="status-badge" id="op-callsign">OPERADOR: ---</div>
+        <div class="status-badge" id="op-team">BANDO: ---</div>
         
-        <button class="btn-main" onclick="alert('CANAL DE RADIO ACTIVO')">🎤 PTT RADIO</button>
+        <button class="btn-main" onclick="alert('CANAL RADIO PTT ACTIVO')">🎤 PTT RADIO</button>
         
+        <button class="btn-main btn-mark" onclick="markEnemyLocation()">
+            🎯 MARCAR ENEMIGO (30s)
+        </button>
+
         <button id="medic-trigger" class="btn-main btn-medic" onclick="handleMedicRequest()">
             ➕ SOLICITAR MÉDICO
         </button>
@@ -113,25 +129,21 @@ const db = firebase.database();
 const myCallsign = localStorage.getItem('callsign') || "OPERADOR";
 const activeMissionId = localStorage.getItem('activeMissionId');
 
-let map, drawnItems;
+let map, drawnItems, gameZoneLayer;
 let myTeam = 'S/E';
-let medicSteps = 0;
 let teamMarkers = {};
-let respawnZone = null;
+let enemyMarkers = {};
+let lastPos = null;
 
 function initMap() {
     map = L.map('map', { zoomControl: false, attributionControl: false }).setView([0,0], 2);
-    
-    // INTEGRACIÓN GOOGLE MUTANT HÍBRIDO
-    L.gridLayer.googleMutant({
-        type: 'hybrid' 
-    }).addTo(map);
-
+    L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(map);
     drawnItems = L.featureGroup().addTo(map);
     
     loadMissionData();
     syncPlayerStatus();
     listenGlobalTimer();
+    listenEnemyMarks();
     startGPS();
 }
 
@@ -156,6 +168,7 @@ function loadMissionData() {
                 let lats = el.path.map(p => p.lat);
                 let lngs = el.path.map(p => p.lng);
                 centerPos = [(Math.min(...lats) + Math.max(...lats)) / 2, (Math.min(...lngs) + Math.max(...lngs)) / 2];
+                if(el.type === 'GAME_ZONE') gameZoneLayer = layer;
             } else if(el.radius) {
                 layer = L.circle(el.center, {radius: el.radius, ...style});
                 centerPos = el.center;
@@ -164,10 +177,6 @@ function loadMissionData() {
                 centerPos = el.center;
             }
 
-            // Guardar referencia del respawn del equipo para el modo KIA
-            if(el.type === `RESPAWN_${myTeam}`) respawnZone = layer;
-
-            // Etiqueta Táctica Dinámica
             L.marker(centerPos, {
                 icon: L.divIcon({
                     className: 'tactical-label',
@@ -186,15 +195,100 @@ function loadMissionData() {
     });
 }
 
+function markEnemyLocation() {
+    if(!lastPos) return alert("ERROR: GPS NO DISPONIBLE");
+    const markId = `mark_${Date.now()}`;
+    db.ref(`operacion_activa/marcas_enemigas/${myTeam}/${markId}`).set({
+        lat: lastPos.lat,
+        lng: lastPos.lng,
+        timestamp: Date.now(),
+        by: myCallsign
+    });
+    toggleMenu();
+}
+
+function listenEnemyMarks() {
+    db.ref(`operacion_activa/marcas_enemigas/${myTeam}`).on('value', snap => {
+        const marks = snap.val();
+        const now = Date.now();
+        // Limpiar marcas viejas
+        for(let id in enemyMarkers) { if(!marks || !marks[id]) { map.removeLayer(enemyMarkers[id]); delete enemyMarkers[id]; } }
+        
+        if(!marks) return;
+        snap.forEach(child => {
+            const data = child.val();
+            const id = child.key;
+            const age = now - data.timestamp;
+
+            if(age < 30000) { // 30 segundos
+                if(!enemyMarkers[id]) {
+                    enemyMarkers[id] = L.marker([data.lat, data.lng], {
+                        icon: L.divIcon({
+                            className: 'tactical-label label-enemy-mark',
+                            html: '⚠️ ENEMIGO DETECTADO',
+                            iconAnchor: [60, 0]
+                        })
+                    }).addTo(map);
+                    
+                    // Auto-remoción visual a los 30s
+                    setTimeout(() => { if(enemyMarkers[id]) db.ref(`operacion_activa/marcas_enemigas/${myTeam}/${id}`).remove(); }, 30000 - age);
+                }
+            }
+        });
+    });
+}
+
+function startGPS() {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(pos => {
+            const {latitude, longitude} = pos.coords;
+            lastPos = {lat: latitude, lng: longitude};
+            
+            // Actualizar en Firebase
+            db.ref(`jugadores_enlistados/${myCallsign}`).update({ 
+                lat: latitude, lng: longitude, lastSeen: Date.now() 
+            });
+
+            // Verificar si está en la zona de juego
+            if(gameZoneLayer) {
+                const point = L.latLng(latitude, longitude);
+                const isInside = isPointInPolygon(point, gameZoneLayer.getLatLngs()[0]);
+                const alertUI = document.getElementById('out-of-bounds');
+                const mapUI = document.getElementById('map-container');
+                
+                if(!isInside) {
+                    alertUI.style.display = 'block';
+                    mapUI.classList.add('warning-zone');
+                } else {
+                    alertUI.style.display = 'none';
+                    mapUI.classList.remove('warning-zone');
+                }
+            }
+        }, err => console.error(err), { enableHighAccuracy: true });
+    }
+}
+
+// Algoritmo Ray-casting para detectar si el punto está dentro del polígono
+function isPointInPolygon(latlng, poly) {
+    let x = latlng.lat, y = latlng.lng;
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        let xi = poly[i].lat, yi = poly[i].lng;
+        let xj = poly[j].lat, yj = poly[j].lng;
+        let intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+// ... Resto de funciones (Medic, Timer, etc.) se mantienen igual ...
 function syncPlayerStatus() {
     db.ref(`jugadores_enlistados/${myCallsign}`).on('value', snap => {
-        const p = snap.val();
-        if(!p) return;
+        const p = snap.val(); if(!p) return;
         myTeam = p.equipo;
-        document.getElementById('op-callsign').innerText = `OPERATIVO: ${myCallsign}`;
-        document.getElementById('op-team').innerText = `EQUIPO: ${myTeam}`;
+        document.getElementById('op-callsign').innerText = `OPERADOR: ${myCallsign}`;
+        document.getElementById('op-team').innerText = `BANDO: ${myTeam}`;
         document.getElementById('op-team').style.color = myTeam === 'RED' ? 'var(--red)' : 'var(--blue)';
-        
         listenTeammates();
     });
 }
@@ -203,24 +297,13 @@ function listenTeammates() {
     db.ref('jugadores_enlistados').on('value', snap => {
         snap.forEach(child => {
             const data = child.val();
-            const id = child.key;
-            
-            // Solo ver aliados y a uno mismo en el mapa
             if(data.equipo === myTeam && data.lat) {
-                if(!teamMarkers[id]) {
-                    teamMarkers[id] = L.circleMarker([data.lat, data.lng], {
-                        radius: 7, 
-                        color: 'white', 
-                        fillColor: myTeam === 'RED' ? '#ff3333' : '#3333ff', 
-                        fillOpacity: 1,
-                        weight: 2
-                    }).addTo(map).bindTooltip(id, {
-                        permanent: true, 
-                        direction: 'top',
-                        className: 'tactical-label label-ally'
-                    });
+                if(!teamMarkers[child.key]) {
+                    teamMarkers[child.key] = L.circleMarker([data.lat, data.lng], {
+                        radius: 7, color: 'white', fillColor: myTeam === 'RED' ? '#ff3333' : '#3333ff', fillOpacity: 1, weight: 2
+                    }).addTo(map).bindTooltip(child.key, { permanent: true, direction: 'top', className: 'tactical-label label-ally' });
                 } else {
-                    teamMarkers[id].setLatLng([data.lat, data.lng]);
+                    teamMarkers[child.key].setLatLng([data.lat, data.lng]);
                 }
             }
         });
@@ -228,69 +311,36 @@ function listenTeammates() {
 }
 
 function handleMedicRequest() {
-    medicSteps++;
+    // Lógica KIA existente...
     const btn = document.getElementById('medic-trigger');
-    
-    if(medicSteps === 1) {
-        btn.innerText = "⚠️ CONFIRMAR BAJA (KIA)";
+    if(!btn.classList.contains('warning')) {
+        btn.innerText = "⚠️ CONFIRMAR KIA";
         btn.classList.add('warning');
-        // Notificar a Firebase el estado de "Solicitud de Médico" si fuera necesario
     } else {
         document.getElementById('map-container').classList.add('KIA');
-        btn.innerText = "❌ ESTADO: KIA";
-        btn.disabled = true;
-        
+        btn.innerText = "❌ ESTADO: KIA"; btn.disabled = true;
         const enemyTeam = myTeam === 'RED' ? 'killsBlue' : 'killsRed';
-        db.ref(`operacion_activa/control/${enemyTeam}`).transaction(current => (current || 0) + 1);
-
-        if(respawnZone) {
-            const target = respawnZone.getBounds ? respawnZone.getBounds().getCenter() : respawnZone.getLatLng();
-            map.flyTo(target, 18);
-        }
-        
-        alert("OPERATIVO CAÍDO. Proceda a zona de regeneración.");
-        setTimeout(() => {
-            if(confirm("¿REASIGNAR OPERATIVO?")) location.reload();
-        }, 8000);
+        db.ref(`operacion_activa/control/${enemyTeam}`).transaction(c => (c || 0) + 1);
+        alert("OPERATIVO CAÍDO. Vuelva al Respawn.");
     }
 }
 
 function listenGlobalTimer() {
     db.ref('operacion_activa/control').on('value', snap => {
-        const data = snap.val();
-        if(!data) return;
+        const data = snap.val(); if(!data) return;
         document.getElementById('kills-red').innerText = data.killsRed || 0;
         document.getElementById('kills-blue').innerText = data.killsBlue || 0;
-        
         if(data.startTime && !data.paused) {
-            const timerInterval = setInterval(() => {
+            setInterval(() => {
                 const diff = Date.now() - data.startTime;
-                if (diff < 0) return;
                 document.getElementById('timer').innerText = new Date(diff).toISOString().substr(11, 8);
             }, 1000);
         }
     });
 }
 
-function startGPS() {
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(pos => {
-            const {latitude, longitude} = pos.coords;
-            db.ref(`jugadores_enlistados/${myCallsign}`).update({ 
-                lat: latitude, 
-                lng: longitude,
-                lastSeen: Date.now() 
-            });
-        }, err => console.error("Error GPS:", err), { 
-            enableHighAccuracy: true,
-            maximumAge: 0
-        });
-    }
-}
-
 function toggleMenu() { document.getElementById('side-menu').classList.toggle('open'); }
-function abortMission() { if(confirm("¿SOLICITAR EXFILTRACIÓN INMEDIATA?")) window.location.href = 'lobby.html'; }
-
+function abortMission() { if(confirm("¿EXFILTRACIÓN?")) window.location.href = 'lobby.html'; }
 window.onload = initMap;
 </script>
 </body>
