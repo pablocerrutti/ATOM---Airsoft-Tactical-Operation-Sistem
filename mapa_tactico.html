@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -10,10 +10,10 @@
         :root { --p:#00ff00; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
         body, html { margin:0; padding:0; height:100%; background:#000; overflow:hidden; font-family: monospace; }
         #map { width:100%; height:100%; position: absolute; top:0; left:0; }
-        .hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; pointer-events: none; }
-        .badge { background: rgba(0,0,0,0.8); border: 1px solid var(--p); color: var(--p); padding: 10px; font-weight: bold; font-size: 12px; }
-        .controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; }
-        .btn-abort { background: #300; color: #f33; border: 1px solid #f33; padding: 15px 40px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        .hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; pointer-events: none; z-index: 10; }
+        .badge { background: rgba(0,0,0,0.8); border: 1px solid var(--p); color: var(--p); padding: 10px; font-weight: bold; font-size: 12px; text-transform: uppercase; }
+        .controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; z-index: 10; }
+        .btn-abort { background: #300; color: #f33; border: 1px solid #f33; padding: 15px 40px; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; }
     </style>
 </head>
 <body>
@@ -21,7 +21,7 @@
     <div id="map"></div>
 
     <div class="hud">
-        <div id="hud-team" class="badge">BANDO: ---</div>
+        <div id="hud-team" class="badge">IDENTIFICANDO...</div>
         <div id="hud-timer" class="badge" style="color: var(--gold);">00:00:00</div>
     </div>
 
@@ -44,12 +44,19 @@ const activeMissionId = localStorage.getItem('activeMissionId');
 let map;
 
 function initTactical() {
+    // CORRECCIÓN DE FLUJO: Si no hay datos previos, regresa al Lobby
     if(!myCallsign || !activeMissionId) {
+        console.error("Acceso no autorizado: Sin Callsign o Misión activa.");
         window.location.href = 'lobby.html';
         return;
     }
 
+    // 1. Cargar la misión seleccionada
     db.ref(`misiones/${activeMissionId}`).once('value', snap => {
+        if(!snap.exists()) {
+            window.location.href = 'lobby.html';
+            return;
+        }
         const m = snap.val();
         const first = Object.values(m.elementos)[0];
         const center = first.center || first.path[0];
@@ -60,23 +67,28 @@ function initTactical() {
         renderElements(map, m.elementos);
     });
 
+    // 2. Escuchar mi bando y verificar si sigo enlistado
     db.ref(`jugadores_enlistados/${myCallsign}`).on('value', snap => {
         const p = snap.val();
-        if(p) {
-            const el = document.getElementById('hud-team');
-            el.innerText = `BANDO: ${p.equipo}`;
-            el.style.color = p.equipo === 'RED' ? '#ff3333' : '#3333ff';
-            el.style.borderColor = el.style.color;
+        if(!p) {
+            // Si el admin me borra o no estoy enlistado, me saca al lobby
+            window.location.href = 'lobby.html';
+            return;
         }
+        const el = document.getElementById('hud-team');
+        el.innerText = `BANDO: ${p.equipo}`;
+        el.style.color = p.equipo === 'RED' ? '#ff3333' : '#3333ff';
+        el.style.borderColor = el.style.color;
     });
 
+    // 3. Control de estado de la operación (Fin de partida)
     db.ref('operacion_activa/control').on('value', snap => {
         const status = snap.val();
-        if(status.status === 'RECLUTANDO') {
-            alert("MISIÓN FINALIZADA");
+        if(status && status.status === 'RECLUTANDO') {
+            alert("OPERACIÓN FINALIZADA POR EL COMANDO");
             window.location.href = 'lobby.html';
         }
-        updateTimer(status.startTime);
+        if(status && status.startTime) updateTimer(status.startTime);
     });
 }
 
@@ -91,15 +103,16 @@ function updateTimer(start) {
 }
 
 function abortMission() {
-    if(confirm("¿Desea salir del área de operaciones?")) {
+    if(confirm("¿Desea salir del área de operaciones y volver al punto de reunión?")) {
         db.ref(`jugadores_enlistados/${myCallsign}`).remove();
         window.location.href = 'lobby.html';
     }
 }
 
 function renderElements(mapObj, elementos) {
+    if(!elementos) return;
     Object.values(elementos).forEach(el => {
-        const style = { fillColor: el.color, strokeColor: el.color, fillOpacity: 0.3, map: mapObj };
+        const style = { fillColor: el.color, strokeColor: el.color, fillOpacity: 0.3, map: mapObj, strokeWeight: 2 };
         if (el.path) new google.maps.Polygon({ path: el.path, ...style });
         else new google.maps.Circle({ center: el.center, radius: el.radius, ...style });
     });
