@@ -3,33 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Tactical Map</title>
+    <title>A.T.O.M - Operative Lobby</title>
+    
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+
     <style>
-        :root { --p:#00ff00; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
-        body, html { margin:0; padding:0; height:100%; background:#000; overflow:hidden; font-family: monospace; }
-        #map { width:100%; height:100%; position: absolute; top:0; left:0; }
-        .hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; pointer-events: none; }
-        .badge { background: rgba(0,0,0,0.8); border: 1px solid var(--p); color: var(--p); padding: 10px; font-weight: bold; font-size: 12px; }
-        .controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; }
-        .btn-abort { background: #300; color: #f33; border: 1px solid #f33; padding: 15px 40px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#444; }
+        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
+        .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); }
+        .active { display: flex !important; }
+        
+        /* Contenedores */
+        #screen-selector { padding: 20px; box-sizing: border-box; overflow-y: auto; text-align: center; }
+        .mission-card { border: 1px solid var(--p); background: #111; margin: 15px 0; padding: 15px; border-radius: 4px; transition: 0.3s; }
+        .mission-card:active { background: #222; }
+
+        /* Botones */
+        .btn-action { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-secondary { background: none; border: 1px solid var(--gold); color: var(--gold); padding: 12px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 20px; text-transform: uppercase; font-size: 11px; }
+        
+        /* Nav & Links */
+        .nav-links { display: flex; gap: 10px; margin-top: 15px; }
+        .nav-links a { flex: 1; padding: 10px; font-size: 10px; text-decoration: none; border: 1px solid var(--p); color: var(--p); text-align: center; font-weight: bold; }
+
+        /* Pantalla de Espera */
+        #screen-waiting { justify-content: center; align-items: center; background: radial-gradient(circle, #111 0%, #000 100%); }
+        .radar { width: 120px; height: 120px; border: 2px solid var(--p); border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        .bando-msg { font-size: 1.4em; font-weight: bold; margin: 20px 0; padding: 15px; border: 2px solid var(--p); display: none; text-align: center; width: 80%; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes blink { 50% { opacity: 0; } }
+        .blink { animation: blink 1.5s infinite; }
     </style>
 </head>
 <body>
 
-    <div id="map"></div>
+    <!-- 1. SELECTOR DE MISIONES -->
+    <div id="screen-selector" class="screen active">
+        <h1 style="letter-spacing: 5px; color: var(--gold); margin-bottom: 5px;">A.T.O.M SYSTEM</h1>
+        <p id="op-display" style="font-size: 10px; color: var(--p); margin-bottom: 20px;">[ CARGANDO CREDENCIALES... ]</p>
+        
+        <div id="mission-list">
+            <p style="color: var(--gray);">Buscando misiones disponibles...</p>
+        </div>
 
-    <div class="hud">
-        <div id="hud-team" class="badge">BANDO: ---</div>
-        <div id="hud-timer" class="badge" style="color: var(--gold);">00:00:00</div>
+        <button class="btn-secondary" onclick="window.location.href='operadores.html'">👤 VER OPERADORES ACTIVOS</button>
     </div>
 
-    <div class="controls">
-        <button class="btn-abort" onclick="abortMission()">Abandodar Misión</button>
+    <!-- 2. PREVISUALIZACIÓN Y MINIMAPA -->
+    <div id="screen-preview" class="screen">
+        <div id="preview-map" style="height: 45%; width: 100%; border-bottom: 1px solid var(--p);"></div>
+        <div style="padding: 20px; flex-grow: 1;">
+            <h2 id="prev-name" style="margin:0; color: var(--gold); text-transform: uppercase;">--</h2>
+            <p style="font-size: 12px; color: var(--p); opacity: 0.7;">COORDENADAS DE OBJETIVO IDENTIFICADAS</p>
+            
+            <div class="nav-links">
+                <a id="link-google" target="_blank">GOOGLE MAPS</a>
+                <a id="link-waze" target="_blank">WAZE</a>
+            </div>
+
+            <button class="btn-action" style="margin-top: 30px;" onclick="enlistOperative()">📝 CONFIRMAR ENLISTAMIENTO</button>
+            <button onclick="showScreen('screen-selector')" style="background:none; border:none; color:var(--gray); margin-top:20px; width:100%; font-family: monospace;">⬅ CANCELAR Y VOLVER</button>
+        </div>
+    </div>
+
+    <!-- 3. PANTALLA DE ESPERA Y ASIGNACIÓN -->
+    <div id="screen-waiting" class="screen">
+        <div class="radar"></div>
+        <h2 class="blink" style="margin-top: 0; letter-spacing: 2px;">ESPERANDO ÓRDENES</h2>
+        <p id="wait-msg" style="font-size: 12px; color: var(--gold); text-align: center; padding: 0 40px;">
+            TU PERFIL HA SIDO ENVIADO AL COMANDO.<br>MANTENTE A LA ESPERA DE TU BANDO.
+        </p>
+        
+        <!-- Mensaje de Bando Dinámico -->
+        <div id="bando-display" class="bando-msg"></div>
+        
+        <p style="font-size: 10px; color: var(--gray); position: absolute; bottom: 30px;">ID OPERATIVO: <span id="id-tag">--</span></p>
     </div>
 
 <script>
+// CONFIGURACIÓN FIREBASE
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
     databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
@@ -38,75 +93,147 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const auth = firebase.auth();
 
-const myCallsign = localStorage.getItem('callsign');
-const activeMissionId = localStorage.getItem('activeMissionId');
-let map;
+let userCallsign = null;
+let selectedMissionId = null;
+let previewMap;
 
-function initTactical() {
-    if(!myCallsign || !activeMissionId) {
-        window.location.href = 'lobby.html';
-        return;
-    }
-
-    db.ref(`misiones/${activeMissionId}`).once('value', snap => {
-        const m = snap.val();
-        const first = Object.values(m.elementos)[0];
-        const center = first.center || first.path[0];
-
-        map = new google.maps.Map(document.getElementById("map"), {
-            center: center, zoom: 18, mapTypeId: "hybrid", disableDefaultUI: true, tilt: 45
+// 1. VERIFICACIÓN DE OPERADOR
+auth.onAuthStateChanged(user => {
+    if (user) {
+        db.ref('operadores').orderByChild('email').equalTo(user.email).on('value', snap => {
+            if (snap.exists()) {
+                const data = Object.values(snap.val())[0];
+                userCallsign = data.callsign;
+                localStorage.setItem('callsign', userCallsign);
+                document.getElementById('op-display').innerText = `[ OPERATIVO: ${userCallsign} ]`;
+                document.getElementById('id-tag').innerText = userCallsign;
+            }
         });
-        renderElements(map, m.elementos);
-    });
+    } else {
+        window.location.href = 'login.html'; 
+    }
+});
 
-    db.ref(`jugadores_enlistados/${myCallsign}`).on('value', snap => {
+// 2. LISTADO DE MISIONES
+function initLobby() {
+    db.ref('misiones').on('value', snap => {
+        const list = document.getElementById('mission-list');
+        list.innerHTML = '';
+        if(!snap.exists()) {
+            list.innerHTML = '<p style="color:var(--gray)">NO HAY MISIONES DISPONIBLES</p>';
+            return;
+        }
+        snap.forEach(c => {
+            list.innerHTML += `
+                <div class="mission-card">
+                    <h3 style="margin:0 0 10px 0; color:var(--p); font-size: 16px;">${c.val().nombre}</h3>
+                    <button class="btn-action" style="padding: 10px; font-size: 12px;" onclick="viewMission('${c.key}')">SELECCIONAR OBJETIVO</button>
+                </div>`;
+        });
+    });
+    listenGlobalStatus();
+}
+
+// 3. VISTA DE MINIMAPA Y DETALLES
+function viewMission(id) {
+    selectedMissionId = id;
+    localStorage.setItem('activeMissionId', id);
+    
+    db.ref(`misiones/${id}`).once('value', snap => {
+        const m = snap.val();
+        showScreen('screen-preview');
+        document.getElementById('prev-name').innerText = m.nombre;
+        
+        const first = Object.values(m.elementos)[0];
+        const pos = first.center || (first.path ? first.path[0] : {lat: -34.1, lng: -56.2});
+
+        // Enlaces de navegación
+        document.getElementById('link-google').href = `https://www.google.com/maps/dir/?api=1&destination=${pos.lat},${pos.lng}`;
+        document.getElementById('link-waze').href = `https://waze.com/ul?ll=${pos.lat},${pos.lng}&navigate=yes`;
+        
+        // Render minimapa
+        if(!previewMap) {
+            previewMap = new google.maps.Map(document.getElementById("preview-map"), {
+                center: pos, zoom: 15, mapTypeId: "hybrid", disableDefaultUI: true, gestureHandling: "none"
+            });
+        } else {
+            previewMap.setCenter(pos);
+        }
+        
+        // Dibujar solo un círculo de referencia en el preview
+        new google.maps.Circle({
+            strokeColor: "#00ff00", strokeOpacity: 0.8, strokeWeight: 2,
+            fillColor: "#00ff00", fillOpacity: 0.1,
+            map: previewMap, center: pos, radius: 200
+        });
+    });
+}
+
+// 4. ENLISTAMIENTO Y ESPERA DE BANDO
+function enlistOperative() {
+    if(!userCallsign) return alert("ERROR: IDENTIDAD NO VERIFICADA");
+    
+    db.ref(`jugadores_enlistados/${userCallsign}`).set({
+        callsign: userCallsign,
+        equipo: 'S/E', // Estado inicial: Sin Equipo
+        lastSeen: Date.now()
+    }).then(() => {
+        showScreen('screen-waiting');
+        listenMyAssignment();
+    });
+}
+
+// ESCUCHA DE ASIGNACIÓN DE BANDO (Mensaje dinámico)
+function listenMyAssignment() {
+    db.ref(`jugadores_enlistados/${userCallsign}`).on('value', snap => {
         const p = snap.val();
-        if(p) {
-            const el = document.getElementById('hud-team');
-            el.innerText = `BANDO: ${p.equipo}`;
-            el.style.color = p.equipo === 'RED' ? '#ff3333' : '#3333ff';
-            el.style.borderColor = el.style.color;
+        const display = document.getElementById('bando-display');
+        
+        if(p && p.equipo !== 'S/E') {
+            display.style.display = 'block';
+            display.innerText = `TU BANDO ES: ${p.equipo}`;
+            
+            // Colores según bando
+            if(p.equipo === 'RED') {
+                display.style.borderColor = 'var(--red)';
+                display.style.color = 'var(--red)';
+            } else if(p.equipo === 'BLUE') {
+                display.style.borderColor = 'var(--blue)';
+                display.style.color = 'var(--blue)';
+            }
+            
+            document.getElementById('wait-msg').innerText = "BANDO ASIGNADO. PREPÁRESE PARA EL DESPLIEGUE.";
+        } else {
+            display.style.display = 'none';
         }
     });
+}
 
+// 5. ESCUCHA DE INICIO DE PARTIDA (Redirección)
+function listenGlobalStatus() {
     db.ref('operacion_activa/control').on('value', snap => {
         const status = snap.val();
-        if(status.status === 'RECLUTANDO') {
-            alert("MISIÓN FINALIZADA");
-            window.location.href = 'lobby.html';
+        if(status && status.status === 'EN_CURSO') {
+            // Solo redirigir si el usuario está enlistado
+            db.ref(`jugadores_enlistados/${userCallsign}`).once('value', pSnap => {
+                if(pSnap.exists()) {
+                    window.location.href = 'mapa_tactico.html';
+                }
+            });
         }
-        updateTimer(status.startTime);
     });
 }
 
-function updateTimer(start) {
-    setInterval(() => {
-        const ms = Date.now() - start;
-        const h = Math.floor(ms / 3600000).toString().padStart(2, '0');
-        const m = Math.floor((ms % 3600000) / 60000).toString().padStart(2, '0');
-        const s = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
-        document.getElementById('hud-timer').innerText = `${h}:${m}:${s}`;
-    }, 1000);
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
 }
 
-function abortMission() {
-    if(confirm("¿Desea salir del área de operaciones?")) {
-        db.ref(`jugadores_enlistados/${myCallsign}`).remove();
-        window.location.href = 'lobby.html';
-    }
-}
-
-function renderElements(mapObj, elementos) {
-    Object.values(elementos).forEach(el => {
-        const style = { fillColor: el.color, strokeColor: el.color, fillOpacity: 0.3, map: mapObj };
-        if (el.path) new google.maps.Polygon({ path: el.path, ...style });
-        else new google.maps.Circle({ center: el.center, radius: el.radius, ...style });
-    });
-}
-
-window.onload = initTactical;
+window.onload = initLobby;
 </script>
+<!-- API DE GOOGLE MAPS -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=geometry" async defer></script>
 </body>
 </html>
