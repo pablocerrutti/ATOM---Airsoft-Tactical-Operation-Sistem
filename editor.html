@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>A.T.O.M - Tactical Editor</title>
     
-    <!-- Firebase Legacy SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -29,8 +28,11 @@
         }
 
         #map { flex:1; width: 100%; height: 100%; }
-        .menu-header { padding: 60px 15px 15px 15px; background:#111; border-bottom:1px solid var(--p); text-align: center; }
+        .menu-header { padding: 60px 15px 15px 15px; background:#111; border-bottom:1px solid var(--p); position: relative; }
         
+        /* Botón Volver */
+        .btn-back { position: absolute; top: 15px; right: 15px; background: none; border: 1px solid var(--p); color: var(--p); font-size: 10px; padding: 5px; cursor: pointer; text-decoration: none; }
+
         details { border-bottom: 1px solid #222; background: #080808; }
         summary { padding: 15px; cursor: pointer; outline: none; font-weight: bold; font-size: 13px; color: var(--gold); list-style: none; display: flex; justify-content: space-between; align-items: center; }
         
@@ -48,29 +50,16 @@
         
         input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:var(--p); font-family: inherit; box-sizing: border-box; font-size: 14px; }
         
-        /* Gestión de Jugadores con Asignación Manual */
-        .player-item { display: flex; flex-direction: column; padding: 10px; border-bottom: 1px solid #222; font-size: 12px; gap: 8px; }
-        .player-row { display: flex; justify-content: space-between; align-items: center; }
-        .assignment-btns { display: flex; gap: 4px; }
-        .btn-mini { padding: 4px 2px; font-size: 9px; width: 50px; border-radius: 2px; border: 1px solid #444; }
-        .active-red { background: var(--red) !important; color: white !important; border-color: var(--red) !important; }
-        .active-blue { background: var(--blue) !important; color: white !important; border-color: var(--blue) !important; }
-        .active-none { background: #333 !important; color: #999 !important; border-color: #555 !important; }
+        /* Gestión de Operadores */
+        .player-item { display: flex; flex-direction: column; padding: 10px; border-bottom: 1px solid #222; background: #000; gap: 5px; }
+        .player-info { display: flex; justify-content: space-between; align-items: center; }
+        .player-actions { display: flex; gap: 5px; }
+        .btn-role { flex: 1; padding: 5px; font-size: 9px; border: 1px solid #444; color: #fff; background: #111; cursor: pointer; }
+        .btn-role.active-red { border-color: var(--red); color: var(--red); }
+        .btn-role.active-blue { border-color: var(--blue); color: var(--blue); }
 
         .timer-container { display: flex; align-items: center; justify-content: space-around; margin: 10px 0; background: #111; padding: 10px 0; border-radius: 8px; }
-        .kill-counter { text-align: center; width: 60px; }
-        .kill-count { font-size: 1.5rem; font-weight: bold; display: block; }
-        .kill-label { font-size: 8px; color: var(--gray); }
-        #timer-display { font-size: 1.8rem; text-align: center; color: var(--gold); font-weight: bold; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
-        
-        /* Botón Salir Abajo Izquierda */
-        .btn-exit-global {
-            position: fixed; bottom: 20px; left: 20px; z-index: 2000;
-            background: #000; color: var(--red); border: 2px solid var(--red);
-            padding: 12px 25px; font-family: monospace; font-weight: bold;
-            cursor: pointer; box-shadow: 0 0 15px rgba(255,0,0,0.2);
-            text-transform: uppercase; font-size: 14px;
-        }
+        #timer-display { font-size: 1.8rem; text-align: center; color: var(--gold); font-weight: bold; }
 
         @media (min-width: 1024px) { #panel { position: relative; transform: translateX(0); width: 350px; } #menu-toggle { display: none; } .menu-header { padding: 15px; } }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
@@ -80,13 +69,11 @@
 
 <button id="menu-toggle" onclick="togglePanel()">☰ MENÚ</button>
 
-<!-- BOTÓN SALIR GLOBAL -->
-<button class="btn-exit-global" onclick="window.location.href='index.html'">✖ SALIR</button>
-
 <div class="wrapper">
     <div id="panel" class="panel-hidden">
         <div class="menu-header">
-            <h3 style="margin:0; font-size: 1.2rem;">A.T.O.M EDITOR</h3>
+            <button class="btn-back" onclick="window.location.href='index.html'">↩ VOLVER</button>
+            <h3 style="margin:0; font-size: 1.2rem; text-align: center;">A.T.O.M EDITOR</h3>
         </div>
 
         <details open>
@@ -108,12 +95,12 @@
         </details>
 
         <details>
-            <summary>👥 OPERADORES ENLISTADOS</summary>
+            <summary>👥 GESTIÓN DE EQUIPOS</summary>
             <div class="tool-content">
-                <div id="player-list" style="max-height: 250px; overflow-y: auto; background: #000; border: 1px solid #222; margin-bottom: 10px;">
-                    <div class="player-item" style="color:var(--gray)">Esperando enlistados...</div>
+                <div id="player-list" style="max-height: 250px; overflow-y: auto; background: #000; border: 1px solid #222;">
+                    <div class="player-item">Esperando enlistados...</div>
                 </div>
-                <button onclick="autoBalanceTeams()" style="border-color: var(--gold); color: var(--gold); font-size: 9px;">⚖️ BALANCEO AUTOMÁTICO</button>
+                <button onclick="autoBalanceTeams()" style="border-color: var(--gold); color: var(--gold); margin-top: 10px;">⚖️ BALANCEO AUTOMÁTICO</button>
             </div>
         </details>
 
@@ -136,15 +123,7 @@
             <summary>🚀 CONTROL DE CAMPO</summary>
             <div class="tool-content">
                 <div class="timer-container">
-                    <div class="kill-counter">
-                        <span class="kill-count" id="red-kills" style="color:var(--red)">0</span>
-                        <span class="kill-label">BAJAS R</span>
-                    </div>
                     <div id="timer-display">00:00:00</div>
-                    <div class="kill-counter">
-                        <span class="kill-count" id="blue-kills" style="color:var(--blue)">0</span>
-                        <span class="kill-label">BAJAS B</span>
-                    </div>
                 </div>
                 <button id="btn-launch" class="btn-launch" onclick="launchMission()">⚡ INICIAR OPERACIÓN</button>
                 <button id="btn-stop" class="btn-stop" onclick="stopMission()">🛑 FINALIZAR MISIÓN (STOP)</button>
@@ -209,37 +188,30 @@ function initMap() {
     syncPlayersAndStats();
 }
 
+// SINCRONIZACIÓN Y ASIGNACIÓN MANUAL
 function syncPlayersAndStats() {
-    // Sincronizar Bajas
-    db.ref('operacion_activa/stats').on('value', snap => {
-        const stats = snap.val() || { redKills: 0, blueKills: 0 };
-        document.getElementById('red-kills').innerText = stats.redKills;
-        document.getElementById('blue-kills').innerText = stats.blueKills;
-    });
-
-    // Sincronizar Lista con Asignación Manual
     db.ref('jugadores_enlistados').on('value', snap => {
         const listDiv = document.getElementById('player-list');
         listDiv.innerHTML = '';
         if(!snap.exists()) {
-            listDiv.innerHTML = '<div class="player-item" style="color:var(--gray)">Sin jugadores</div>';
+            listDiv.innerHTML = '<div class="player-item">Sin operadores</div>';
             return;
         }
         snap.forEach(child => {
             const p = child.val();
             const id = child.key;
-            
             const item = document.createElement('div');
             item.className = 'player-item';
             
             item.innerHTML = `
-                <div class="player-row">
+                <div class="player-info">
                     <b style="color:var(--p)">${p.callsign}</b>
-                    <div class="assignment-btns">
-                        <button class="btn-mini ${p.equipo === 'RED' ? 'active-red' : ''}" onclick="manualAssign('${id}', 'RED')">RED</button>
-                        <button class="btn-mini ${p.equipo === 'BLUE' ? 'active-blue' : ''}" onclick="manualAssign('${id}', 'BLUE')">BLUE</button>
-                        <button class="btn-mini ${p.equipo === 'S/E' || !p.equipo ? 'active-none' : ''}" onclick="manualAssign('${id}', 'S/E')">S/E</button>
-                    </div>
+                    <span style="font-size:9px">${p.equipo || 'S/E'}</span>
+                </div>
+                <div class="player-actions">
+                    <button class="btn-role ${p.equipo === 'RED' ? 'active-red' : ''}" onclick="setPlayerTeam('${id}', 'RED')">RED</button>
+                    <button class="btn-role ${p.equipo === 'BLUE' ? 'active-blue' : ''}" onclick="setPlayerTeam('${id}', 'BLUE')">BLUE</button>
+                    <button class="btn-role" onclick="setPlayerTeam('${id}', 'S/E')">S/E</button>
                 </div>
             `;
             listDiv.appendChild(item);
@@ -247,8 +219,8 @@ function syncPlayersAndStats() {
     });
 }
 
-function manualAssign(playerId, team) {
-    db.ref(`jugadores_enlistados/${playerId}`).update({ equipo: team });
+function setPlayerTeam(id, team) {
+    db.ref(`jugadores_enlistados/${id}`).update({ equipo: team });
 }
 
 function autoBalanceTeams() {
@@ -258,14 +230,14 @@ function autoBalanceTeams() {
         snap.forEach(c => { players.push({ id: c.key }); });
         players.sort(() => Math.random() - 0.5);
         let updates = {};
-        players.forEach((p, index) => {
-            updates[`jugadores_enlistados/${p.id}/equipo`] = (index % 2 === 0) ? 'RED' : 'BLUE';
+        players.forEach((p, i) => {
+            updates[`jugadores_enlistados/${p.id}/equipo`] = (i % 2 === 0) ? 'RED' : 'BLUE';
         });
         db.ref().update(updates);
     });
 }
 
-// --- LOGICA DE MAPA ---
+// --- LOGICA DE MAPA Y MISIONES (MANTENIDA) ---
 function addMarkerLabel(overlay, text) {
     let position;
     if (overlay.getPaths) {
@@ -350,9 +322,8 @@ function updateTimerDisplay(ms) {
 }
 
 function resetToLobby() {
-    if(!confirm("¿Resetear todo al Lobby?")) return;
+    if(!confirm("¿Resetear?")) return;
     db.ref('operacion_activa/control').set({ status: 'RECLUTANDO', startTime: 0, endTime: null });
-    db.ref('operacion_activa/stats').set({ redKills: 0, blueKills: 0 });
 }
 
 function clearMap() {
@@ -379,7 +350,6 @@ function loadMissionList() {
 }
 
 function undoLast() { if(mapOverlays.length) { mapOverlays.pop().setMap(null); mapLabels.pop().setMap(null); } }
-
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing,geometry&callback=initMap" async defer></script>
 </body>
