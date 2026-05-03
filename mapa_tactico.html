@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -7,13 +7,20 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <style>
-        :root { --p:#00ff00; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
+        :root { --p:#00ff00; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#444; }
         body, html { margin:0; padding:0; height:100%; background:#000; overflow:hidden; font-family: monospace; }
         #map { width:100%; height:100%; position: absolute; top:0; left:0; }
+        
+        /* Interfaz HUD Superior */
         .hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; pointer-events: none; z-index: 10; }
-        .badge { background: rgba(0,0,0,0.8); border: 1px solid var(--p); color: var(--p); padding: 10px; font-weight: bold; font-size: 12px; text-transform: uppercase; }
-        .controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; z-index: 10; }
-        .btn-abort { background: #300; color: #f33; border: 1px solid #f33; padding: 15px 40px; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; }
+        .badge { background: rgba(0,0,0,0.85); border: 1px solid var(--p); color: var(--p); padding: 10px; font-weight: bold; font-size: 11px; text-transform: uppercase; box-shadow: 0 0 10px rgba(0,255,0,0.2); }
+        
+        /* Controles Inferiores */
+        .controls { position: absolute; bottom: 30px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 10; }
+        .btn-abort { background: rgba(50,0,0,0.8); color: #f33; border: 1px solid #f33; padding: 12px 30px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 10px; clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%); }
+        
+        /* Estilos de Etiquetas del Mapa */
+        .map-label { color: white; font-weight: 900; font-size: 12px; text-shadow: 2px 2px 2px #000; text-transform: uppercase; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -21,12 +28,13 @@
     <div id="map"></div>
 
     <div class="hud">
-        <div id="hud-team" class="badge">IDENTIFICANDO...</div>
+        <div id="hud-team" class="badge">Buscando Frecuencia...</div>
         <div id="hud-timer" class="badge" style="color: var(--gold);">00:00:00</div>
     </div>
 
     <div class="controls">
-        <button class="btn-abort" onclick="abortMission()">Abandodar Misión</button>
+        <div id="op-status" class="badge" style="border-color: var(--gold);">Sincronizando GPS...</div>
+        <button class="btn-abort" onclick="abortMission()">Abandonar Misión</button>
     </div>
 
 <script>
@@ -42,54 +50,169 @@ const db = firebase.database();
 const myCallsign = localStorage.getItem('callsign');
 const activeMissionId = localStorage.getItem('activeMissionId');
 let map;
+let myTeam = null;
+let markers = {}; // Almacena marcadores de aliados
+let mapOverlays = [];
+let mapLabels = [];
 
 function initTactical() {
-    // CORRECCIÓN DE FLUJO: Si no hay datos previos, regresa al Lobby
     if(!myCallsign || !activeMissionId) {
-        console.error("Acceso no autorizado: Sin Callsign o Misión activa.");
         window.location.href = 'lobby.html';
         return;
     }
 
-    // 1. Cargar la misión seleccionada
+    // 1. Cargar Misión y Centrar Mapa
     db.ref(`misiones/${activeMissionId}`).once('value', snap => {
-        if(!snap.exists()) {
-            window.location.href = 'lobby.html';
-            return;
-        }
+        if(!snap.exists()) { window.location.href = 'lobby.html'; return; }
         const m = snap.val();
-        const first = Object.values(m.elementos)[0];
-        const center = first.center || first.path[0];
-
+        
         map = new google.maps.Map(document.getElementById("map"), {
-            center: center, zoom: 18, mapTypeId: "hybrid", disableDefaultUI: true, tilt: 45
+            zoom: 18, 
+            mapTypeId: "hybrid", 
+            disableDefaultUI: true, 
+            tilt: 45,
+            gestureHandling: "greedy" // Facilita el uso en móviles
         });
-        renderElements(map, m.elementos);
+
+        renderMissionElements(m.elementos);
     });
 
-    // 2. Escuchar mi bando y verificar si sigo enlistado
+    // 2. Obtener mi bando y activar rastreo
     db.ref(`jugadores_enlistados/${myCallsign}`).on('value', snap => {
         const p = snap.val();
-        if(!p) {
-            // Si el admin me borra o no estoy enlistado, me saca al lobby
-            window.location.href = 'lobby.html';
-            return;
-        }
+        if(!p) { window.location.href = 'lobby.html'; return; }
+        
+        myTeam = p.equipo;
         const el = document.getElementById('hud-team');
-        el.innerText = `BANDO: ${p.equipo}`;
-        el.style.color = p.equipo === 'RED' ? '#ff3333' : '#3333ff';
+        el.innerText = `BANDO: ${myTeam}`;
+        el.style.color = myTeam === 'RED' ? 'var(--red)' : 'var(--blue)';
         el.style.borderColor = el.style.color;
+
+        startLocationTracking();
+        listenTeamPositions();
     });
 
-    // 3. Control de estado de la operación (Fin de partida)
+    // 3. Temporizador y Fin de Operación
     db.ref('operacion_activa/control').on('value', snap => {
         const status = snap.val();
         if(status && status.status === 'RECLUTANDO') {
-            alert("OPERACIÓN FINALIZADA POR EL COMANDO");
+            alert("OPERACIÓN FINALIZADA");
             window.location.href = 'lobby.html';
         }
         if(status && status.startTime) updateTimer(status.startTime);
     });
+}
+
+function renderMissionElements(elementos) {
+    if(!elementos) return;
+    const bounds = new google.maps.LatLngBounds();
+
+    Object.values(elementos).forEach(el => {
+        const style = { 
+            fillColor: el.color, 
+            strokeColor: el.color, 
+            fillOpacity: 0.3, 
+            strokeWeight: 2, 
+            map: map 
+        };
+
+        let labelPos;
+        if (el.path) {
+            const poly = new google.maps.Polygon({ path: el.path, ...style });
+            el.path.forEach(p => bounds.extend(p));
+            labelPos = el.path[0];
+            mapOverlays.push(poly);
+        } else {
+            const circle = new google.maps.Circle({ center: el.center, radius: el.radius, ...style });
+            bounds.extend(el.center);
+            // Ajustar bounds para incluir el radio completo del círculo
+            const r = el.radius;
+            bounds.extend(google.maps.geometry.spherical.computeOffset(el.center, r, 0));
+            bounds.extend(google.maps.geometry.spherical.computeOffset(el.center, r, 180));
+            labelPos = el.center;
+            mapOverlays.push(circle);
+        }
+
+        // Etiquetas Tácticas (Zonas, Objetivos)
+        const markerLabel = new google.maps.Marker({
+            position: labelPos,
+            map: map,
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+            label: { text: el.label.toUpperCase(), color: el.color, fontWeight: "900", fontSize: "11px" }
+        });
+        mapLabels.push(markerLabel);
+    });
+
+    map.fitBounds(bounds);
+}
+
+function startLocationTracking() {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(pos => {
+            const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            db.ref(`jugadores_enlistados/${myCallsign}`).update({
+                lat: coords.lat,
+                lng: coords.lng,
+                lastSeen: Date.now()
+            });
+            document.getElementById('op-status').innerText = "GPS: SEÑAL ESTABLE";
+        }, err => {
+            document.getElementById('op-status').innerText = "ERROR GPS: REVISE PERMISOS";
+        }, { enableHighAccuracy: true });
+    }
+}
+
+function listenTeamPositions() {
+    // NIEBLA DE GUERRA: Solo escuchamos a jugadores de nuestro equipo
+    db.ref('jugadores_enlistados').on('value', snap => {
+        snap.forEach(child => {
+            const p = child.val();
+            const callsign = child.key;
+
+            // Filtro de Equipo (Solo veo aliados y a mí mismo)
+            if(p.equipo === myTeam) {
+                updateMarker(callsign, p);
+            } else {
+                // Si existía un marcador de alguien que cambió de bando o es enemigo, se borra
+                if(markers[callsign]) {
+                    markers[callsign].setMap(null);
+                    delete markers[callsign];
+                }
+            }
+        });
+    });
+}
+
+function updateMarker(id, data) {
+    if(!data.lat || !data.lng) return;
+
+    const pos = { lat: data.lat, lng: data.lng };
+    const color = data.equipo === 'RED' ? '#ff3333' : '#3333ff';
+
+    if (markers[id]) {
+        markers[id].setPosition(pos);
+    } else {
+        markers[id] = new google.maps.Marker({
+            position: pos,
+            map: map,
+            title: id,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 7,
+                fillColor: color,
+                fillOpacity: 1,
+                strokeColor: 'white',
+                strokeWeight: 2
+            },
+            label: {
+                text: id,
+                color: 'white',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                className: 'map-label'
+            }
+        });
+    }
 }
 
 function updateTimer(start) {
@@ -103,19 +226,10 @@ function updateTimer(start) {
 }
 
 function abortMission() {
-    if(confirm("¿Desea salir del área de operaciones y volver al punto de reunión?")) {
+    if(confirm("¿CONFIRMAR EXFILTRACIÓN? Se eliminarán tus coordenadas del sistema.")) {
         db.ref(`jugadores_enlistados/${myCallsign}`).remove();
         window.location.href = 'lobby.html';
     }
-}
-
-function renderElements(mapObj, elementos) {
-    if(!elementos) return;
-    Object.values(elementos).forEach(el => {
-        const style = { fillColor: el.color, strokeColor: el.color, fillOpacity: 0.3, map: mapObj, strokeWeight: 2 };
-        if (el.path) new google.maps.Polygon({ path: el.path, ...style });
-        else new google.maps.Circle({ center: el.center, radius: el.radius, ...style });
-    });
 }
 
 window.onload = initTactical;
