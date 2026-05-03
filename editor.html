@@ -140,8 +140,6 @@ function clearMap() {
     mapOverlays = [];
 }
 
-// --- PERSISTENCIA EN FIREBASE ---
-
 function saveMission() {
     const name = document.getElementById('mission-name').value;
     const status = document.getElementById('mission-status').value;
@@ -157,7 +155,6 @@ function saveMission() {
         elements[id] = data;
     });
 
-    // Si currentMissionId es nulo, creamos uno nuevo, sino sobreescribimos el existente
     const mId = currentMissionId || db.ref('misiones').push().key;
     
     db.ref(`misiones/${mId}`).set({
@@ -196,6 +193,9 @@ function loadMissionToEdit(id) {
         document.getElementById('mission-status').value = m.estado || "RECLUTANDO";
         
         if(m.elements) {
+            const bounds = new google.maps.LatLngBounds(); // OBJETO PARA ENCUADRAR MAPA
+            let hasPoints = false;
+
             Object.values(m.elements).forEach(el => {
                 let overlay;
                 if(el.type.includes("ZONE")) {
@@ -205,6 +205,8 @@ function loadMissionToEdit(id) {
                         strokeColor: el.type === 'GAME_ZONE' ? '#00ff00' : '#ffa500',
                         fillOpacity: 0.3
                     });
+                    el.path.forEach(p => bounds.extend(p));
+                    hasPoints = true;
                 } else if(el.type.includes("RESPAWN")) {
                     overlay = new google.maps.Circle({
                         center: el.center, radius: el.radius, map: map, editable: true, draggable: true, atomType: el.type,
@@ -212,13 +214,22 @@ function loadMissionToEdit(id) {
                         strokeColor: el.type === 'RESPAWN_RED' ? '#ff0000' : '#0000ff',
                         fillOpacity: 0.4
                     });
+                    bounds.extend(el.center);
+                    hasPoints = true;
                 } else {
                     overlay = new google.maps.Marker({
                         position: el.pos, map: map, draggable: true, atomType: el.type, label: "OBJ"
                     });
+                    bounds.extend(el.pos);
+                    hasPoints = true;
                 }
                 mapOverlays.push(overlay);
             });
+
+            // LOGICA DE POSICIONAMIENTO AUTOMÁTICO
+            if (hasPoints) {
+                map.fitBounds(bounds);
+            }
         }
     });
 }
