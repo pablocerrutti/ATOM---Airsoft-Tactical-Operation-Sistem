@@ -12,80 +12,29 @@
     
     <style>
         :root { --p: #00ff00; --f: #050505; --gold: #ffd700; --gray: #1a1a1a; --red: #ff3333; --blue: #3333ff; }
-        
-        body { 
-            margin: 0; background: var(--f); color: var(--p); 
-            font-family: 'Courier New', monospace; display: flex; flex-direction: column; height: 100vh;
-        }
-
+        body { margin: 0; background: var(--f); color: var(--p); font-family: 'Courier New', monospace; display: flex; flex-direction: column; height: 100vh; }
         header { padding: 15px; border-bottom: 1px solid var(--p); background: #000; z-index: 10; }
         .op-info { display: flex; justify-content: space-between; align-items: center; }
         .callsign { font-weight: bold; color: var(--gold); font-size: 1.2rem; }
-
         #mission-container { flex: 1; display: flex; flex-direction: column; padding: 10px; overflow-y: auto; }
-        
-        #mini-map { 
-            width: 100%; 
-            height: 40vh; 
-            min-height: 250px;
-            background: #000; 
-            border: 1px solid var(--p); 
-            margin-bottom: 10px; 
-            position: relative;
-            border-radius: 4px;
-        }
-
-        #nav-links {
-            display: none;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .btn-nav {
-            padding: 12px;
-            text-decoration: none;
-            text-align: center;
-            font-size: 11px;
-            font-weight: bold;
-            border-radius: 4px;
-            text-transform: uppercase;
-        }
+        #mini-map { width: 100%; height: 40vh; min-height: 250px; background: #000; border: 1px solid var(--p); margin-bottom: 10px; position: relative; border-radius: 4px; }
+        #nav-links { display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn-nav { padding: 12px; text-decoration: none; text-align: center; font-size: 11px; font-weight: bold; border-radius: 4px; text-transform: uppercase; }
         .waze-link { background: #33f3ff; color: #000; }
         .gmaps-link { background: #fff; color: #000; }
-
-        .mission-selector-box { margin-bottom: 15px; }
-        select { 
-            width: 100%; padding: 15px; background: #111; border: 1px solid var(--p); 
-            color: var(--p); font-family: inherit; font-size: 1rem; cursor: pointer;
-        }
-
+        select { width: 100%; padding: 15px; background: #111; border: 1px solid var(--p); color: var(--p); font-family: inherit; font-size: 1rem; cursor: pointer; }
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .stat-card { background: #111; border: 1px solid #333; padding: 10px; text-align: center; }
         .stat-val { display: block; font-size: 18px; color: var(--gold); font-weight: bold; }
         .stat-lab { font-size: 9px; color: #888; text-transform: uppercase; }
-
-        .btn-enlist { 
-            width: 100%; padding: 20px; background: var(--p); color: #000; 
-            border: none; font-weight: bold; cursor: pointer; font-size: 1.1rem;
-            text-transform: uppercase; transition: 0.3s;
-        }
+        .btn-enlist { width: 100%; padding: 20px; background: var(--p); color: #000; border: none; font-weight: bold; cursor: pointer; font-size: 1.1rem; text-transform: uppercase; transition: 0.3s; }
         .btn-enlist:disabled { background: #1a331a; color: #004400; cursor: not-allowed; }
-
-        #auth-modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); backdrop-filter: blur(5px); z-index: 3000; align-items: center; justify-content: center;
-        }
+        #auth-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); backdrop-filter: blur(5px); z-index: 3000; align-items: center; justify-content: center; }
         .modal-content { width: 85%; max-width: 400px; background: #000; border: 2px solid var(--gold); padding: 25px; text-align: center; }
         .modal-input { width: 100%; padding: 15px; background: #111; border: 1px solid var(--gold); color: var(--gold); text-align: center; font-family: inherit; font-size: 1.2rem; margin: 20px 0; box-sizing: border-box; }
-        
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
-
-        @media (min-width: 768px) {
-            body { align-items: center; }
-            header, #mission-container, .btn-enlist, footer { width: 600px; border-left: 1px solid var(--gray); border-right: 1px solid var(--gray); }
-            #mini-map { height: 350px; }
-        }
+        @media (min-width: 768px) { body { align-items: center; } header, #mission-container, .btn-enlist, footer { width: 600px; border-left: 1px solid var(--gray); border-right: 1px solid var(--gray); } }
     </style>
 </head>
 <body>
@@ -139,7 +88,7 @@
 
     <div id="waiting-area" style="display:none; text-align:center; padding:20px; border:1px dashed var(--gold); background: rgba(255, 215, 0, 0.05);">
         <span class="blink" style="color:var(--gold); font-weight: bold; letter-spacing: 2px;">[ ENLISTADO ]</span>
-        <p style="font-size: 11px; color: #888; margin-top: 10px;">POSICIÓN REGISTRADA. MANTÉNGASE EN FRECUENCIA HASTA EL INICIO DE LA OPERACIÓN.</p>
+        <p style="font-size: 11px; color: #888; margin-top: 10px;">ESPERANDO ASIGNACIÓN DE EQUIPO POR COMANDO...</p>
     </div>
 </div>
 
@@ -165,7 +114,7 @@ const db = firebase.database();
 const auth = firebase.auth();
 
 let userProfile = null;
-let map, miniMapOverlays = [];
+let map, miniMapOverlays = [], mapLabels = [];
 let selectedMission = null;
 let allMissions = {};
 
@@ -186,11 +135,26 @@ auth.onAuthStateChanged(user => {
             if(userProfile) {
                 document.getElementById('display-callsign').innerText = userProfile.callsign;
                 loadMissions();
-                checkIfAlreadyEnlisted(user.uid);
+                listenForTeamAssignment(user.uid); // Escucha activa para redirección
             }
         });
     } else { location.href = "index.html"; }
 });
+
+// --- FUNCIÓN DE REDIRECCIÓN AUTOMÁTICA ---
+function listenForTeamAssignment(uid) {
+    db.ref(`operacion_activa/despliegue/${uid}`).on('value', snap => {
+        const data = snap.val();
+        if (data && data.enlistado) {
+            showWaitingStatus();
+            // Si el administrador asigna un equipo que no sea NEUTRO, saltamos al mapa
+            if (data.equipo === 'ROJO' || data.equipo === 'AZUL') {
+                console.log("Equipo asignado:", data.equipo);
+                location.href = "mapa_tactico.html";
+            }
+        }
+    });
+}
 
 function loadMissions() {
     db.ref('misiones').on('value', snap => {
@@ -198,7 +162,6 @@ function loadMissions() {
         select.innerHTML = '<option value="" disabled selected>SELECCIONE OPERACIÓN...</option>';
         allMissions = {};
         if (!snap.exists()) return;
-
         snap.forEach(child => {
             const m = child.val();
             if(m.estado !== "FINALIZADA") {
@@ -218,7 +181,6 @@ function handleMissionChange() {
     if(data) selectMission(id, data);
 }
 
-// CORRECCIÓN: Lógica de centrado automático y carga de capas
 function selectMission(id, data) {
     selectedMission = { id, ...data };
     document.getElementById('btn-action').disabled = false;
@@ -226,8 +188,11 @@ function selectMission(id, data) {
     document.getElementById('stat-status').innerText = data.estado;
     document.getElementById('stat-status').style.color = data.estado === "EN_CURSO" ? "var(--red)" : "var(--gold)";
 
+    // Limpiar mapa previo
     miniMapOverlays.forEach(o => o.setMap(null));
+    mapLabels.forEach(l => l.setMap(null));
     miniMapOverlays = [];
+    mapLabels = [];
 
     if(data.elementos) {
         const bounds = new google.maps.LatLngBounds();
@@ -235,49 +200,64 @@ function selectMission(id, data) {
 
         Object.values(data.elementos).forEach(el => {
             let overlay;
-            if(el.path) { // Polígonos (Zonas)
+            const color = getElementColor(el.type);
+            
+            if(el.path) {
                 overlay = new google.maps.Polygon({
                     path: el.path, map: map, clickable: false,
-                    fillColor: el.type === 'GAME_ZONE' ? '#00ff00' : '#ffa500',
-                    strokeColor: el.type === 'GAME_ZONE' ? '#00ff00' : '#ffa500',
-                    fillOpacity: 0.2, strokeWeight: 2
+                    fillColor: color, strokeColor: color, fillOpacity: 0.2, strokeWeight: 2
                 });
                 el.path.forEach(p => bounds.extend(p));
                 if(!firstCoord) firstCoord = el.path[0];
-            } else if (el.center) { // Círculos (Respawns / Objetivos)
-                let color = '#ffffff';
-                if(el.type === 'RESPAWN_RED') color = '#ff0000';
-                if(el.type === 'RESPAWN_BLUE') color = '#0000ff';
-                
+            } else if (el.center) {
                 overlay = new google.maps.Circle({
                     center: el.center, radius: el.radius, map: map, clickable: false,
-                    fillColor: color, strokeColor: color,
-                    fillOpacity: 0.4, strokeWeight: 1
+                    fillColor: color, strokeColor: color, fillOpacity: 0.4, strokeWeight: 1
                 });
                 bounds.extend(el.center);
                 if(!firstCoord) firstCoord = el.center;
             }
-            if(overlay) miniMapOverlays.push(overlay);
+
+            if(overlay) {
+                miniMapOverlays.push(overlay);
+                addStaticLabel(overlay, el.label || el.type);
+            }
         });
 
-        // Aplicar el Zoom Automático
         if (!bounds.isEmpty()) {
             map.fitBounds(bounds);
-            // Evitar zoom infinito si solo hay un punto
-            google.maps.event.addListenerOnce(map, 'idle', () => {
-                if(map.getZoom() > 18) map.setZoom(17);
-            });
+            setTimeout(() => { if(map.getZoom() > 18) map.setZoom(17); }, 300);
         }
 
-        // Configurar enlaces de GPS al primer punto táctico
         if(firstCoord) {
-            const lat = firstCoord.lat;
-            const lng = firstCoord.lng;
             document.getElementById('nav-links').style.display = 'grid';
-            document.getElementById('link-gmaps').href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-            document.getElementById('link-waze').href = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+            document.getElementById('link-gmaps').href = `https://www.google.com/maps/dir/?api=1&destination=${firstCoord.lat},${firstCoord.lng}`;
+            document.getElementById('link-waze').href = `https://waze.com/ul?ll=${firstCoord.lat},${firstCoord.lng}&navigate=yes`;
         }
     }
+}
+
+function getElementColor(type) {
+    if(type === 'GAME_ZONE') return '#00ff00';
+    if(type === 'SAFE_ZONE') return '#ffa500';
+    if(type === 'RESPAWN_RED') return '#ff0000';
+    if(type === 'RESPAWN_BLUE') return '#0000ff';
+    return '#ffffff';
+}
+
+function addStaticLabel(overlay, text) {
+    let pos;
+    if (overlay.getPaths) {
+        const b = new google.maps.LatLngBounds();
+        overlay.getPath().forEach(p => b.extend(p));
+        pos = b.getCenter();
+    } else { pos = overlay.getCenter(); }
+
+    const label = new google.maps.Marker({
+        position: pos, map: map, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+        label: { text: text, color: "white", fontWeight: "bold", fontSize: "10px" }
+    });
+    mapLabels.push(label);
 }
 
 function handleEnlist() {
@@ -290,7 +270,7 @@ function handleEnlist() {
         equipo: 'NEUTRO',
         enlistado: true,
         timestamp: firebase.database.ServerValue.TIMESTAMP
-    }).then(() => showWaitingStatus());
+    });
 }
 
 function showWaitingStatus() {
@@ -302,7 +282,7 @@ function showWaitingStatus() {
 function openAuthModal() {
     if (userProfile.rol === "ADMIN" || userProfile.rol === "EDITOR") {
         document.getElementById('auth-modal').style.display = 'flex';
-    } else { alert("ACCESO RESTRINGIDO A COMANDO"); }
+    } else { alert("ACCESO RESTRINGIDO"); }
 }
 
 function closeAuthModal() { document.getElementById('auth-modal').style.display = 'none'; }
@@ -312,20 +292,15 @@ function confirmIdentity() {
     if (input === userProfile.callsign.toUpperCase()) {
         location.href = "restricted_zone.html";
     } else { 
-        alert("ERROR: IDENTIDAD NO COINCIDE"); 
+        alert("IDENTIDAD ERRÓNEA"); 
         closeAuthModal(); 
     }
 }
 
 function logout() { auth.signOut(); }
-function checkIfAlreadyEnlisted(uid) {
-    db.ref(`operacion_activa/despliegue/${uid}`).once('value', snap => {
-        if(snap.exists()) showWaitingStatus();
-    });
-}
 </script>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=geometry&callback=initMap" async defer></script>
 
 </body>
 </html>
