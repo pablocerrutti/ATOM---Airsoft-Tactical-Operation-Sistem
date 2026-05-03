@@ -21,36 +21,26 @@
         .callsign { font-weight: bold; color: var(--gold); font-size: 1.2rem; }
 
         #mission-container { flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
-        #mini-map { width: 100%; height: 200px; background: #000; border: 1px solid var(--p); margin-bottom: 15px; position: relative; }
+        #mini-map { width: 100%; height: 250px; background: #000; border: 1px solid var(--p); margin-bottom: 15px; position: relative; }
 
-        .mission-card { 
-            background: var(--gray); padding: 12px; border: 1px solid #333; 
-            margin-bottom: 10px; cursor: pointer; transition: 0.3s;
+        .mission-selector-box { margin-bottom: 20px; }
+        select { 
+            width: 100%; padding: 15px; background: #111; border: 1px solid var(--p); 
+            color: var(--p); font-family: inherit; font-size: 1rem; cursor: pointer;
         }
-        .mission-card:hover { border-color: var(--p); }
-        .mission-card.selected { border-color: var(--gold); background: #111; box-shadow: 0 0 10px rgba(255,215,0,0.1); }
-        
-        .m-tag { font-size: 10px; padding: 2px 5px; background: var(--gold); color: #000; font-weight: bold; }
+        select:focus { border-color: var(--gold); outline: none; }
 
-        .btn-secondary { width: 100%; padding: 12px; background: transparent; color: var(--gold); border: 1px solid var(--gold); cursor: pointer; margin-bottom: 20px; font-family: inherit; }
-        
         .btn-enlist { width: 100%; padding: 20px; background: var(--p); color: #000; border: none; font-weight: bold; cursor: pointer; position: sticky; bottom: 0; }
         .btn-enlist:disabled { background: #1a331a; color: #004400; cursor: not-allowed; }
 
-        footer { padding: 20px; text-align: center; border-top: 1px solid var(--gray); margin-top: auto; }
-        .btn-restricted { color: #444; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer; }
-
-        /* MODAL */
+        /* MODAL ADMIN */
         #auth-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); backdrop-filter: blur(5px); z-index: 3000; align-items: center; justify-content: center;
         }
         .modal-content { width: 90%; max-width: 400px; background: #000; border: 2px solid var(--gold); padding: 30px; text-align: center; }
         .modal-input { width: 100%; padding: 15px; background: #111; border: 1px solid var(--gold); color: var(--gold); text-align: center; font-family: inherit; font-size: 1.2rem; margin: 20px 0; box-sizing: border-box; }
-        .modal-btns { display: flex; gap: 10px; }
-        .btn-confirm { flex: 1; padding: 15px; background: var(--gold); color: #000; border: none; font-weight: bold; cursor: pointer; }
-        .btn-cancel { flex: 1; padding: 15px; background: #222; color: #fff; border: none; cursor: pointer; }
-
+        
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
 
@@ -65,11 +55,11 @@
 <div id="auth-modal">
     <div class="modal-content">
         <h3 class="blink">AUTORIZACIÓN REQUERIDA</h3>
-        <p style="font-size: 12px; color: #888;">VALIDE SU IDENTIDAD PARA ACCEDER AL EDITOR</p>
+        <p style="font-size: 12px; color: #888;">VALIDE SU IDENTIDAD (ADMIN)</p>
         <input type="text" id="modal-callsign-input" class="modal-input" placeholder="CALLSIGN">
-        <div class="modal-btns">
-            <button class="btn-cancel" onclick="closeAuthModal()">ABORTAR</button>
-            <button class="btn-confirm" onclick="confirmIdentity()">ENTRAR</button>
+        <div style="display:flex; gap:10px;">
+            <button onclick="closeAuthModal()" style="flex:1; padding:15px; background:#222; color:#fff; border:none;">CANCELAR</button>
+            <button onclick="confirmIdentity()" style="flex:1; padding:15px; background:var(--gold); color:#000; border:none; font-weight:bold;">ENTRAR</button>
         </div>
     </div>
 </div>
@@ -78,34 +68,37 @@
     <div class="op-info">
         <div>
             <div id="display-callsign" class="callsign">IDENTIFICANDO...</div>
-            <div style="font-size: 10px; color: var(--p);">ESTADO: CONEXIÓN SEGURA</div>
+            <div style="font-size: 10px; color: var(--p);">CONEXIÓN ENCRIPTADA</div>
         </div>
         <button onclick="logout()" style="background:none; border:1px solid var(--p); color:var(--p); font-size:10px; padding:5px;">LOGOUT</button>
     </div>
 </header>
 
 <div id="mission-container">
-    <h4 style="margin: 10px 0; font-size: 12px; color: var(--gold);">VISTA PREVIA TÁCTICA</h4>
+    <h4 style="margin: 10px 0; font-size: 12px; color: var(--gold);">VISTA PREVIA DE OPERACIÓN</h4>
     <div id="mini-map"></div>
 
-    <h4 style="margin: 15px 0 10px 0; font-size: 12px;">MISIONES DISPONIBLES:</h4>
-    <div id="mission-list">
-        <p id="no-mission" style="color:#444; font-size: 12px; text-align: center;">BUSCANDO ÓRDENES EN LA RED...</p>
+    <div class="mission-selector-box">
+        <h4 style="margin: 0 0 10px 0; font-size: 12px;">SELECCIONAR MISIÓN:</h4>
+        <select id="mission-select" onchange="handleMissionChange()">
+            <option value="" disabled selected>CARGANDO ÓRDENES...</option>
+        </select>
     </div>
 
-    <div id="waiting-area" style="display:none; text-align:center; padding:20px; border:1px dashed var(--gold); margin-top: 15px;">
+    <div id="waiting-area" style="display:none; text-align:center; padding:20px; border:1px dashed var(--gold);">
         <span class="blink" style="color:var(--gold); font-weight: bold;">[ ENLISTADO Y EN ESPERA ]</span>
-        <p style="font-size: 11px; color: #888; margin-top: 10px;">EL COMANDO ESTÁ ASIGNANDO TU EQUIPO.</p>
+        <p style="font-size: 11px; color: #888; margin-top: 10px;">ESPERE A QUE EL COMANDO ASIGNE SU BANDO.</p>
     </div>
 </div>
 
 <button class="btn-enlist" id="btn-action" onclick="handleEnlist()" disabled>DESPLEGAR EN OPERACIÓN</button>
 
-<footer>
-    <button class="btn-restricted" onclick="openAuthModal()">⚙️ ACCESO RESTRINGIDO (ADMIN)</button>
+<footer style="padding: 20px; text-align: center; border-top: 1px solid var(--gray); margin-top: auto;">
+    <button onclick="openAuthModal()" style="color: #444; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer;">⚙️ ACCESO RESTRINGIDO</button>
 </footer>
 
 <script>
+// Configuración de Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
   authDomain: "atom---sistem.firebaseapp.com",
@@ -123,8 +116,8 @@ const auth = firebase.auth();
 let userProfile = null;
 let map, miniMapOverlays = [];
 let selectedMission = null;
+let allMissions = {};
 
-// INICIALIZAR MAPA
 function initMap() {
     map = new google.maps.Map(document.getElementById("mini-map"), {
         center: {lat:-34.34, lng:-56.71}, 
@@ -149,41 +142,39 @@ auth.onAuthStateChanged(user => {
 
 function loadMissions() {
     db.ref('misiones').on('value', snap => {
-        const list = document.getElementById('mission-list');
-        list.innerHTML = "";
+        const select = document.getElementById('mission-select');
+        select.innerHTML = '<option value="" disabled selected>SELECCIONE UNA OPERACIÓN...</option>';
+        allMissions = {};
+
         if (!snap.exists()) {
-            list.innerHTML = '<p id="no-mission" style="color:var(--red);">SIN OPERACIONES ACTIVAS</p>';
+            select.innerHTML = '<option value="">SIN MISIONES ACTIVAS</option>';
             return;
         }
 
         snap.forEach(child => {
             const m = child.val();
-            if(m.estado === "FINALIZADA") return;
-
-            const card = document.createElement('div');
-            card.className = 'mission-card';
-            card.innerHTML = `
-                <div style="display:flex; justify-content:space-between;">
-                    <span style="color:#fff; font-weight:bold;">${m.nombre}</span>
-                    <span class="m-tag">${m.estado}</span>
-                </div>
-                <div style="font-size:10px; color:#888; margin-top:5px;">ID: ${child.key}</div>
-            `;
-            card.onclick = () => selectMission(child.key, m);
-            list.appendChild(card);
+            if(m.estado !== "FINALIZADA") {
+                allMissions[child.key] = m;
+                let opt = document.createElement('option');
+                opt.value = child.key;
+                opt.innerText = m.nombre;
+                select.appendChild(opt);
+            }
         });
     });
 }
 
+function handleMissionChange() {
+    const id = document.getElementById('mission-select').value;
+    const data = allMissions[id];
+    if(data) selectMission(id, data);
+}
+
 function selectMission(id, data) {
     selectedMission = { id, ...data };
-    
-    // UI Feedback
-    document.querySelectorAll('.mission-card').forEach(c => c.classList.remove('selected'));
-    event.currentTarget.classList.add('selected');
     document.getElementById('btn-action').disabled = false;
 
-    // Dibujar en el mapa
+    // Limpiar dibujos previos
     miniMapOverlays.forEach(o => o.setMap(null));
     miniMapOverlays = [];
 
@@ -208,8 +199,9 @@ function selectMission(id, data) {
                 });
                 bounds.extend(el.center);
             }
-            miniMapOverlays.push(overlay);
+            if(overlay) miniMapOverlays.push(overlay);
         });
+        // CENTRADO AUTOMÁTICO EN LA ZONA DE JUEGO
         map.fitBounds(bounds);
     }
 }
@@ -228,38 +220,30 @@ function handleEnlist() {
         timestamp: Date.now()
     }).then(() => {
         document.getElementById('btn-action').style.display = 'none';
+        document.getElementById('mission-select').disabled = true;
         document.getElementById('waiting-area').style.display = 'block';
-        document.querySelectorAll('.mission-card').forEach(c => c.style.pointerEvents = 'none');
     });
 }
 
 function openAuthModal() {
     if (userProfile.rol === "ADMIN" || userProfile.rol === "EDITOR") {
         document.getElementById('auth-modal').style.display = 'flex';
-        document.getElementById('modal-callsign-input').focus();
-    } else {
-        alert("ACCESO DENEGADO");
-    }
+    } else { alert("ACCESO DENEGADO"); }
 }
 
-function closeAuthModal() {
-    document.getElementById('auth-modal').style.display = 'none';
-    document.getElementById('modal-callsign-input').value = "";
-}
+function closeAuthModal() { document.getElementById('auth-modal').style.display = 'none'; }
 
 function confirmIdentity() {
     const input = document.getElementById('modal-callsign-input').value.trim().toUpperCase();
     if (input === userProfile.callsign.toUpperCase()) {
         location.href = "restricted_zone.html";
-    } else {
-        alert("ERROR DE IDENTIDAD");
-        closeAuthModal();
-    }
+    } else { alert("ERROR DE IDENTIDAD"); closeAuthModal(); }
 }
 
 function logout() { auth.signOut(); }
 </script>
 
+<!-- API Google Maps -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
 
 </body>
