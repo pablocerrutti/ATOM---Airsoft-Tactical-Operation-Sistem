@@ -8,25 +8,40 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <style>
-        :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
-        body { margin:0; font-family: monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
+        :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#222; }
+        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
         
-        #panel { width:320px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; overflow-y: auto; z-index: 10; }
+        #panel { width:350px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; overflow-y: auto; z-index: 10; }
         #map { flex:1; }
 
-        .menu-header { padding:15px; background:#111; border-bottom:1px solid #222; font-weight:bold; }
-        .tool-box { padding:10px; display:flex; flex-direction:column; gap:8px; }
+        .menu-header { padding:15px; background:#111; border-bottom:1px solid #222; text-align: center; }
+        .tool-box { padding:10px; border-bottom: 1px solid #222; }
         
+        h4 { margin: 5px 0; font-size: 12px; color: var(--gold); text-transform: uppercase; }
         button { 
-            width:100%; padding:12px; background:#111; color:var(--p); 
-            border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; 
+            width:100%; padding:10px; background:#111; color:var(--p); 
+            border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; margin-bottom: 5px;
         }
         button:hover { background:var(--p); color:#000; }
         button.active { background: var(--p); color: #000; }
         
-        .btn-save { background: var(--gold); color: #000; border: none; margin-top: 15px; font-size: 16px; }
-        input { width:100%; padding:12px; background:#000; border:1px solid var(--gold); color:var(--gold); box-sizing: border-box; }
-        
+        .btn-delete { background: #300; color: var(--red); border-color: var(--red); margin-top: 5px; }
+        .btn-save { background: var(--gold); color: #000; border: none; font-size: 16px; margin-top: 10px; }
+
+        /* LISTA JUGADORES */
+        #player-lobby { background: #111; padding: 10px; max-height: 200px; overflow-y: auto; }
+        .player-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 5px; border-bottom: 1px solid #333; font-size: 11px;
+        }
+        .team-btns { display: flex; gap: 5px; }
+        .btn-t { padding: 2px 6px; font-size: 10px; border: 1px solid; cursor: pointer; background: none; }
+        .btn-red { color: var(--red); border-color: var(--red); }
+        .btn-blue { color: var(--blue); border-color: var(--blue); }
+        .team-red { color: var(--red); font-weight: bold; }
+        .team-blue { color: var(--blue); font-weight: bold; }
+
+        input, select { width:100%; padding:10px; background:#000; border:1px solid #444; color:var(--p); font-family: inherit; margin-bottom: 10px; }
         .edit-tag { background: var(--gold); color: #000; padding: 5px; font-size: 10px; text-align: center; font-weight: bold; display:none; }
     </style>
 </head>
@@ -39,47 +54,51 @@
     </div>
 
     <div class="tool-box">
-        <small>1. CARGAR EXISTENTE</small>
-        <select id="mission-selector" onchange="loadMissionToEdit(this.value)" style="width:100%; padding:10px; background:#111; color:var(--p); border:1px solid #333;">
+        <h4>1. GESTIÓN DE OPERACIONES</h4>
+        <select id="mission-selector" onchange="loadMissionToEdit(this.value)">
             <option value="">-- NUEVA MISIÓN --</option>
         </select>
+        <button id="delete-mission-btn" class="btn-delete" style="display:none;" onclick="deleteMission()">❌ ELIMINAR MISIÓN</button>
     </div>
 
     <div class="tool-box">
-        <small>2. HERRAMIENTAS</small>
-        <button onclick="setMode('GAME_ZONE', this)">🟢 LÍMITE DE JUEGO</button>
-        <button onclick="setMode('SAFE_ZONE', this)">⚪ ZONA SEGURA</button>
-        <button onclick="setMode('RESPAWN_RED', this)">🔴 RESPAWN ROJO</button>
-        <button onclick="setMode('RESPAWN_BLUE', this)">🔵 RESPAWN AZUL</button>
-        <button onclick="setMode('OBJ_TOWER', this)">🔘 OBJETIVO</button>
+        <h4>2. HERRAMIENTAS DE MAPA</h4>
+        <button onclick="setMode('GAME_ZONE', this)">🟢 LÍMITE DE JUEGO (Polígono)</button>
+        <button onclick="setMode('SAFE_ZONE', this)">🟠 ZONA SEGURA (Polígono)</button>
+        <button onclick="setMode('RESPAWN_RED', this)">🔴 RESPAWN ROJO (Círculo)</button>
+        <button onclick="setMode('RESPAWN_BLUE', this)">🔵 RESPAWN AZUL (Círculo)</button>
+        <button onclick="setMode('OBJ_TOWER', this)">🟡 OBJETIVO (Marcador)</button>
+        <button onclick="clearMap()" style="border-color:#555; color:#777;">BORRAR DIBUJO ACTUAL</button>
     </div>
 
-    <div class="tool-box" style="margin-top:auto; border-top:1px solid #222;">
-        <input id="mission-name" placeholder="NOMBRE DE LA OP...">
-        <button class="btn-save" id="save-btn" onclick="saveMission()">💾 GUARDAR EN FIREBASE</button>
-        <button onclick="location.href='restricted_zone.html'" style="border:none; color:#666; font-size:10px;">VOLVER AL PANEL</button>
+    <div class="tool-box">
+        <h4>3. LOBBY DE RECLUTAS</h4>
+        <div id="player-lobby">Cargando operadores...</div>
+        <button onclick="autoBalance()" style="font-size:10px; margin-top:5px; border-color:var(--gold); color:var(--gold);">⚖️ AUTOBALANCEO DE EQUIPOS</button>
+    </div>
+
+    <div class="tool-box" style="margin-top:auto;">
+        <input id="mission-name" placeholder="NOMBRE DE LA MISIÓN...">
+        <button class="btn-save" onclick="saveMission()">💾 GUARDAR CAMBIOS</button>
+        <button onclick="location.href='restricted_zone.html'" style="border:none; color:#666; font-size:10px;">SALIR DEL EDITOR</button>
     </div>
 </div>
 
 <div id="map"></div>
 
 <script>
-// Configuración proporcionada
-// Configuración Real de A.T.O.M v2.0
 const firebaseConfig = {
-  apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-  authDomain: "atom---sistem.firebaseapp.com",
-  databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-  projectId: "atom---sistem",
-  storageBucket: "atom---sistem.firebasestorage.app",
-  messagingSenderId: "151110156876",
-  appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
+    apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+    authDomain: "atom---sistem.firebaseapp.com",
+    databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+    projectId: "atom---sistem",
+    storageBucket: "atom---sistem.firebasestorage.app",
+    messagingSenderId: "151110156876",
+    appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
 };
 
-// Inicializar
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const auth = firebase.auth();
 let map, drawingManager;
 let currentMissionId = null;
 let mapOverlays = [];
@@ -88,25 +107,34 @@ function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
         center: {lat:-34.34, lng:-56.71}, 
         zoom: 15,
-        mapTypeId: "satellite",
-        disableDefaultUI: true
+        mapTypeId: "hybrid",
+        disableDefaultUI: false
     });
 
     drawingManager = new google.maps.drawing.DrawingManager({
         drawingControl: false,
-        polygonOptions: { editable: true, draggable: true, fillOpacity: 0.3 },
-        circleOptions: { editable: true, draggable: true, fillOpacity: 0.4 }
+        polygonOptions: { editable: true, draggable: true, fillOpacity: 0.3, strokeWeight: 2 },
+        circleOptions: { editable: true, draggable: true, fillOpacity: 0.4, strokeWeight: 2 }
     });
     drawingManager.setMap(map);
 
     google.maps.event.addListener(drawingManager, 'overlaycomplete', (e) => {
         const mode = document.body.dataset.mode;
-        if (!mode) { e.overlay.setMap(null); return alert("Selecciona herramienta"); }
+        if (!mode) { e.overlay.setMap(null); return alert("Selecciona una herramienta primero"); }
+        
         e.overlay.atomType = mode;
+        
+        // Estética según tipo
+        if(mode === 'GAME_ZONE') e.overlay.setOptions({fillColor: '#00ff00', strokeColor: '#00ff00'});
+        if(mode === 'SAFE_ZONE') e.overlay.setOptions({fillColor: '#ffa500', strokeColor: '#ffa500'});
+        if(mode === 'RESPAWN_RED') e.overlay.setOptions({fillColor: '#ff0000', strokeColor: '#ff0000'});
+        if(mode === 'RESPAWN_BLUE') e.overlay.setOptions({fillColor: '#0000ff', strokeColor: '#0000ff'});
+
         mapOverlays.push(e.overlay);
     });
 
     loadMissionList();
+    loadEnlistedPlayers();
 }
 
 function setMode(mode, btn) {
@@ -114,27 +142,34 @@ function setMode(mode, btn) {
     btn.classList.add('active');
     document.body.dataset.mode = mode;
 
-    const isCircle = mode.includes("RESPAWN");
-    const isPolygon = mode.includes("ZONE");
-    
-    drawingManager.setDrawingMode(
-        isCircle ? google.maps.drawing.OverlayType.CIRCLE :
-        isPolygon ? google.maps.drawing.OverlayType.POLYGON : google.maps.drawing.OverlayType.MARKER
-    );
+    if (mode.includes("RESPAWN")) {
+        drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE);
+    } else if (mode.includes("ZONE")) {
+        drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+    } else {
+        drawingManager.setDrawingMode(google.maps.drawing.OverlayType.MARKER);
+    }
 }
+
+function clearMap() {
+    mapOverlays.forEach(o => o.setMap(null));
+    mapOverlays = [];
+}
+
+// --- GESTIÓN DE MISIONES ---
 
 function saveMission() {
     const name = document.getElementById('mission-name').value;
-    if (!name || mapOverlays.length === 0) return alert("Datos incompletos");
+    if (!name || mapOverlays.length === 0) return alert("Asigna un nombre y dibuja elementos en el mapa.");
 
     let elements = {};
     mapOverlays.forEach((obj, i) => {
         const id = "el_" + Date.now() + "_" + i;
         let data = { type: obj.atomType };
         
-        if (obj.getPath) {
+        if (obj.atomType.includes("ZONE")) {
             data.path = obj.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
-        } else if (obj.getRadius) {
+        } else if (obj.atomType.includes("RESPAWN")) {
             data.center = {lat: obj.getCenter().lat(), lng: obj.getCenter().lng()};
             data.radius = obj.getRadius();
         } else {
@@ -144,13 +179,14 @@ function saveMission() {
     });
 
     const mId = currentMissionId || db.ref('misiones').push().key;
-    db.ref(`misiones/${mId}`).set({
+    db.ref(`misiones/${mId}`).update({
         id: mId,
         nombre: name,
         estado: "PREPARACION",
-        elements: elements
+        elements: elements,
+        timestamp: Date.now()
     }).then(() => {
-        alert("Operación Guardada");
+        alert("Operación Guardada Exitosamente");
         location.reload();
     });
 }
@@ -166,18 +202,94 @@ function loadMissionList() {
 }
 
 function loadMissionToEdit(id) {
-    if(!id) return location.reload();
+    if(!id) { location.reload(); return; }
+    clearMap();
     currentMissionId = id;
     document.getElementById('edit-tag').style.display = "block";
+    document.getElementById('delete-mission-btn').style.display = "block";
     
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
         document.getElementById('mission-name').value = m.nombre;
-        // Aquí se cargan los elementos al mapa (lógica similar a la anterior)
+        
+        if(m.elements) {
+            Object.values(m.elements).forEach(el => {
+                let overlay;
+                if(el.type.includes("ZONE")) {
+                    overlay = new google.maps.Polygon({
+                        path: el.path, map: map, editable: true, draggable: true, atomType: el.type,
+                        fillColor: el.type === 'GAME_ZONE' ? '#00ff00' : '#ffa500',
+                        strokeColor: el.type === 'GAME_ZONE' ? '#00ff00' : '#ffa500',
+                        fillOpacity: 0.3
+                    });
+                } else if(el.type.includes("RESPAWN")) {
+                    overlay = new google.maps.Circle({
+                        center: el.center, radius: el.radius, map: map, editable: true, draggable: true, atomType: el.type,
+                        fillColor: el.type === 'RESPAWN_RED' ? '#ff0000' : '#0000ff',
+                        strokeColor: el.type === 'RESPAWN_RED' ? '#ff0000' : '#0000ff',
+                        fillOpacity: 0.4
+                    });
+                } else {
+                    overlay = new google.maps.Marker({
+                        position: el.pos, map: map, draggable: true, atomType: el.type, label: "OBJ"
+                    });
+                }
+                mapOverlays.push(overlay);
+            });
+        }
     });
 }
+
+function deleteMission() {
+    if(confirm("¿Estás seguro de eliminar esta misión permanentemente?")) {
+        db.ref(`misiones/${currentMissionId}`).remove().then(() => location.reload());
+    }
+}
+
+// --- LOBBY Y EQUIPOS ---
+
+function loadEnlistedPlayers() {
+    db.ref('operacion_activa/despliegue').on('value', snap => {
+        const lobby = document.getElementById('player-lobby');
+        lobby.innerHTML = "";
+        if(!snap.exists()) { lobby.innerHTML = "Esperando reclutas..."; return; }
+
+        snap.forEach(child => {
+            const p = child.val();
+            const uid = child.key;
+            const teamClass = p.equipo === 'ROJO' ? 'team-red' : (p.equipo === 'AZUL' ? 'team-blue' : '');
+            
+            lobby.innerHTML += `
+                <div class="player-item">
+                    <span class="${teamClass}">${p.callsign}</span>
+                    <div class="team-btns">
+                        <button class="btn-t btn-red" onclick="assignTeam('${uid}', 'ROJO')">R</button>
+                        <button class="btn-t btn-blue" onclick="assignTeam('${uid}', 'AZUL')">A</button>
+                    </div>
+                </div>
+            `;
+        });
+    });
+}
+
+function assignTeam(uid, team) {
+    db.ref(`operacion_activa/despliegue/${uid}`).update({ equipo: team });
+}
+
+function autoBalance() {
+    db.ref('operacion_activa/despliegue').once('value', snap => {
+        let players = [];
+        snap.forEach(c => { players.push({uid: c.key}); });
+        
+        players.sort(() => Math.random() - 0.5);
+        players.forEach((p, index) => {
+            const team = (index % 2 === 0) ? 'ROJO' : 'AZUL';
+            assignTeam(p.uid, team);
+        });
+    });
+}
+
 </script>
-<!-- API Key de Google Maps necesaria para renderizar el editor -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing&callback=initMap" async defer></script>
 </body>
 </html>
