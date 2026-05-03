@@ -10,27 +10,52 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <style>
-        :root { --p: #00ff00; --f: #050505; --gold: #ffd700; --gray: #1a1a1a; --red: #ff3333; }
+        :root { --p: #00ff00; --f: #050505; --gold: #ffd700; --gray: #1a1a1a; --red: #ff3333; --blue: #3333ff; }
+        
         body { 
             margin: 0; background: var(--f); color: var(--p); 
             font-family: 'Courier New', monospace; display: flex; flex-direction: column; height: 100vh;
         }
 
-        header { padding: 15px; border-bottom: 1px solid var(--p); background: #000; }
+        header { padding: 15px; border-bottom: 1px solid var(--p); background: #000; z-index: 10; }
         .op-info { display: flex; justify-content: space-between; align-items: center; }
         .callsign { font-weight: bold; color: var(--gold); font-size: 1.2rem; }
 
-        #mission-container { flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
-        #mini-map { width: 100%; height: 250px; background: #000; border: 1px solid var(--p); margin-bottom: 15px; position: relative; }
+        #mission-container { flex: 1; display: flex; flex-direction: column; padding: 10px; overflow-y: auto; }
+        
+        /* Mapa más grande y responsivo */
+        #mini-map { 
+            width: 100%; 
+            height: 45vh; /* Aumentado de 250px a 45% de la altura de pantalla */
+            min-height: 300px;
+            background: #000; 
+            border: 1px solid var(--p); 
+            margin-bottom: 15px; 
+            position: relative;
+            border-radius: 4px;
+        }
 
-        .mission-selector-box { margin-bottom: 20px; }
+        .mission-selector-box { margin-bottom: 15px; }
+        
         select { 
             width: 100%; padding: 15px; background: #111; border: 1px solid var(--p); 
             color: var(--p); font-family: inherit; font-size: 1rem; cursor: pointer;
         }
-        select:focus { border-color: var(--gold); outline: none; }
 
-        .btn-enlist { width: 100%; padding: 20px; background: var(--p); color: #000; border: none; font-weight: bold; cursor: pointer; position: sticky; bottom: 0; }
+        .stats-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;
+        }
+        .stat-card {
+            background: #111; border: 1px solid #333; padding: 10px; text-align: center;
+        }
+        .stat-val { display: block; font-size: 18px; color: var(--gold); font-weight: bold; }
+        .stat-lab { font-size: 9px; color: #888; text-transform: uppercase; }
+
+        .btn-enlist { 
+            width: 100%; padding: 20px; background: var(--p); color: #000; 
+            border: none; font-weight: bold; cursor: pointer; font-size: 1.1rem;
+            text-transform: uppercase; transition: 0.3s;
+        }
         .btn-enlist:disabled { background: #1a331a; color: #004400; cursor: not-allowed; }
 
         /* MODAL ADMIN */
@@ -38,15 +63,17 @@
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); backdrop-filter: blur(5px); z-index: 3000; align-items: center; justify-content: center;
         }
-        .modal-content { width: 90%; max-width: 400px; background: #000; border: 2px solid var(--gold); padding: 30px; text-align: center; }
+        .modal-content { width: 85%; max-width: 400px; background: #000; border: 2px solid var(--gold); padding: 25px; text-align: center; }
         .modal-input { width: 100%; padding: 15px; background: #111; border: 1px solid var(--gold); color: var(--gold); text-align: center; font-family: inherit; font-size: 1.2rem; margin: 20px 0; box-sizing: border-box; }
         
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
 
-        @media (min-width: 600px) {
+        /* Responsividad para escritorio */
+        @media (min-width: 768px) {
             body { align-items: center; }
-            #mission-container, header, .btn-enlist, footer { width: 500px; }
+            header, #mission-container, .btn-enlist, footer { width: 600px; border-left: 1px solid var(--gray); border-right: 1px solid var(--gray); }
+            #mini-map { height: 400px; }
         }
     </style>
 </head>
@@ -55,11 +82,11 @@
 <div id="auth-modal">
     <div class="modal-content">
         <h3 class="blink">AUTORIZACIÓN REQUERIDA</h3>
-        <p style="font-size: 12px; color: #888;">VALIDE SU IDENTIDAD (ADMIN)</p>
+        <p style="font-size: 12px; color: #888;">CONFIRME CALLSIGN DE MANDO</p>
         <input type="text" id="modal-callsign-input" class="modal-input" placeholder="CALLSIGN">
         <div style="display:flex; gap:10px;">
             <button onclick="closeAuthModal()" style="flex:1; padding:15px; background:#222; color:#fff; border:none;">CANCELAR</button>
-            <button onclick="confirmIdentity()" style="flex:1; padding:15px; background:var(--gold); color:#000; border:none; font-weight:bold;">ENTRAR</button>
+            <button onclick="confirmIdentity()" style="flex:1; padding:15px; background:var(--gold); color:#000; border:none; font-weight:bold;">ACCEDER</button>
         </div>
     </div>
 </div>
@@ -67,46 +94,54 @@
 <header>
     <div class="op-info">
         <div>
-            <div id="display-callsign" class="callsign">IDENTIFICANDO...</div>
-            <div style="font-size: 10px; color: var(--p);">CONEXIÓN ENCRIPTADA</div>
+            <div id="display-callsign" class="callsign">CONECTANDO...</div>
+            <div id="connection-status" style="font-size: 10px; color: var(--p);">SISTEMA A.T.O.M v2.0</div>
         </div>
-        <button onclick="logout()" style="background:none; border:1px solid var(--p); color:var(--p); font-size:10px; padding:5px;">LOGOUT</button>
+        <button onclick="logout()" style="background:none; border:1px solid #444; color:#888; font-size:10px; padding:5px;">DESCONECTAR</button>
     </div>
 </header>
 
 <div id="mission-container">
-    <h4 style="margin: 10px 0; font-size: 12px; color: var(--gold);">VISTA PREVIA DE OPERACIÓN</h4>
     <div id="mini-map"></div>
 
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span class="stat-lab">Objetivos</span>
+            <span id="stat-objs" class="stat-val">0</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-lab">Estado</span>
+            <span id="stat-status" class="stat-val">---</span>
+        </div>
+    </div>
+
     <div class="mission-selector-box">
-        <h4 style="margin: 0 0 10px 0; font-size: 12px;">SELECCIONAR MISIÓN:</h4>
         <select id="mission-select" onchange="handleMissionChange()">
-            <option value="" disabled selected>CARGANDO ÓRDENES...</option>
+            <option value="" disabled selected>ESPERANDO ÓRDENES...</option>
         </select>
     </div>
 
-    <div id="waiting-area" style="display:none; text-align:center; padding:20px; border:1px dashed var(--gold);">
-        <span class="blink" style="color:var(--gold); font-weight: bold;">[ ENLISTADO Y EN ESPERA ]</span>
-        <p style="font-size: 11px; color: #888; margin-top: 10px;">ESPERE A QUE EL COMANDO ASIGNE SU BANDO.</p>
+    <div id="waiting-area" style="display:none; text-align:center; padding:20px; border:1px dashed var(--gold); background: rgba(255, 215, 0, 0.05);">
+        <span class="blink" style="color:var(--gold); font-weight: bold; letter-spacing: 2px;">[ ENLISTADO ]</span>
+        <p style="font-size: 11px; color: #888; margin-top: 10px;">POSICIÓN REGISTRADA. MANTÉNGASE EN FRECUENCIA HASTA EL INICIO DE LA OPERACIÓN.</p>
     </div>
 </div>
 
 <button class="btn-enlist" id="btn-action" onclick="handleEnlist()" disabled>DESPLEGAR EN OPERACIÓN</button>
 
-<footer style="padding: 20px; text-align: center; border-top: 1px solid var(--gray); margin-top: auto;">
-    <button onclick="openAuthModal()" style="color: #444; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer;">⚙️ ACCESO RESTRINGIDO</button>
+<footer style="padding: 15px; text-align: center; border-top: 1px solid var(--gray);">
+    <button onclick="openAuthModal()" style="color: #444; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer;">⚙️ PANEL DE CONTROL</button>
 </footer>
 
 <script>
-// Configuración de Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-  authDomain: "atom---sistem.firebaseapp.com",
-  databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-  projectId: "atom---sistem",
-  storageBucket: "atom---sistem.firebasestorage.app",
-  messagingSenderId: "151110156876",
-  appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
+    apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+    authDomain: "atom---sistem.firebaseapp.com",
+    databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+    projectId: "atom---sistem",
+    storageBucket: "atom---sistem.firebasestorage.app",
+    messagingSenderId: "151110156876",
+    appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -124,7 +159,7 @@ function initMap() {
         zoom: 14,
         mapTypeId: "hybrid",
         disableDefaultUI: true,
-        gestureHandling: "none"
+        styles: [{ featureType: "all", elementType: "labels", stylers: [{ visibility: "off" }] }]
     });
 }
 
@@ -135,19 +170,28 @@ auth.onAuthStateChanged(user => {
             if(userProfile) {
                 document.getElementById('display-callsign').innerText = userProfile.callsign;
                 loadMissions();
+                checkIfAlreadyEnlisted(user.uid);
             }
         });
     } else { location.href = "index.html"; }
 });
 
+function checkIfAlreadyEnlisted(uid) {
+    db.ref(`operacion_activa/despliegue/${uid}`).once('value', snap => {
+        if(snap.exists()) {
+            showWaitingStatus();
+        }
+    });
+}
+
 function loadMissions() {
     db.ref('misiones').on('value', snap => {
         const select = document.getElementById('mission-select');
-        select.innerHTML = '<option value="" disabled selected>SELECCIONE UNA OPERACIÓN...</option>';
+        select.innerHTML = '<option value="" disabled selected>SELECCIONE OPERACIÓN...</option>';
         allMissions = {};
 
         if (!snap.exists()) {
-            select.innerHTML = '<option value="">SIN MISIONES ACTIVAS</option>';
+            select.innerHTML = '<option value="">SIN MISIONES DISPONIBLES</option>';
             return;
         }
 
@@ -157,7 +201,7 @@ function loadMissions() {
                 allMissions[child.key] = m;
                 let opt = document.createElement('option');
                 opt.value = child.key;
-                opt.innerText = m.nombre;
+                opt.innerText = `OP: ${m.nombre}`;
                 select.appendChild(opt);
             }
         });
@@ -173,35 +217,42 @@ function handleMissionChange() {
 function selectMission(id, data) {
     selectedMission = { id, ...data };
     document.getElementById('btn-action').disabled = false;
+    document.getElementById('stat-objs').innerText = data.cant_objetivos || 0;
+    document.getElementById('stat-status').innerText = data.estado;
+    document.getElementById('stat-status').style.color = data.estado === "EN_CURSO" ? "var(--red)" : "var(--gold)";
 
     // Limpiar dibujos previos
     miniMapOverlays.forEach(o => o.setMap(null));
     miniMapOverlays = [];
 
-    if(data.elements) {
+    if(data.elementos) {
         const bounds = new google.maps.LatLngBounds();
-        Object.values(data.elements).forEach(el => {
+        Object.values(data.elementos).forEach(el => {
             let overlay;
             if(el.type.includes("ZONE")) {
                 overlay = new google.maps.Polygon({
                     path: el.path, map: map, clickable: false,
                     fillColor: el.type === 'GAME_ZONE' ? '#00ff00' : '#ffa500',
                     strokeColor: el.type === 'GAME_ZONE' ? '#00ff00' : '#ffa500',
-                    fillOpacity: 0.2, strokeWeight: 1
+                    fillOpacity: 0.15, strokeWeight: 2
                 });
                 el.path.forEach(p => bounds.extend(p));
-            } else if(el.type.includes("RESPAWN")) {
+            } else {
+                // Círculos (Respawn y Objetivos)
+                let color = '#808080';
+                if(el.type === 'RESPAWN_RED') color = '#ff0000';
+                if(el.type === 'RESPAWN_BLUE') color = '#0000ff';
+                if(el.type === 'OBJ_POINT') color = '#ffffff';
+
                 overlay = new google.maps.Circle({
                     center: el.center, radius: el.radius, map: map, clickable: false,
-                    fillColor: el.type === 'RESPAWN_RED' ? '#ff0000' : '#0000ff',
-                    strokeColor: el.type === 'RESPAWN_RED' ? '#ff0000' : '#0000ff',
-                    fillOpacity: 0.3, strokeWeight: 1
+                    fillColor: color, strokeColor: color,
+                    fillOpacity: 0.4, strokeWeight: 1
                 });
                 bounds.extend(el.center);
             }
             if(overlay) miniMapOverlays.push(overlay);
         });
-        // CENTRADO AUTOMÁTICO EN LA ZONA DE JUEGO
         map.fitBounds(bounds);
     }
 }
@@ -216,19 +267,22 @@ function handleEnlist() {
         misionNombre: selectedMission.nombre,
         equipo: 'NEUTRO',
         enlistado: true,
-        lanzada: false,
-        timestamp: Date.now()
+        timestamp: firebase.database.ServerValue.TIMESTAMP
     }).then(() => {
-        document.getElementById('btn-action').style.display = 'none';
-        document.getElementById('mission-select').disabled = true;
-        document.getElementById('waiting-area').style.display = 'block';
+        showWaitingStatus();
     });
+}
+
+function showWaitingStatus() {
+    document.getElementById('btn-action').style.display = 'none';
+    document.getElementById('mission-select').disabled = true;
+    document.getElementById('waiting-area').style.display = 'block';
 }
 
 function openAuthModal() {
     if (userProfile.rol === "ADMIN" || userProfile.rol === "EDITOR") {
         document.getElementById('auth-modal').style.display = 'flex';
-    } else { alert("ACCESO DENEGADO"); }
+    } else { alert("ACCESO RESTRINGIDO A COMANDO"); }
 }
 
 function closeAuthModal() { document.getElementById('auth-modal').style.display = 'none'; }
@@ -237,13 +291,15 @@ function confirmIdentity() {
     const input = document.getElementById('modal-callsign-input').value.trim().toUpperCase();
     if (input === userProfile.callsign.toUpperCase()) {
         location.href = "restricted_zone.html";
-    } else { alert("ERROR DE IDENTIDAD"); closeAuthModal(); }
+    } else { 
+        alert("ERROR: IDENTIDAD NO COINCIDE"); 
+        closeAuthModal(); 
+    }
 }
 
 function logout() { auth.signOut(); }
 </script>
 
-<!-- API Google Maps -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&callback=initMap" async defer></script>
 
 </body>
