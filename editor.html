@@ -10,38 +10,24 @@
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#222; }
         body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
-        
         #panel { width:350px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; overflow-y: auto; z-index: 10; }
         #map { flex:1; }
-
         .menu-header { padding:15px; background:#111; border-bottom:1px solid #222; text-align: center; }
         .tool-box { padding:10px; border-bottom: 1px solid #222; }
-        
-        h4 { margin: 5px 0; font-size: 12px; color: var(--gold); text-transform: uppercase; }
-        button { 
-            width:100%; padding:10px; background:#111; color:var(--p); 
-            border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; margin-bottom: 5px;
-        }
+        h4 { margin: 5px 0; font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; }
+        button { width:100%; padding:10px; background:#111; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; margin-bottom: 5px; transition: 0.3s; }
         button:hover { background:var(--p); color:#000; }
-        button.active { background: var(--p); color: #000; }
-        
+        button.active { background: var(--p); color: #000; box-shadow: 0 0 10px var(--p); }
         .btn-delete { background: #300; color: var(--red); border-color: var(--red); margin-top: 5px; }
         .btn-save { background: var(--gold); color: #000; border: none; font-size: 16px; margin-top: 10px; }
-
-        /* LISTA JUGADORES */
-        #player-lobby { background: #111; padding: 10px; max-height: 200px; overflow-y: auto; }
-        .player-item { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 5px; border-bottom: 1px solid #333; font-size: 11px;
-        }
-        .team-btns { display: flex; gap: 5px; }
-        .btn-t { padding: 2px 6px; font-size: 10px; border: 1px solid; cursor: pointer; background: none; }
+        #player-lobby { background: #111; padding: 10px; max-height: 150px; overflow-y: auto; border: 1px solid #333; }
+        .player-item { display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #222; font-size: 11px; }
+        .btn-t { padding: 2px 6px; font-size: 10px; border: 1px solid; cursor: pointer; background: none; margin-left: 2px; }
         .btn-red { color: var(--red); border-color: var(--red); }
         .btn-blue { color: var(--blue); border-color: var(--blue); }
         .team-red { color: var(--red); font-weight: bold; }
         .team-blue { color: var(--blue); font-weight: bold; }
-
-        input, select { width:100%; padding:10px; background:#000; border:1px solid #444; color:var(--p); font-family: inherit; margin-bottom: 10px; }
+        input, select { width:100%; padding:10px; background:#000; border:1px solid #444; color:var(--p); font-family: inherit; margin-bottom: 10px; box-sizing: border-box; }
         .edit-tag { background: var(--gold); color: #000; padding: 5px; font-size: 10px; text-align: center; font-weight: bold; display:none; }
     </style>
 </head>
@@ -50,37 +36,42 @@
 <div id="panel">
     <div class="menu-header">
         <h3 style="margin:0;">A.T.O.M EDITOR</h3>
-        <div id="edit-tag" class="edit-tag">MODO EDICIÓN ACTIVO</div>
+        <div id="edit-tag" class="edit-tag">MODO EDICIÓN: <span id="active-id">NUEVO</span></div>
     </div>
 
     <div class="tool-box">
-        <h4>1. GESTIÓN DE OPERACIONES</h4>
+        <h4>1. CARGAR/ELIMINAR MISIÓN</h4>
         <select id="mission-selector" onchange="loadMissionToEdit(this.value)">
-            <option value="">-- NUEVA MISIÓN --</option>
+            <option value="">-- SELECCIONAR MISIÓN EXISTENTE --</option>
         </select>
-        <button id="delete-mission-btn" class="btn-delete" style="display:none;" onclick="deleteMission()">❌ ELIMINAR MISIÓN</button>
+        <button id="delete-mission-btn" class="btn-delete" style="display:none;" onclick="deleteMission()">❌ ELIMINAR DE FIREBASE</button>
     </div>
 
     <div class="tool-box">
-        <h4>2. HERRAMIENTAS DE MAPA</h4>
-        <button onclick="setMode('GAME_ZONE', this)">🟢 LÍMITE DE JUEGO (Polígono)</button>
-        <button onclick="setMode('SAFE_ZONE', this)">🟠 ZONA SEGURA (Polígono)</button>
-        <button onclick="setMode('RESPAWN_RED', this)">🔴 RESPAWN ROJO (Círculo)</button>
-        <button onclick="setMode('RESPAWN_BLUE', this)">🔵 RESPAWN AZUL (Círculo)</button>
-        <button onclick="setMode('OBJ_TOWER', this)">🟡 OBJETIVO (Marcador)</button>
-        <button onclick="clearMap()" style="border-color:#555; color:#777;">BORRAR DIBUJO ACTUAL</button>
+        <h4>2. HERRAMIENTAS TÁCTICAS</h4>
+        <button onclick="setMode('GAME_ZONE', this)">🟢 LÍMITE DE JUEGO</button>
+        <button onclick="setMode('SAFE_ZONE', this)">🟠 ZONA SEGURA</button>
+        <button onclick="setMode('RESPAWN_RED', this)">🔴 RESPAWN ROJO</button>
+        <button onclick="setMode('RESPAWN_BLUE', this)">🔵 RESPAWN AZUL</button>
+        <button onclick="setMode('OBJ_TOWER', this)">🟡 OBJETIVO</button>
+        <button onclick="clearMap()" style="border-color:#555; color:#777;">LIMPIAR LIENZO</button>
     </div>
 
     <div class="tool-box">
-        <h4>3. LOBBY DE RECLUTAS</h4>
-        <div id="player-lobby">Cargando operadores...</div>
-        <button onclick="autoBalance()" style="font-size:10px; margin-top:5px; border-color:var(--gold); color:var(--gold);">⚖️ AUTOBALANCEO DE EQUIPOS</button>
+        <h4>3. LOBBY DE OPERADORES</h4>
+        <div id="player-lobby">Esperando datos de Firebase...</div>
+        <button onclick="autoBalance()" style="font-size:10px; margin-top:5px; border-color:var(--gold); color:var(--gold);">⚖️ BALANCEAR EQUIPOS</button>
     </div>
 
     <div class="tool-box" style="margin-top:auto;">
+        <h4>4. CONFIGURACIÓN DE PUBLICACIÓN</h4>
         <input id="mission-name" placeholder="NOMBRE DE LA MISIÓN...">
-        <button class="btn-save" onclick="saveMission()">💾 GUARDAR CAMBIOS</button>
-        <button onclick="location.href='restricted_zone.html'" style="border:none; color:#666; font-size:10px;">SALIR DEL EDITOR</button>
+        <select id="mission-status">
+            <option value="RECLUTANDO">RECLUTANDO JUGADORES</option>
+            <option value="EN_CURSO">OPERACIÓN EN CURSO</option>
+            <option value="FINALIZADA">FINALIZADA / ARCHIVADA</option>
+        </select>
+        <button class="btn-save" onclick="saveMission()">💾 GUARDAR EN NUBE</button>
     </div>
 </div>
 
@@ -108,7 +99,7 @@ function initMap() {
         center: {lat:-34.34, lng:-56.71}, 
         zoom: 15,
         mapTypeId: "hybrid",
-        disableDefaultUI: false
+        tilt: 45
     });
 
     drawingManager = new google.maps.drawing.DrawingManager({
@@ -121,10 +112,8 @@ function initMap() {
     google.maps.event.addListener(drawingManager, 'overlaycomplete', (e) => {
         const mode = document.body.dataset.mode;
         if (!mode) { e.overlay.setMap(null); return alert("Selecciona una herramienta primero"); }
-        
         e.overlay.atomType = mode;
         
-        // Estética según tipo
         if(mode === 'GAME_ZONE') e.overlay.setOptions({fillColor: '#00ff00', strokeColor: '#00ff00'});
         if(mode === 'SAFE_ZONE') e.overlay.setOptions({fillColor: '#ffa500', strokeColor: '#ffa500'});
         if(mode === 'RESPAWN_RED') e.overlay.setOptions({fillColor: '#ff0000', strokeColor: '#ff0000'});
@@ -141,14 +130,9 @@ function setMode(mode, btn) {
     document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.body.dataset.mode = mode;
-
-    if (mode.includes("RESPAWN")) {
-        drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE);
-    } else if (mode.includes("ZONE")) {
-        drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-    } else {
-        drawingManager.setDrawingMode(google.maps.drawing.OverlayType.MARKER);
-    }
+    if (mode.includes("RESPAWN")) drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE);
+    else if (mode.includes("ZONE")) drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+    else drawingManager.setDrawingMode(google.maps.drawing.OverlayType.MARKER);
 }
 
 function clearMap() {
@@ -156,37 +140,34 @@ function clearMap() {
     mapOverlays = [];
 }
 
-// --- GESTIÓN DE MISIONES ---
+// --- PERSISTENCIA EN FIREBASE ---
 
 function saveMission() {
     const name = document.getElementById('mission-name').value;
-    if (!name || mapOverlays.length === 0) return alert("Asigna un nombre y dibuja elementos en el mapa.");
+    const status = document.getElementById('mission-status').value;
+    if (!name || mapOverlays.length === 0) return alert("Faltan datos o dibujo táctico.");
 
     let elements = {};
     mapOverlays.forEach((obj, i) => {
-        const id = "el_" + Date.now() + "_" + i;
+        const id = "el_" + i;
         let data = { type: obj.atomType };
-        
-        if (obj.atomType.includes("ZONE")) {
-            data.path = obj.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
-        } else if (obj.atomType.includes("RESPAWN")) {
-            data.center = {lat: obj.getCenter().lat(), lng: obj.getCenter().lng()};
-            data.radius = obj.getRadius();
-        } else {
-            data.pos = {lat: obj.getPosition().lat(), lng: obj.getPosition().lng()};
-        }
+        if (obj.atomType.includes("ZONE")) data.path = obj.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
+        else if (obj.atomType.includes("RESPAWN")) { data.center = {lat: obj.getCenter().lat(), lng: obj.getCenter().lng()}; data.radius = obj.getRadius(); }
+        else data.pos = {lat: obj.getPosition().lat(), lng: obj.getPosition().lng()};
         elements[id] = data;
     });
 
+    // Si currentMissionId es nulo, creamos uno nuevo, sino sobreescribimos el existente
     const mId = currentMissionId || db.ref('misiones').push().key;
-    db.ref(`misiones/${mId}`).update({
+    
+    db.ref(`misiones/${mId}`).set({
         id: mId,
         nombre: name,
-        estado: "PREPARACION",
+        estado: status,
         elements: elements,
         timestamp: Date.now()
     }).then(() => {
-        alert("Operación Guardada Exitosamente");
+        alert("Operación Sincronizada con la Nube");
         location.reload();
     });
 }
@@ -194,7 +175,7 @@ function saveMission() {
 function loadMissionList() {
     db.ref('misiones').on('value', snap => {
         const sel = document.getElementById('mission-selector');
-        sel.innerHTML = '<option value="">-- NUEVA MISIÓN --</option>';
+        sel.innerHTML = '<option value="">-- SELECCIONAR MISIÓN EXISTENTE --</option>';
         snap.forEach(child => {
             sel.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
         });
@@ -206,11 +187,13 @@ function loadMissionToEdit(id) {
     clearMap();
     currentMissionId = id;
     document.getElementById('edit-tag').style.display = "block";
+    document.getElementById('active-id').innerText = id;
     document.getElementById('delete-mission-btn').style.display = "block";
     
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
         document.getElementById('mission-name').value = m.nombre;
+        document.getElementById('mission-status').value = m.estado || "RECLUTANDO";
         
         if(m.elements) {
             Object.values(m.elements).forEach(el => {
@@ -241,51 +224,35 @@ function loadMissionToEdit(id) {
 }
 
 function deleteMission() {
-    if(confirm("¿Estás seguro de eliminar esta misión permanentemente?")) {
+    if(confirm("¿ELIMINAR ESTA OPERACIÓN? Esto la quitará de la lista de todos los jugadores.")) {
         db.ref(`misiones/${currentMissionId}`).remove().then(() => location.reload());
     }
 }
-
-// --- LOBBY Y EQUIPOS ---
 
 function loadEnlistedPlayers() {
     db.ref('operacion_activa/despliegue').on('value', snap => {
         const lobby = document.getElementById('player-lobby');
         lobby.innerHTML = "";
-        if(!snap.exists()) { lobby.innerHTML = "Esperando reclutas..."; return; }
-
+        if(!snap.exists()) { lobby.innerHTML = "Sin reclutas aún..."; return; }
         snap.forEach(child => {
             const p = child.val();
             const uid = child.key;
-            const teamClass = p.equipo === 'ROJO' ? 'team-red' : (p.equipo === 'AZUL' ? 'team-blue' : '');
-            
-            lobby.innerHTML += `
-                <div class="player-item">
-                    <span class="${teamClass}">${p.callsign}</span>
-                    <div class="team-btns">
-                        <button class="btn-t btn-red" onclick="assignTeam('${uid}', 'ROJO')">R</button>
-                        <button class="btn-t btn-blue" onclick="assignTeam('${uid}', 'AZUL')">A</button>
-                    </div>
-                </div>
-            `;
+            const tC = p.equipo === 'ROJO' ? 'team-red' : (p.equipo === 'AZUL' ? 'team-blue' : '');
+            lobby.innerHTML += `<div class="player-item"><span class="${tC}">${p.callsign}</span><div class="team-btns">
+                <button class="btn-t btn-red" onclick="assignTeam('${uid}', 'ROJO')">R</button>
+                <button class="btn-t btn-blue" onclick="assignTeam('${uid}', 'AZUL')">A</button></div></div>`;
         });
     });
 }
 
-function assignTeam(uid, team) {
-    db.ref(`operacion_activa/despliegue/${uid}`).update({ equipo: team });
-}
+function assignTeam(uid, team) { db.ref(`operacion_activa/despliegue/${uid}`).update({ equipo: team }); }
 
 function autoBalance() {
     db.ref('operacion_activa/despliegue').once('value', snap => {
         let players = [];
         snap.forEach(c => { players.push({uid: c.key}); });
-        
         players.sort(() => Math.random() - 0.5);
-        players.forEach((p, index) => {
-            const team = (index % 2 === 0) ? 'ROJO' : 'AZUL';
-            assignTeam(p.uid, team);
-        });
+        players.forEach((p, index) => { assignTeam(p.uid, (index % 2 === 0) ? 'ROJO' : 'AZUL'); });
     });
 }
 
