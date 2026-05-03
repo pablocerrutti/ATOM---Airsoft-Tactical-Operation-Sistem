@@ -3,344 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - TACTICAL MAP v2.5</title>
-    
-    <!-- Firebase SDKs -->
+    <title>A.T.O.M - Tactical Map</title>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-
     <style>
-        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; --gray: #222; }
-        body, html { margin: 0; padding: 0; height: 100%; background: var(--f); overflow: hidden; font-family: 'Courier New', monospace; }
-        
-        #map { width: 100%; height: 100%; position: absolute; z-index: 1; transition: filter 0.5s; }
-        
-        /* HUD Superior: Reloj y Bajas */
-        #hud-battle {
-            position: absolute; top: 0; left: 0; right: 0; height: 70px;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.95), transparent);
-            z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 0 15px;
-            border-bottom: 1px solid rgba(0,255,0,0.2); pointer-events: none;
-        }
-        .score-box { text-align: center; pointer-events: all; min-width: 80px; }
-        .score-val { font-size: 24px; font-weight: bold; display: block; }
-        .score-label { font-size: 9px; text-transform: uppercase; color: #888; letter-spacing: 1px; }
-        #game-clock { font-size: 26px; color: var(--p); text-shadow: 0 0 10px var(--p); font-weight: bold; }
-
-        /* Menú Lateral Desplegable */
-        #side-menu {
-            position: absolute; left: -250px; top: 80px; bottom: 120px; width: 230px;
-            background: rgba(0,0,0,0.9); border: 1px solid var(--p); border-left: none;
-            z-index: 100; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex; flex-direction: column; padding: 20px; gap: 15px;
-            backdrop-filter: blur(8px);
-        }
-        #side-menu.open { left: 0; }
-        .menu-toggle {
-            position: absolute; right: -45px; top: -1px; width: 45px; height: 55px;
-            background: rgba(0,0,0,0.9); border: 1px solid var(--p); border-left: none;
-            color: var(--p); display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; font-size: 20px; border-radius: 0 5px 5px 0;
-        }
-
-        /* Herramientas Tácticas */
-        .tool-btn {
-            width: 100%; padding: 15px; background: #111; border: 1px solid var(--p);
-            color: var(--p); font-family: inherit; font-weight: bold; cursor: pointer;
-            display: flex; align-items: center; gap: 10px; border-radius: 4px;
-        }
-        .tool-btn.btn-enemy { border-color: var(--red); color: var(--red); }
-        .tool-btn.btn-medic { border-color: var(--gold); color: var(--gold); }
-        .tool-btn:active { background: #222; }
-
-        /* PTT Flotante Transparente */
-        #ptt-container {
-            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            z-index: 10; text-align: center;
-        }
-        .btn-ptt {
-            width: 85px; height: 85px; border-radius: 50%; 
-            background: rgba(0, 255, 0, 0.1); border: 2px solid rgba(0, 255, 0, 0.3);
-            color: var(--p); font-size: 10px; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; cursor: pointer;
-            backdrop-filter: blur(3px); transition: 0.2s; -webkit-tap-highlight-color: transparent;
-        }
-        .ptt-active { 
-            background: rgba(0, 255, 0, 0.5) !important; border-color: var(--p) !important; 
-            box-shadow: 0 0 30px var(--p); color: #000 !important;
-        }
-
-        /* Pantallas de Estado */
-        #death-screen { 
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(10,0,0,0.95); z-index: 5000; flex-direction: column; 
-            align-items: center; justify-content: center; color: var(--red); text-align: center;
-        }
-        .dead-map { filter: grayscale(1) blur(10px) brightness(0.2); pointer-events: none; }
-        .blink { animation: blinker 1s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
+        :root { --p:#00ff00; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
+        body, html { margin:0; padding:0; height:100%; background:#000; overflow:hidden; font-family: monospace; }
+        #map { width:100%; height:100%; position: absolute; top:0; left:0; }
+        .hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; pointer-events: none; }
+        .badge { background: rgba(0,0,0,0.8); border: 1px solid var(--p); color: var(--p); padding: 10px; font-weight: bold; font-size: 12px; }
+        .controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center; }
+        .btn-abort { background: #300; color: #f33; border: 1px solid #f33; padding: 15px 40px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
-    <!-- HUD Superior -->
-    <div id="hud-battle">
-        <div class="score-box">
-            <span id="score-red" class="score-val" style="color:var(--red)">0</span>
-            <span class="score-label">BAJAS ROJO</span>
-        </div>
-        <div id="game-clock">00:00:00</div>
-        <div class="score-box">
-            <span id="score-blue" class="score-val" style="color:var(--blue)">0</span>
-            <span class="score-label">BAJAS AZUL</span>
-        </div>
-    </div>
-
-    <!-- Menú Lateral -->
-    <div id="side-menu">
-        <div class="menu-toggle" onclick="toggleMenu()">☰</div>
-        <h3 style="margin:0; font-size:14px; border-bottom:1px solid var(--p); padding-bottom:10px; color:var(--p)">OPERACIONES A.T.O.M</h3>
-        
-        <button class="tool-btn btn-enemy" onclick="markEnemy()">⚠️ AVISTAR ENEMIGO</button>
-        <button class="tool-btn btn-medic" id="btn-medic" onclick="handleMedicRequest()">🚑 SOLICITAR MÉDICO</button>
-        
-        <div style="margin-top:auto; font-size:11px; background:rgba(0,0,0,0.5); padding:10px; border:1px solid #333;">
-            <div id="bando-indicator" style="font-weight:bold; margin-bottom:5px;">BANDO: ---</div>
-            <div id="status-indicator" style="margin-bottom:5px;">STATUS: OPERATIVO</div>
-            <div>SALUD: <span id="life-display" style="color:var(--red); letter-spacing:2px;">♥♥</span></div>
-        </div>
-    </div>
-
     <div id="map"></div>
 
-    <!-- Botón Radio PTT -->
-    <div id="ptt-container">
-        <button class="btn-ptt" id="ptt-btn">
-            <span style="font-size:28px;">🎙️</span>
-            <span style="font-weight:bold;">RADIO</span>
-        </button>
+    <div class="hud">
+        <div id="hud-team" class="badge">BANDO: ---</div>
+        <div id="hud-timer" class="badge" style="color: var(--gold);">00:00:00</div>
     </div>
 
-    <!-- Pantalla K.I.A -->
-    <div id="death-screen">
-        <h1 class="blink" style="font-size:60px; margin:0;">K.I.A.</h1>
-        <p style="letter-spacing:2px;">UNIDAD FUERA DE SERVICIO</p>
-        <div style="height:2px; width:100px; background:var(--red); margin:20px 0;"></div>
-        <p style="font-size:12px; color:#888;">PROCEDA AL PUNTO DE RESPAWN<br>PARA RE-ACTIVAR SISTEMAS</p>
-        <button onclick="requestRespawn()" style="margin-top:30px; padding:15px 40px; background:var(--red); color:white; border:none; font-family:inherit; font-weight:bold; cursor:pointer; border-radius:4px;">RE-ESTABLECER</button>
+    <div class="controls">
+        <button class="btn-abort" onclick="abortMission()">Abandodar Misión</button>
     </div>
 
 <script>
-// --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-    authDomain: "atom---sistem.firebaseapp.com",
     databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
     projectId: "atom---sistem",
-    storageBucket: "atom---sistem.firebasestorage.app",
-    messagingSenderId: "151110156876",
-    appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const auth = firebase.auth();
 
-let map, myBando, myCallsign, misionId;
-let allyMarkers = {};
-let lives = 2;
-let isHerido = false;
+const myCallsign = localStorage.getItem('callsign');
+const activeMissionId = localStorage.getItem('activeMissionId');
+let map;
 
-function toggleMenu() { document.getElementById('side-menu').classList.toggle('open'); }
-
-auth.onAuthStateChanged(user => {
-    if (user) {
-        db.ref(`operacion_activa/despliegue/${user.uid}`).on('value', snap => {
-            const data = snap.val();
-            if (!data) return;
-            myBando = data.equipo;
-            myCallsign = data.callsign;
-            misionId = data.misionId;
-            updateUI();
-            if(!map) initMap();
-            startTracking(user.uid);
-            listenTacticalData();
-        });
-    } else { location.href = "index.html"; }
-});
-
-function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-        center: {lat: -34.34, lng: -56.71},
-        zoom: 18,
-        mapTypeId: "hybrid",
-        disableDefaultUI: true,
-        tilt: 45
-    });
-
-    // Auto-Zoom a la zona de juego de la misión
-    if(misionId) {
-        db.ref(`misiones/${misionId}/elementos`).once('value', snap => {
-            const bounds = new google.maps.LatLngBounds();
-            snap.forEach(el => {
-                const item = el.val();
-                if(item.type === "GAME_ZONE" && item.path) {
-                    item.path.forEach(p => bounds.extend(p));
-                }
-            });
-            if(!bounds.isEmpty()) map.fitBounds(bounds);
-        });
+function initTactical() {
+    if(!myCallsign || !activeMissionId) {
+        window.location.href = 'lobby.html';
+        return;
     }
-}
 
-function startTracking(uid) {
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(pos => {
-            const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            db.ref(`operacion_activa/despliegue/${uid}/pos`).set(p);
-            if (!isHerido) map.panTo(p);
-        }, null, { enableHighAccuracy: true });
-    }
-}
+    db.ref(`misiones/${activeMissionId}`).once('value', snap => {
+        const m = snap.val();
+        const first = Object.values(m.elementos)[0];
+        const center = first.center || first.path[0];
 
-function listenTacticalData() {
-    // 1. Geolocalización de Compañeros (Mismo bando)
-    db.ref('operacion_activa/despliegue').on('value', snap => {
-        snap.forEach(child => {
-            const data = child.val();
-            if (data.equipo === myBando && child.key !== auth.currentUser.uid) {
-                updateAllyMarker(child.key, data);
-            }
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: center, zoom: 18, mapTypeId: "hybrid", disableDefaultUI: true, tilt: 45
         });
+        renderElements(map, m.elementos);
     });
 
-    // 2. HUD Global (Reloj y Bajas)
-    db.ref('operacion_activa/estado_partida').on('value', snap => {
-        const data = snap.val() || {};
-        if(data.reloj) document.getElementById('game-clock').innerText = data.reloj;
-        document.getElementById('score-red').innerText = data.bajas_rojo || 0;
-        document.getElementById('score-blue').innerText = data.bajas_azul || 0;
-    });
-
-    // 3. Alertas de Enemigos
-    db.ref('operacion_activa/alertas_enemigas').on('child_added', snap => {
-        const data = snap.val();
-        if (data.equipo === myBando) {
-            const marker = new google.maps.Marker({
-                position: data.pos, map: map,
-                icon: { url: 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png', scaledSize: new google.maps.Size(40, 40) },
-                animation: google.maps.Animation.BOUNCE
-            });
-            setTimeout(() => marker.setMap(null), 30000);
+    db.ref(`jugadores_enlistados/${myCallsign}`).on('value', snap => {
+        const p = snap.val();
+        if(p) {
+            const el = document.getElementById('hud-team');
+            el.innerText = `BANDO: ${p.equipo}`;
+            el.style.color = p.equipo === 'RED' ? '#ff3333' : '#3333ff';
+            el.style.borderColor = el.style.color;
         }
     });
-}
 
-function updateAllyMarker(uid, data) {
-    const isTeammateHerido = data.estado === "HERIDO";
-    const pos = data.pos;
-    if(!pos) return;
-
-    const color = isTeammateHerido ? "#ffd700" : (myBando === "ROJO" ? "#ff3333" : "#3333ff");
-    
-    if (allyMarkers[uid]) {
-        allyMarkers[uid].setPosition(pos);
-        allyMarkers[uid].setIcon(getAllySymbol(color, isTeammateHerido));
-    } else {
-        allyMarkers[uid] = new google.maps.Marker({
-            position: pos, map: map,
-            label: { text: data.callsign, color: "white", fontSize: "10px", fontWeight: "bold" },
-            icon: getAllySymbol(color, isTeammateHerido)
-        });
-    }
-}
-
-function getAllySymbol(color, herido) {
-    return {
-        path: google.maps.SymbolPath.CIRCLE,
-        fillColor: color, fillOpacity: 1,
-        scale: herido ? 12 : 8,
-        strokeColor: herido ? "white" : "black",
-        strokeWeight: herido ? 3 : 1
-    };
-}
-
-function handleMedicRequest() {
-    if (isHerido) return;
-    isHerido = true;
-    lives--;
-    updateLifeDisplay();
-
-    if (lives < 0) {
-        triggerDeath();
-    } else {
-        db.ref(`operacion_activa/despliegue/${auth.currentUser.uid}/estado`).set("HERIDO");
-        document.getElementById('status-indicator').innerText = "STATUS: ¡HERIDO!";
-        document.getElementById('status-indicator').style.color = "var(--gold)";
-        toggleMenu();
-    }
-}
-
-function triggerDeath() {
-    document.getElementById('map').classList.add('dead-map');
-    document.getElementById('death-screen').style.display = 'flex';
-    const bandoEnemigo = myBando === "ROJO" ? "azul" : "rojo";
-    db.ref(`operacion_activa/estado_partida/bajas_${bandoEnemigo}`).transaction(c => (c || 0) + 1);
-    db.ref(`operacion_activa/despliegue/${auth.currentUser.uid}/estado`).set("K.I.A");
-}
-
-function requestRespawn() {
-    lives = 2; isHerido = false;
-    updateLifeDisplay();
-    document.getElementById('map').classList.remove('dead-map');
-    document.getElementById('death-screen').style.display = 'none';
-    document.getElementById('status-indicator').innerText = "STATUS: OPERATIVO";
-    document.getElementById('status-indicator').style.color = "var(--p)";
-    db.ref(`operacion_activa/despliegue/${auth.currentUser.uid}/estado`).set("VIVO");
-}
-
-function markEnemy() {
-    const center = map.getCenter();
-    db.ref('operacion_activa/alertas_enemigas').push({
-        pos: { lat: center.lat(), lng: center.lng() },
-        equipo: myBando,
-        timestamp: Date.now()
+    db.ref('operacion_activa/control').on('value', snap => {
+        const status = snap.val();
+        if(status.status === 'RECLUTANDO') {
+            alert("MISIÓN FINALIZADA");
+            window.location.href = 'lobby.html';
+        }
+        updateTimer(status.startTime);
     });
-    toggleMenu();
 }
 
-function updateLifeDisplay() {
-    document.getElementById('life-display').innerText = "♥".repeat(Math.max(0, lives));
+function updateTimer(start) {
+    setInterval(() => {
+        const ms = Date.now() - start;
+        const h = Math.floor(ms / 3600000).toString().padStart(2, '0');
+        const m = Math.floor((ms % 3600000) / 60000).toString().padStart(2, '0');
+        const s = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
+        document.getElementById('hud-timer').innerText = `${h}:${m}:${s}`;
+    }, 1000);
 }
 
-function updateUI() {
-    const bnd = document.getElementById('bando-indicator');
-    bnd.innerText = `BANDO: ${myBando}`;
-    bnd.style.color = myBando === "ROJO" ? "var(--red)" : "var(--blue)";
-    updateLifeDisplay();
+function abortMission() {
+    if(confirm("¿Desea salir del área de operaciones?")) {
+        db.ref(`jugadores_enlistados/${myCallsign}`).remove();
+        window.location.href = 'lobby.html';
+    }
 }
 
-// Lógica PTT Radio (15s Max)
-const pttBtn = document.getElementById('ptt-btn');
-let pttTimer;
-
-function startPTT() {
-    pttBtn.classList.add('ptt-active');
-    pttTimer = setTimeout(stopPTT, 15000);
-}
-function stopPTT() {
-    clearTimeout(pttTimer);
-    pttBtn.classList.remove('ptt-active');
+function renderElements(mapObj, elementos) {
+    Object.values(elementos).forEach(el => {
+        const style = { fillColor: el.color, strokeColor: el.color, fillOpacity: 0.3, map: mapObj };
+        if (el.path) new google.maps.Polygon({ path: el.path, ...style });
+        else new google.maps.Circle({ center: el.center, radius: el.radius, ...style });
+    });
 }
 
-pttBtn.addEventListener('mousedown', startPTT);
-pttBtn.addEventListener('mouseup', stopPTT);
-pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startPTT(); });
-pttBtn.addEventListener('touchend', stopPTT);
-
+window.onload = initTactical;
 </script>
-
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58" async defer></script>
-
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=geometry" async defer></script>
 </body>
 </html>
