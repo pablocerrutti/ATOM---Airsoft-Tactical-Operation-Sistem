@@ -18,14 +18,15 @@
     <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
 
     <style>
-        :root { --p:#00ff00; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#222; --bg:rgba(5,5,5,0.9); }
+        :root { --p:#00ff00; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --bg:rgba(5,5,5,0.9); }
         body, html { margin:0; padding:0; height:100%; background:#000; overflow:hidden; font-family: 'Courier New', monospace; }
         
-        #map-container { width:100%; height:100%; transition: filter 0.5s ease; }
         #map { width:100%; height:100%; background: #000; }
+        
+        /* Modos Visuales */
         .KIA { filter: grayscale(1) blur(8px) brightness(0.4); pointer-events: none; }
+        .warning-zone { animation: pulse-red 1s infinite; }
 
-        /* Alerta Fuera de Zona */
         #out-of-bounds {
             position: absolute; top: 20%; left: 0; width: 100%; padding: 20px 0;
             background: rgba(255,0,0,0.8); color: white; text-align: center;
@@ -55,7 +56,7 @@
         .menu-toggle {
             position: absolute; top: 15px; left: 10px; z-index: 2100;
             background: var(--bg); color: var(--p); border: 1px solid var(--p);
-            padding: 8px; cursor: pointer; font-weight: bold; font-size: 10px;
+            padding: 8px; cursor: pointer; font-size: 10px;
         }
 
         .btn-main {
@@ -63,47 +64,34 @@
             background: rgba(0,255,0,0.1); color: var(--p);
             font-weight: bold; cursor: pointer; text-transform: uppercase; font-family: monospace;
         }
-        .btn-mark { border-color: var(--gold); color: var(--gold); font-size: 12px; }
-        .btn-medic { border-color: var(--gold); color: var(--gold); }
-        .btn-medic.warning { background: var(--red); color: white; animation: blink 0.5s infinite; border-color: white; }
-        .btn-abort { margin-top: auto; border-color: var(--red); color: var(--red); font-size: 10px; opacity: 0.6; }
+        .btn-mark { border-color: var(--gold); color: var(--gold); }
+        .btn-medic.warning { background: var(--red); color: white; animation: blink 0.5s infinite; }
 
-        .status-badge { font-size: 10px; text-align: center; padding: 5px; border: 1px solid #444; color: #888; text-transform: uppercase; }
-
-        /* Etiquetas */
+        /* ETIQUETAS TÁCTICAS COINCIDENTES CON EDITOR */
         .tactical-label {
-            background: rgba(0,0,0,0.85); border: 1px solid var(--p); color: var(--p);
-            padding: 2px 6px; font-size: 9px; font-weight: bold; border-radius: 2px;
-            white-space: nowrap; text-transform: uppercase; box-shadow: 0 0 8px rgba(0,255,0,0.3);
+            background: rgba(0,0,0,0.8); border: 1px solid var(--p); color: var(--p);
+            padding: 2px 6px; font-size: 10px; font-weight: bold; border-radius: 3px;
+            white-space: nowrap; text-transform: uppercase; box-shadow: 0 0 5px rgba(0,255,0,0.5);
         }
-        .label-ally { border-color: white; color: white; background: rgba(0,0,255,0.7); }
-        .label-enemy-mark { border-color: var(--red); color: white; background: rgba(255,0,0,0.9); animation: blink 1s infinite; }
-
+        .label-red { border-color: var(--red); color: var(--red); }
+        .label-blue { border-color: var(--blue); color: var(--blue); }
+        .label-gold { border-color: var(--gold); color: var(--gold); }
+        
         @keyframes blink { 50% { opacity: 0.3; } }
-        @keyframes pulse-red { 0% { box-shadow: inset 0 0 0px red; } 50% { box-shadow: inset 0 0 50px red; } 100% { box-shadow: inset 0 0 0px red; } }
-        .warning-zone { animation: pulse-red 1s infinite; }
+        @keyframes pulse-red { 0% { box-shadow: inset 0 0 0px red; } 50% { box-shadow: inset 0 0 60px red; } 100% { box-shadow: inset 0 0 0px red; } }
     </style>
 </head>
 <body>
 
-    <div id="out-of-bounds" class="blink">⚠️ FUERA DE ZONA DE OPERACIÓN ⚠️</div>
+    <div id="out-of-bounds">⚠️ FUERA DE ZONA DE OPERACIÓN ⚠️</div>
     <button class="menu-toggle" onclick="toggleMenu()">☰ TÁCTICO</button>
 
     <div id="side-menu">
-        <div class="status-badge" id="op-callsign">OPERADOR: ---</div>
-        <div class="status-badge" id="op-team">BANDO: ---</div>
-        
-        <button class="btn-main" onclick="alert('CANAL RADIO PTT ACTIVO')">🎤 PTT RADIO</button>
-        
-        <button class="btn-main btn-mark" onclick="markEnemyLocation()">
-            🎯 MARCAR ENEMIGO (30s)
-        </button>
-
-        <button id="medic-trigger" class="btn-main btn-medic" onclick="handleMedicRequest()">
-            ➕ SOLICITAR MÉDICO
-        </button>
-
-        <button class="btn-main btn-abort" onclick="abortMission()">🚪 ABANDONAR MISIÓN</button>
+        <div id="op-callsign">OPERATIVO: ---</div>
+        <div id="op-team">EQUIPO: ---</div>
+        <button class="btn-main btn-mark" onclick="markEnemyLocation()">🎯 MARCAR ENEMIGO</button>
+        <button id="medic-trigger" class="btn-main" onclick="handleMedicRequest()">➕ SOLICITAR MÉDICO</button>
+        <button class="btn-main" onclick="location.href='lobby.html'" style="margin-top:auto; border-color:#444;">🚪 SALIR</button>
     </div>
 
     <div class="hud-top">
@@ -112,9 +100,7 @@
         <div class="score" style="color: var(--blue);" id="kills-blue">0</div>
     </div>
 
-    <div id="map-container">
-        <div id="map"></div>
-    </div>
+    <div id="map"></div>
 
 <script>
 const firebaseConfig = {
@@ -127,167 +113,137 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 const myCallsign = localStorage.getItem('callsign') || "OPERADOR";
-const activeMissionId = localStorage.getItem('activeMissionId');
-
 let map, drawnItems, gameZoneLayer;
 let myTeam = 'S/E';
 let teamMarkers = {};
-let enemyMarkers = {};
-let lastPos = null;
 
 function initMap() {
-    map = L.map('map', { zoomControl: false, attributionControl: false }).setView([0,0], 2);
+    map = L.map('map', { zoomControl: false, attributionControl: false }).setView([0,0], 18);
     L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(map);
     drawnItems = L.featureGroup().addTo(map);
     
-    loadMissionData();
     syncPlayerStatus();
+    listenMissionID(); // Primero obtenemos la ID activa de la base de datos
     listenGlobalTimer();
-    listenEnemyMarks();
     startGPS();
 }
 
-function loadMissionData() {
-    if(!activeMissionId) return;
-    db.ref(`misiones/${activeMissionId}`).once('value', snap => {
+// 1. ESCUCHAR QUÉ MISIÓN ESTÁ LANZADA POR EL ADMIN
+function listenMissionID() {
+    db.ref('operacion_activa/control/missionId').on('value', snap => {
+        const mId = snap.val();
+        if(mId) loadMissionElements(mId);
+    });
+}
+
+// 2. CARGAR ELEMENTOS (POLÍGONOS, CÍRCULOS Y MARCADORES)
+function loadMissionElements(id) {
+    db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
         if(!m || !m.elementos) return;
 
+        drawnItems.clearLayers();
+        gameZoneLayer = null;
+
         m.elementos.forEach(el => {
-            let color = '#00ff00';
-            if(el.type.includes('RED')) color = '#ff3333';
-            if(el.type.includes('BLUE')) color = '#3333ff';
-            if(el.type.includes('OBJ') || el.type.includes('SAFE')) color = '#ffd700';
-
-            const style = { color: color, fillColor: color, fillOpacity: 0.2, weight: 2 };
             let layer;
-            let centerPos;
+            const style = getStyleByType(el.type);
 
+            // A. Construir Geometría
             if(el.path) {
                 layer = L.polygon(el.path, style);
-                let lats = el.path.map(p => p.lat);
-                let lngs = el.path.map(p => p.lng);
-                centerPos = [(Math.min(...lats) + Math.max(...lats)) / 2, (Math.min(...lngs) + Math.max(...lngs)) / 2];
                 if(el.type === 'GAME_ZONE') gameZoneLayer = layer;
             } else if(el.radius) {
                 layer = L.circle(el.center, {radius: el.radius, ...style});
-                centerPos = el.center;
             } else {
-                layer = L.circleMarker(el.center, {radius: 8, ...style});
-                centerPos = el.center;
+                // MARCADO DE OBJETIVOS (Coincidente con el Editor)
+                layer = L.circleMarker(el.center, {
+                    radius: 10,
+                    color: style.color,
+                    fillColor: '#000',
+                    fillOpacity: 0.8,
+                    weight: 3
+                });
             }
 
-            L.marker(centerPos, {
+            // B. Crear Etiqueta (Label)
+            const labelPos = el.center || getPolygonCenter(el.path);
+            const labelClass = getLabelClass(el.type);
+            
+            L.marker(labelPos, {
                 icon: L.divIcon({
-                    className: 'tactical-label',
+                    className: `tactical-label ${labelClass}`,
                     html: el.type.replace('_', ' '),
-                    iconAnchor: [30, 0]
+                    iconAnchor: [40, -10]
                 }),
                 interactive: false
             }).addTo(drawnItems);
 
             drawnItems.addLayer(layer);
         });
-        
-        if (drawnItems.getLayers().length > 0) {
-            map.fitBounds(drawnItems.getBounds(), { padding: [20, 20] });
+
+        // C. Ajustar Zoom Automático al área de juego
+        if (gameZoneLayer) {
+            map.fitBounds(gameZoneLayer.getBounds(), { padding: [30, 30] });
+        } else if (drawnItems.getLayers().length > 0) {
+            map.fitBounds(drawnItems.getBounds(), { padding: [50, 50] });
         }
     });
 }
 
-function markEnemyLocation() {
-    if(!lastPos) return alert("ERROR: GPS NO DISPONIBLE");
-    const markId = `mark_${Date.now()}`;
-    db.ref(`operacion_activa/marcas_enemigas/${myTeam}/${markId}`).set({
-        lat: lastPos.lat,
-        lng: lastPos.lng,
-        timestamp: Date.now(),
-        by: myCallsign
-    });
-    toggleMenu();
+function getStyleByType(type) {
+    if(type === 'GAME_ZONE') return { color: '#00ff00', weight: 3, fillOpacity: 0.05, dashArray: '10, 10' };
+    if(type === 'SAFE_ZONE') return { color: '#ffd700', weight: 2, fillOpacity: 0.2 };
+    if(type.includes('RED')) return { color: '#ff3333', weight: 2, fillOpacity: 0.3 };
+    if(type.includes('BLUE')) return { color: '#3333ff', weight: 2, fillOpacity: 0.3 };
+    return { color: '#ffffff', weight: 2, fillOpacity: 0.4 };
 }
 
-function listenEnemyMarks() {
-    db.ref(`operacion_activa/marcas_enemigas/${myTeam}`).on('value', snap => {
-        const marks = snap.val();
-        const now = Date.now();
-        // Limpiar marcas viejas
-        for(let id in enemyMarkers) { if(!marks || !marks[id]) { map.removeLayer(enemyMarkers[id]); delete enemyMarkers[id]; } }
-        
-        if(!marks) return;
-        snap.forEach(child => {
-            const data = child.val();
-            const id = child.key;
-            const age = now - data.timestamp;
-
-            if(age < 30000) { // 30 segundos
-                if(!enemyMarkers[id]) {
-                    enemyMarkers[id] = L.marker([data.lat, data.lng], {
-                        icon: L.divIcon({
-                            className: 'tactical-label label-enemy-mark',
-                            html: '⚠️ ENEMIGO DETECTADO',
-                            iconAnchor: [60, 0]
-                        })
-                    }).addTo(map);
-                    
-                    // Auto-remoción visual a los 30s
-                    setTimeout(() => { if(enemyMarkers[id]) db.ref(`operacion_activa/marcas_enemigas/${myTeam}/${id}`).remove(); }, 30000 - age);
-                }
-            }
-        });
-    });
+function getLabelClass(type) {
+    if(type.includes('RED')) return 'label-red';
+    if(type.includes('BLUE')) return 'label-blue';
+    if(type === 'SAFE_ZONE' || type === 'OBJ_POINT') return 'label-gold';
+    return '';
 }
+
+function getPolygonCenter(path) {
+    const lats = path.map(p => p.lat);
+    const lngs = path.map(p => p.lng);
+    return [(Math.min(...lats) + Math.max(...lats)) / 2, (Math.min(...lngs) + Math.max(...lngs)) / 2];
+}
+
+// --- SISTEMA DE POSICIONAMIENTO Y ALERTAS ---
 
 function startGPS() {
     if (navigator.geolocation) {
         navigator.geolocation.watchPosition(pos => {
-            const {latitude, longitude} = pos.coords;
-            lastPos = {lat: latitude, lng: longitude};
-            
-            // Actualizar en Firebase
-            db.ref(`jugadores_enlistados/${myCallsign}`).update({ 
-                lat: latitude, lng: longitude, lastSeen: Date.now() 
-            });
+            const currentPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            db.ref(`jugadores_enlistados/${myCallsign}`).update({ ...currentPos, lastSeen: Date.now() });
 
-            // Verificar si está en la zona de juego
             if(gameZoneLayer) {
-                const point = L.latLng(latitude, longitude);
-                const isInside = isPointInPolygon(point, gameZoneLayer.getLatLngs()[0]);
-                const alertUI = document.getElementById('out-of-bounds');
-                const mapUI = document.getElementById('map-container');
-                
-                if(!isInside) {
-                    alertUI.style.display = 'block';
-                    mapUI.classList.add('warning-zone');
-                } else {
-                    alertUI.style.display = 'none';
-                    mapUI.classList.remove('warning-zone');
-                }
+                const inside = isPointInPoly(currentPos, gameZoneLayer.getLatLngs()[0]);
+                document.getElementById('out-of-bounds').style.display = inside ? 'none' : 'block';
+                document.body.classList.toggle('warning-zone', !inside);
             }
-        }, err => console.error(err), { enableHighAccuracy: true });
+        }, null, { enableHighAccuracy: true });
     }
 }
 
-// Algoritmo Ray-casting para detectar si el punto está dentro del polígono
-function isPointInPolygon(latlng, poly) {
-    let x = latlng.lat, y = latlng.lng;
-    let inside = false;
+function isPointInPoly(pt, poly) {
+    let x = pt.lat, y = pt.lng, inside = false;
     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-        let xi = poly[i].lat, yi = poly[i].lng;
-        let xj = poly[j].lat, yj = poly[j].lng;
-        let intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-        if (intersect) inside = !inside;
+        let xi = poly[i].lat, yi = poly[i].lng, xj = poly[j].lat, yj = poly[j].lng;
+        if (((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
     }
     return inside;
 }
 
-// ... Resto de funciones (Medic, Timer, etc.) se mantienen igual ...
 function syncPlayerStatus() {
     db.ref(`jugadores_enlistados/${myCallsign}`).on('value', snap => {
         const p = snap.val(); if(!p) return;
         myTeam = p.equipo;
-        document.getElementById('op-callsign').innerText = `OPERADOR: ${myCallsign}`;
-        document.getElementById('op-team').innerText = `BANDO: ${myTeam}`;
+        document.getElementById('op-callsign').innerText = `OPERATIVO: ${myCallsign}`;
+        document.getElementById('op-team').innerText = `EQUIPO: ${myTeam}`;
         document.getElementById('op-team').style.color = myTeam === 'RED' ? 'var(--red)' : 'var(--blue)';
         listenTeammates();
     });
@@ -296,43 +252,37 @@ function syncPlayerStatus() {
 function listenTeammates() {
     db.ref('jugadores_enlistados').on('value', snap => {
         snap.forEach(child => {
-            const data = child.val();
-            if(data.equipo === myTeam && data.lat) {
+            const d = child.val();
+            if(d.equipo === myTeam && d.lat && child.key !== myCallsign) {
                 if(!teamMarkers[child.key]) {
-                    teamMarkers[child.key] = L.circleMarker([data.lat, data.lng], {
-                        radius: 7, color: 'white', fillColor: myTeam === 'RED' ? '#ff3333' : '#3333ff', fillOpacity: 1, weight: 2
-                    }).addTo(map).bindTooltip(child.key, { permanent: true, direction: 'top', className: 'tactical-label label-ally' });
-                } else {
-                    teamMarkers[child.key].setLatLng([data.lat, data.lng]);
-                }
+                    teamMarkers[child.key] = L.circleMarker([d.lat, d.lng], {
+                        radius: 6, color: 'white', fillColor: myTeam === 'RED' ? '#f00' : '#00f', fillOpacity: 1, weight: 2
+                    }).addTo(map).bindTooltip(child.key, { permanent: true, direction: 'top' });
+                } else { teamMarkers[child.key].setLatLng([d.lat, d.lng]); }
             }
         });
     });
 }
 
 function handleMedicRequest() {
-    // Lógica KIA existente...
     const btn = document.getElementById('medic-trigger');
     if(!btn.classList.contains('warning')) {
-        btn.innerText = "⚠️ CONFIRMAR KIA";
-        btn.classList.add('warning');
+        btn.innerText = "CONFIRMAR KIA"; btn.classList.add('warning');
     } else {
-        document.getElementById('map-container').classList.add('KIA');
-        btn.innerText = "❌ ESTADO: KIA"; btn.disabled = true;
-        const enemyTeam = myTeam === 'RED' ? 'killsBlue' : 'killsRed';
-        db.ref(`operacion_activa/control/${enemyTeam}`).transaction(c => (c || 0) + 1);
-        alert("OPERATIVO CAÍDO. Vuelva al Respawn.");
+        document.body.classList.add('KIA');
+        btn.innerText = "ESTADO: KIA"; btn.disabled = true;
+        db.ref(`operacion_activa/control/${myTeam === 'RED' ? 'killsBlue' : 'killsRed'}`).transaction(c => (c || 0) + 1);
     }
 }
 
 function listenGlobalTimer() {
     db.ref('operacion_activa/control').on('value', snap => {
-        const data = snap.val(); if(!data) return;
-        document.getElementById('kills-red').innerText = data.killsRed || 0;
-        document.getElementById('kills-blue').innerText = data.killsBlue || 0;
-        if(data.startTime && !data.paused) {
+        const d = snap.val(); if(!d) return;
+        document.getElementById('kills-red').innerText = d.killsRed || 0;
+        document.getElementById('kills-blue').innerText = d.killsBlue || 0;
+        if(d.startTime && !d.paused) {
             setInterval(() => {
-                const diff = Date.now() - data.startTime;
+                const diff = Date.now() - d.startTime;
                 document.getElementById('timer').innerText = new Date(diff).toISOString().substr(11, 8);
             }, 1000);
         }
@@ -340,7 +290,6 @@ function listenGlobalTimer() {
 }
 
 function toggleMenu() { document.getElementById('side-menu').classList.toggle('open'); }
-function abortMission() { if(confirm("¿EXFILTRACIÓN?")) window.location.href = 'lobby.html'; }
 window.onload = initMap;
 </script>
 </body>
