@@ -3,100 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Lobby de Despliegue</title>
+    <title>A.T.O.M - Tactical Editor</title>
     
     <!-- Firebase Legacy SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    
+
     <style>
-        :root { --p: #00ff00; --f: #050505; --gold: #ffd700; --gray: #1a1a1a; --red: #ff3333; --blue: #3333ff; }
-        body { margin: 0; background: var(--f); color: var(--p); font-family: 'Courier New', monospace; display: flex; flex-direction: column; height: 100vh; }
-        header { padding: 15px; border-bottom: 1px solid var(--p); background: #000; z-index: 10; }
-        .op-info { display: flex; justify-content: space-between; align-items: center; }
-        .callsign { font-weight: bold; color: var(--gold); font-size: 1.2rem; }
-        #mission-container { flex: 1; display: flex; flex-direction: column; padding: 10px; overflow-y: auto; }
-        #mini-map { width: 100%; height: 40vh; min-height: 250px; background: #000; border: 1px solid var(--p); margin-bottom: 10px; position: relative; border-radius: 4px; }
-        #nav-links { display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .btn-nav { padding: 12px; text-decoration: none; text-align: center; font-size: 11px; font-weight: bold; border-radius: 4px; text-transform: uppercase; }
-        .waze-link { background: #33f3ff; color: #000; }
-        .gmaps-link { background: #fff; color: #000; }
-        select { width: 100%; padding: 15px; background: #111; border: 1px solid var(--p); color: var(--p); font-family: inherit; font-size: 1rem; cursor: pointer; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .stat-card { background: #111; border: 1px solid #333; padding: 10px; text-align: center; }
-        .stat-val { display: block; font-size: 18px; color: var(--gold); font-weight: bold; }
-        .stat-lab { font-size: 9px; color: #888; text-transform: uppercase; }
-        .btn-enlist { width: 100%; padding: 20px; background: var(--p); color: #000; border: none; font-weight: bold; cursor: pointer; font-size: 1.1rem; text-transform: uppercase; transition: 0.3s; }
-        .btn-enlist:disabled { background: #1a331a; color: #004400; cursor: not-allowed; }
-        #auth-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); backdrop-filter: blur(5px); z-index: 3000; align-items: center; justify-content: center; }
-        .modal-content { width: 85%; max-width: 400px; background: #000; border: 2px solid var(--gold); padding: 25px; text-align: center; }
-        .modal-input { width: 100%; padding: 15px; background: #111; border: 1px solid var(--gold); color: var(--gold); text-align: center; font-family: inherit; font-size: 1.2rem; margin: 20px 0; box-sizing: border-box; }
-        .blink { animation: blinker 1s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
-        @media (min-width: 768px) { body { align-items: center; } header, #mission-container, .btn-enlist, footer { width: 600px; border-left: 1px solid var(--gray); border-right: 1px solid var(--gray); } }
+        :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#808080; }
+        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
+        .wrapper { display: flex; height: 100vh; width: 100vw; position: relative; }
+        
+        #panel { 
+            width: 320px; background: rgba(0,0,0,0.95); border-right: 1px solid var(--p); 
+            display: flex; flex-direction: column; overflow-y: auto; z-index: 1000;
+            transition: transform 0.3s ease; position: absolute; height: 100%; backdrop-filter: blur(10px);
+        }
+        .panel-hidden { transform: translateX(-100%); }
+        
+        #menu-toggle {
+            position: absolute; top: 15px; left: 15px; z-index: 1100; background: var(--f);
+            color: var(--p); border: 1px solid var(--p); padding: 10px; cursor: pointer;
+            border-radius: 4px; font-weight: bold; box-shadow: 0 0 10px rgba(0,255,0,0.3);
+        }
+
+        #map { flex:1; width: 100%; height: 100%; }
+        .menu-header { padding: 60px 15px 15px 15px; background:#111; border-bottom:1px solid var(--p); text-align: center; }
+        
+        details { border-bottom: 1px solid #222; background: #080808; }
+        summary { padding: 15px; cursor: pointer; outline: none; font-weight: bold; font-size: 13px; color: var(--gold); list-style: none; display: flex; justify-content: space-between; align-items: center; }
+        
+        .tool-content { padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+        h4 { margin: 0; font-size: 10px; text-transform: uppercase; color: #666; letter-spacing: 1px; }
+        
+        button { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; transition: 0.2s; font-size: 11px; text-transform: uppercase; }
+        button:active { background:var(--p); color:#000; }
+        button.active { background: var(--p); color: #000; box-shadow: 0 0 15px var(--p); }
+        
+        .btn-save { background: var(--gold); color: #000; border: none; font-size: 13px; margin-top: 10px; }
+        .btn-launch { background: var(--red); color: #fff; border: none; font-size: 14px; animation: blink 2s infinite; }
+        .btn-stop { background: #550000; color: #fff; border: 1px solid var(--red); margin-top: 5px; }
+        .btn-reset { border-color: var(--gray); color: var(--gray); margin-top: 15px; font-size: 10px; }
+        
+        input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:var(--p); font-family: inherit; box-sizing: border-box; font-size: 14px; }
+        #timer-display { font-size: 2.5rem; text-align: center; color: var(--gold); font-weight: bold; margin: 10px 0; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        
+        @media (min-width: 1024px) { #panel { position: relative; transform: translateX(0); width: 350px; } #menu-toggle { display: none; } .menu-header { padding: 15px; } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
 
-<div id="auth-modal">
-    <div class="modal-content">
-        <h3 class="blink">AUTORIZACIÓN REQUERIDA</h3>
-        <p style="font-size: 12px; color: #888;">CONFIRME CALLSIGN DE MANDO</p>
-        <input type="text" id="modal-callsign-input" class="modal-input" placeholder="CALLSIGN">
-        <div style="display:flex; gap:10px;">
-            <button onclick="closeAuthModal()" style="flex:1; padding:15px; background:#222; color:#fff; border:none;">CANCELAR</button>
-            <button onclick="confirmIdentity()" style="flex:1; padding:15px; background:var(--gold); color:#000; border:none; font-weight:bold;">ACCEDER</button>
+<button id="menu-toggle" onclick="togglePanel()">☰ MENÚ</button>
+
+<div class="wrapper">
+    <div id="panel" class="panel-hidden">
+        <div class="menu-header">
+            <h3 style="margin:0; font-size: 1.2rem;">A.T.O.M EDITOR</h3>
         </div>
+
+        <details open>
+            <summary>📂 OPERACIONES</summary>
+            <div class="tool-content">
+                <h4>Cargar Existente</h4>
+                <select id="mission-selector" onchange="loadMissionToEdit(this.value)">
+                    <option value="">-- NUEVA MISIÓN --</option>
+                </select>
+                <h4>Configuración</h4>
+                <input id="mission-name" placeholder="NOMBRE DE OP...">
+                <select id="mission-status">
+                    <option value="RECLUTANDO">ESTADO: RECLUTANDO</option>
+                    <option value="EN_CURSO">ESTADO: EN CURSO</option>
+                    <option value="FINALIZADA">ESTADO: FINALIZADA</option>
+                </select>
+                <button class="btn-save" onclick="saveMission()">💾 GUARDAR CAMBIOS</button>
+            </div>
+        </details>
+
+        <details>
+            <summary>🛠️ HERRAMIENTAS TÁCTICAS</summary>
+            <div class="tool-content">
+                <button onclick="setMode('GAME_ZONE', this)">🟢 LÍMITE DE JUEGO</button>
+                <button onclick="setMode('SAFE_ZONE', this)">🟠 ZONA SEGURA</button>
+                <button onclick="setMode('RESPAWN_RED', this)">🔴 RESPAWN ROJO</button>
+                <button onclick="setMode('RESPAWN_BLUE', this)">🔵 RESPAWN AZUL</button>
+                <button onclick="setMode('OBJ_POINT', this)">⚪ PUNTO CAPTURABLE</button>
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <button onclick="undoLast()" style="border-color:var(--gold); color:var(--gold);">↩️ UNDO</button>
+                    <button onclick="clearMap()" style="border-color:#444; color:#666;">LIMPIAR</button>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>🚀 CONTROL DE CAMPO</summary>
+            <div class="tool-content">
+                <div id="timer-display">00:00:00</div>
+                <button id="btn-launch" class="btn-launch" onclick="launchMission()">⚡ INICIAR OPERACIÓN</button>
+                <button id="btn-stop" class="btn-stop" onclick="stopMission()">🛑 FINALIZAR MISIÓN (STOP)</button>
+                <button class="btn-reset" onclick="resetToLobby()">🔄 RESETEAR TODO AL LOBBY</button>
+            </div>
+        </details>
     </div>
+    <div id="map"></div>
 </div>
-
-<header>
-    <div class="op-info">
-        <div>
-            <div id="display-callsign" class="callsign">CONECTANDO...</div>
-            <div id="connection-status" style="font-size: 10px; color: var(--p);">SISTEMA A.T.O.M v2.0</div>
-        </div>
-        <button onclick="logout()" style="background:none; border:1px solid #444; color:#888; font-size:10px; padding:5px;">DESCONECTAR</button>
-    </div>
-</header>
-
-<div id="mission-container">
-    <div id="mini-map"></div>
-
-    <div id="nav-links">
-        <a id="link-gmaps" target="_blank" class="btn-nav gmaps-link">📍 Google Maps</a>
-        <a id="link-waze" target="_blank" class="btn-nav waze-link">🚙 Waze Nav</a>
-    </div>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <span class="stat-lab">Objetivos</span>
-            <span id="stat-objs" class="stat-val">0</span>
-        </div>
-        <div class="stat-card">
-            <span class="stat-lab">Estado</span>
-            <span id="stat-status" class="stat-val">---</span>
-        </div>
-    </div>
-
-    <div class="mission-selector-box">
-        <select id="mission-select" onchange="handleMissionChange()">
-            <option value="" disabled selected>ESPERANDO ÓRDENES...</option>
-        </select>
-    </div>
-
-    <div id="waiting-area" style="display:none; text-align:center; padding:20px; border:1px dashed var(--gold); background: rgba(255, 215, 0, 0.05);">
-        <span class="blink" style="color:var(--gold); font-weight: bold; letter-spacing: 2px;">[ ENLISTADO ]</span>
-        <p style="font-size: 11px; color: #888; margin-top: 10px;">ESPERANDO ASIGNACIÓN DE EQUIPO POR COMANDO...</p>
-    </div>
-</div>
-
-<button class="btn-enlist" id="btn-action" onclick="handleEnlist()" disabled>DESPLEGAR EN OPERACIÓN</button>
-
-<footer style="padding: 15px; text-align: center; border-top: 1px solid var(--gray);">
-    <button onclick="openAuthModal()" style="color: #444; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer;">⚙️ PANEL DE CONTROL</button>
-</footer>
 
 <script>
 const firebaseConfig = {
@@ -111,196 +122,237 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const auth = firebase.auth();
+let map, drawingManager;
+let currentMissionId = null;
+let mapOverlays = [];
+let mapLabels = [];
+let timerInterval = null;
 
-let userProfile = null;
-let map, miniMapOverlays = [], mapLabels = [];
-let selectedMission = null;
-let allMissions = {};
+// DEFINICIÓN DE COLORES Y ETIQUETAS
+const MODE_DEFS = {
+    'GAME_ZONE': { label: 'LÍMITE JUEGO', color: '#00ff00' },
+    'SAFE_ZONE': { label: 'ZONA SEGURA', color: '#ffa500' },
+    'RESPAWN_RED': { label: 'RESPAWN ROJO', color: '#ff3333' },
+    'RESPAWN_BLUE': { label: 'RESPAWN AZUL', color: '#3333ff' },
+    'OBJ_POINT': { label: 'OBJETIVO', color: '#ffffff' }
+};
 
 function initMap() {
-    map = new google.maps.Map(document.getElementById("mini-map"), {
+    map = new google.maps.Map(document.getElementById("map"), {
         center: {lat:-34.34, lng:-56.71}, 
-        zoom: 14,
+        zoom: 15,
         mapTypeId: "hybrid",
         disableDefaultUI: true,
+        zoomControl: true,
         styles: [{ featureType: "all", elementType: "labels", stylers: [{ visibility: "off" }] }]
     });
-}
 
-auth.onAuthStateChanged(user => {
-    if (user) {
-        db.ref(`usuarios/${user.uid}`).once('value', snap => {
-            userProfile = snap.val();
-            if(userProfile) {
-                document.getElementById('display-callsign').innerText = userProfile.callsign;
-                loadMissions();
-                listenForTeamAssignment(user.uid); // Escucha activa para redirección
-            }
-        });
-    } else { location.href = "index.html"; }
-});
-
-// --- FUNCIÓN DE REDIRECCIÓN AUTOMÁTICA ---
-function listenForTeamAssignment(uid) {
-    db.ref(`operacion_activa/despliegue/${uid}`).on('value', snap => {
-        const data = snap.val();
-        if (data && data.enlistado) {
-            showWaitingStatus();
-            // Si el administrador asigna un equipo que no sea NEUTRO, saltamos al mapa
-            if (data.equipo === 'ROJO' || data.equipo === 'AZUL') {
-                console.log("Equipo asignado:", data.equipo);
-                location.href = "mapa_tactico.html";
-            }
-        }
+    drawingManager = new google.maps.drawing.DrawingManager({
+        drawingControl: false,
+        polygonOptions: { editable: true, draggable: true, fillOpacity: 0.3, strokeWeight: 2 },
+        circleOptions: { editable: true, draggable: true, fillOpacity: 0.4, strokeWeight: 2 }
     });
-}
+    drawingManager.setMap(map);
 
-function loadMissions() {
-    db.ref('misiones').on('value', snap => {
-        const select = document.getElementById('mission-select');
-        select.innerHTML = '<option value="" disabled selected>SELECCIONE OPERACIÓN...</option>';
-        allMissions = {};
-        if (!snap.exists()) return;
-        snap.forEach(child => {
-            const m = child.val();
-            if(m.estado !== "FINALIZADA") {
-                allMissions[child.key] = m;
-                let opt = document.createElement('option');
-                opt.value = child.key;
-                opt.innerText = `OP: ${m.nombre}`;
-                select.appendChild(opt);
-            }
+    google.maps.event.addListener(drawingManager, 'overlaycomplete', (e) => {
+        const mode = document.body.dataset.mode;
+        if (!mode) { e.overlay.setMap(null); return; }
+        
+        const config = MODE_DEFS[mode];
+        e.overlay.atomType = mode;
+        
+        // APLICAR COLORES AL DIBUJO NUEVO
+        e.overlay.setOptions({
+            fillColor: config.color,
+            strokeColor: config.color
         });
+
+        addMarkerLabel(e.overlay, config.label);
+        mapOverlays.push(e.overlay);
     });
+
+    loadMissionList();
+    syncTimer();
 }
 
-function handleMissionChange() {
-    const id = document.getElementById('mission-select').value;
-    const data = allMissions[id];
-    if(data) selectMission(id, data);
-}
-
-function selectMission(id, data) {
-    selectedMission = { id, ...data };
-    document.getElementById('btn-action').disabled = false;
-    document.getElementById('stat-objs').innerText = (data.elementos ? Object.keys(data.elementos).length : 0);
-    document.getElementById('stat-status').innerText = data.estado;
-    document.getElementById('stat-status').style.color = data.estado === "EN_CURSO" ? "var(--red)" : "var(--gold)";
-
-    // Limpiar mapa previo
-    miniMapOverlays.forEach(o => o.setMap(null));
-    mapLabels.forEach(l => l.setMap(null));
-    miniMapOverlays = [];
-    mapLabels = [];
-
-    if(data.elementos) {
-        const bounds = new google.maps.LatLngBounds();
-        let firstCoord = null;
-
-        Object.values(data.elementos).forEach(el => {
-            let overlay;
-            const color = getElementColor(el.type);
-            
-            if(el.path) {
-                overlay = new google.maps.Polygon({
-                    path: el.path, map: map, clickable: false,
-                    fillColor: color, strokeColor: color, fillOpacity: 0.2, strokeWeight: 2
-                });
-                el.path.forEach(p => bounds.extend(p));
-                if(!firstCoord) firstCoord = el.path[0];
-            } else if (el.center) {
-                overlay = new google.maps.Circle({
-                    center: el.center, radius: el.radius, map: map, clickable: false,
-                    fillColor: color, strokeColor: color, fillOpacity: 0.4, strokeWeight: 1
-                });
-                bounds.extend(el.center);
-                if(!firstCoord) firstCoord = el.center;
-            }
-
-            if(overlay) {
-                miniMapOverlays.push(overlay);
-                addStaticLabel(overlay, el.label || el.type);
-            }
-        });
-
-        if (!bounds.isEmpty()) {
-            map.fitBounds(bounds);
-            setTimeout(() => { if(map.getZoom() > 18) map.setZoom(17); }, 300);
-        }
-
-        if(firstCoord) {
-            document.getElementById('nav-links').style.display = 'grid';
-            document.getElementById('link-gmaps').href = `https://www.google.com/maps/dir/?api=1&destination=${firstCoord.lat},${firstCoord.lng}`;
-            document.getElementById('link-waze').href = `https://waze.com/ul?ll=${firstCoord.lat},${firstCoord.lng}&navigate=yes`;
-        }
-    }
-}
-
-function getElementColor(type) {
-    if(type === 'GAME_ZONE') return '#00ff00';
-    if(type === 'SAFE_ZONE') return '#ffa500';
-    if(type === 'RESPAWN_RED') return '#ff0000';
-    if(type === 'RESPAWN_BLUE') return '#0000ff';
-    return '#ffffff';
-}
-
-function addStaticLabel(overlay, text) {
-    let pos;
+// FIJA LA ETIQUETA EN EL CENTRO
+function addMarkerLabel(overlay, text) {
+    let position;
     if (overlay.getPaths) {
-        const b = new google.maps.LatLngBounds();
-        overlay.getPath().forEach(p => b.extend(p));
-        pos = b.getCenter();
-    } else { pos = overlay.getCenter(); }
-
-    const label = new google.maps.Marker({
-        position: pos, map: map, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
-        label: { text: text, color: "white", fontWeight: "bold", fontSize: "10px" }
+        const bounds = new google.maps.LatLngBounds();
+        overlay.getPath().forEach(p => bounds.extend(p));
+        position = bounds.getCenter();
+    } else {
+        position = overlay.getCenter();
+    }
+    
+    const label = new google.markers.Marker({ // Cambiado a marker simple para compatibilidad
+        position: position,
+        map: map,
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+        label: { text: text, color: "white", fontWeight: "bold", fontSize: "11px" }
     });
+
+    // Vincular movimiento de etiqueta si se arrastra el objeto
+    google.maps.event.addListener(overlay, 'drag', () => {
+        if(overlay.getCenter) label.setPosition(overlay.getCenter());
+        else {
+            const b = new google.maps.LatLngBounds();
+            overlay.getPath().forEach(p => b.extend(p));
+            label.setPosition(b.getCenter());
+        }
+    });
+
     mapLabels.push(label);
 }
 
-function handleEnlist() {
-    if(!selectedMission) return;
-    const user = auth.currentUser;
-    db.ref(`operacion_activa/despliegue/${user.uid}`).set({
-        callsign: userProfile.callsign,
-        misionId: selectedMission.id,
-        misionNombre: selectedMission.nombre,
-        equipo: 'NEUTRO',
-        enlistado: true,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
+function saveMission() {
+    const name = document.getElementById('mission-name').value;
+    if (!name) return alert("Asigna un nombre a la operación");
+    
+    let elements = {};
+    mapOverlays.forEach((obj, i) => {
+        const type = obj.atomType;
+        const config = MODE_DEFS[type];
+        let data = { 
+            type: type, 
+            label: config.label, 
+            color: config.color 
+        };
+
+        if (obj.getPaths) {
+            data.path = obj.getPath().getArray().map(p => ({lat: p.lat(), lng: p.lng()}));
+        } else {
+            data.center = {lat: obj.getCenter().lat(), lng: obj.getCenter().lng()};
+            data.radius = obj.getRadius();
+        }
+        elements["el_" + i] = data;
+    });
+
+    const mId = currentMissionId || db.ref('misiones').push().key;
+    db.ref(`misiones/${mId}`).set({
+        id: mId,
+        nombre: name,
+        estado: document.getElementById('mission-status').value,
+        elementos: elements
+    }).then(() => alert("SISTEMA ACTUALIZADO"));
+}
+
+function loadMissionToEdit(id) {
+    if(!id) return location.reload();
+    currentMissionId = id;
+    clearMap();
+    
+    db.ref(`misiones/${id}`).once('value', snap => {
+        const m = snap.val();
+        document.getElementById('mission-name').value = m.nombre;
+        document.getElementById('mission-status').value = m.estado;
+
+        if(m.elementos) {
+            const bounds = new google.maps.LatLngBounds();
+            Object.values(m.elementos).forEach(el => {
+                let overlay;
+                const style = { 
+                    fillColor: el.color, 
+                    strokeColor: el.color, 
+                    fillOpacity: 0.3,
+                    strokeWeight: 2,
+                    editable: true,
+                    draggable: true,
+                    map: map 
+                };
+
+                if (el.path) {
+                    overlay = new google.maps.Polygon({ path: el.path, ...style });
+                    el.path.forEach(p => bounds.extend(p));
+                } else {
+                    overlay = new google.maps.Circle({ center: el.center, radius: el.radius, ...style });
+                    bounds.extend(el.center);
+                }
+
+                overlay.atomType = el.type;
+                mapOverlays.push(overlay);
+                addMarkerLabel(overlay, el.label);
+            });
+            
+            // ZOOM AUTOMÁTICO
+            map.fitBounds(bounds);
+        }
     });
 }
 
-function showWaitingStatus() {
-    document.getElementById('btn-action').style.display = 'none';
-    document.getElementById('mission-select').disabled = true;
-    document.getElementById('waiting-area').style.display = 'block';
+function setMode(mode, btn) {
+    document.querySelectorAll('.tool-content button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.body.dataset.mode = mode;
+    
+    const type = (mode.includes("RESPAWN") || mode === 'OBJ_POINT') ? 
+                 google.maps.drawing.OverlayType.CIRCLE : 
+                 google.maps.drawing.OverlayType.POLYGON;
+                 
+    drawingManager.setDrawingMode(type);
 }
 
-function openAuthModal() {
-    if (userProfile.rol === "ADMIN" || userProfile.rol === "EDITOR") {
-        document.getElementById('auth-modal').style.display = 'flex';
-    } else { alert("ACCESO RESTRINGIDO"); }
+function clearMap() {
+    mapOverlays.forEach(o => o.setMap(null));
+    mapLabels.forEach(l => l.setMap(null));
+    mapOverlays = [];
+    mapLabels = [];
 }
 
-function closeAuthModal() { document.getElementById('auth-modal').style.display = 'none'; }
-
-function confirmIdentity() {
-    const input = document.getElementById('modal-callsign-input').value.trim().toUpperCase();
-    if (input === userProfile.callsign.toUpperCase()) {
-        location.href = "restricted_zone.html";
-    } else { 
-        alert("IDENTIDAD ERRÓNEA"); 
-        closeAuthModal(); 
-    }
+function undoLast() {
+    if(mapOverlays.length) mapOverlays.pop().setMap(null);
+    if(mapLabels.length) mapLabels.pop().setMap(null);
 }
 
-function logout() { auth.signOut(); }
+function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
+
+function loadMissionList() {
+    db.ref('misiones').on('value', snap => {
+        const sel = document.getElementById('mission-selector');
+        sel.innerHTML = '<option value="">-- NUEVA MISIÓN --</option>';
+        snap.forEach(c => { sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`; });
+    });
+}
+
+// Lógica de Timer y Control de Operación
+function syncTimer() {
+    db.ref('operacion_activa/control').on('value', snap => {
+        const data = snap.val();
+        if (timerInterval) clearInterval(timerInterval);
+        if (data && data.status === 'EN_CURSO') {
+            document.getElementById('btn-launch').style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'block';
+            timerInterval = setInterval(() => { updateTimerDisplay(Date.now() - data.startTime); }, 1000);
+        } else {
+            document.getElementById('btn-launch').style.display = 'block';
+            document.getElementById('btn-stop').style.display = 'none';
+            if(data && data.endTime) updateTimerDisplay(data.endTime - data.startTime);
+        }
+    });
+}
+
+function updateTimerDisplay(ms) {
+    const h = Math.floor(ms / 3600000).toString().padStart(2, '0');
+    const m = Math.floor((ms % 3600000) / 60000).toString().padStart(2, '0');
+    const s = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
+    document.getElementById('timer-display').innerText = `${h}:${m}:${s}`;
+}
+
+function launchMission() {
+    if (!currentMissionId) return alert("Carga una misión primero");
+    db.ref('operacion_activa/control').set({ startTime: Date.now(), status: 'EN_CURSO' });
+}
+
+function stopMission() {
+    db.ref('operacion_activa/control').update({ status: 'FINALIZADA', endTime: Date.now() });
+}
+
+function resetToLobby() {
+    if(confirm("Reiniciar sistema?")) db.ref('operacion_activa/control').set({ status: 'RECLUTANDO' });
+}
+
 </script>
-
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=geometry&callback=initMap" async defer></script>
-
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing,geometry&callback=initMap" async defer></script>
 </body>
 </html>
