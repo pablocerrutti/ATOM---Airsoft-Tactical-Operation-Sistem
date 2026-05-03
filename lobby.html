@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>A.T.O.M - Lobby de Despliegue</title>
     
+    <!-- Firebase Legacy SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -34,7 +35,6 @@
             border-radius: 4px;
         }
 
-        /* Enlaces de Navegación */
         #nav-links {
             display: none;
             grid-template-columns: 1fr 1fr;
@@ -42,7 +42,7 @@
             margin-bottom: 15px;
         }
         .btn-nav {
-            padding: 10px;
+            padding: 12px;
             text-decoration: none;
             text-align: center;
             font-size: 11px;
@@ -115,7 +115,6 @@
 <div id="mission-container">
     <div id="mini-map"></div>
 
-    <!-- Enlaces de navegación -->
     <div id="nav-links">
         <a id="link-gmaps" target="_blank" class="btn-nav gmaps-link">📍 Google Maps</a>
         <a id="link-waze" target="_blank" class="btn-nav waze-link">🚙 Waze Nav</a>
@@ -219,10 +218,11 @@ function handleMissionChange() {
     if(data) selectMission(id, data);
 }
 
+// CORRECCIÓN: Lógica de centrado automático y carga de capas
 function selectMission(id, data) {
     selectedMission = { id, ...data };
     document.getElementById('btn-action').disabled = false;
-    document.getElementById('stat-objs').innerText = data.cant_objetivos || 0;
+    document.getElementById('stat-objs').innerText = (data.elementos ? Object.keys(data.elementos).length : 0);
     document.getElementById('stat-status').innerText = data.estado;
     document.getElementById('stat-status').style.color = data.estado === "EN_CURSO" ? "var(--red)" : "var(--gold)";
 
@@ -235,7 +235,7 @@ function selectMission(id, data) {
 
         Object.values(data.elementos).forEach(el => {
             let overlay;
-            if(el.type.includes("ZONE")) {
+            if(el.path) { // Polígonos (Zonas)
                 overlay = new google.maps.Polygon({
                     path: el.path, map: map, clickable: false,
                     fillColor: el.type === 'GAME_ZONE' ? '#00ff00' : '#ffa500',
@@ -244,7 +244,7 @@ function selectMission(id, data) {
                 });
                 el.path.forEach(p => bounds.extend(p));
                 if(!firstCoord) firstCoord = el.path[0];
-            } else {
+            } else if (el.center) { // Círculos (Respawns / Objetivos)
                 let color = '#ffffff';
                 if(el.type === 'RESPAWN_RED') color = '#ff0000';
                 if(el.type === 'RESPAWN_BLUE') color = '#0000ff';
@@ -260,9 +260,16 @@ function selectMission(id, data) {
             if(overlay) miniMapOverlays.push(overlay);
         });
 
-        map.fitBounds(bounds);
-        
-        // Configurar enlaces de GPS
+        // Aplicar el Zoom Automático
+        if (!bounds.isEmpty()) {
+            map.fitBounds(bounds);
+            // Evitar zoom infinito si solo hay un punto
+            google.maps.event.addListenerOnce(map, 'idle', () => {
+                if(map.getZoom() > 18) map.setZoom(17);
+            });
+        }
+
+        // Configurar enlaces de GPS al primer punto táctico
         if(firstCoord) {
             const lat = firstCoord.lat;
             const lng = firstCoord.lng;
