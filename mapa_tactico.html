@@ -3,168 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - TACTICAL MAP</title>
+    <title>A.T.O.M - TACTICAL MAP v2.5</title>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <style>
-        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; }
-        body, html { margin: 0; padding: 0; height: 100%; background: var(--f); overflow: hidden; font-family: monospace; }
+        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; --gray: #222; }
+        body, html { margin: 0; padding: 0; height: 100%; background: var(--f); overflow: hidden; font-family: 'Courier New', monospace; }
         
-        #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        #map { width: 100%; height: 100%; position: absolute; transition: filter 1s ease; }
         
-        /* HUD Superior */
+        /* Efecto Muerte / Fuera de Juego */
+        .dead-map { filter: grayscale(1) blur(8px) brightness(0.3); pointer-events: none; }
+        #death-screen { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.7); z-index: 5000; flex-direction: column; 
+            align-items: center; justify-content: center; text-align: center; color: var(--red);
+        }
+
         #hud-top { 
             position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10;
-            display: flex; justify-content: space-between; pointer-events: none;
+            display: flex; flex-direction: column; gap: 5px; pointer-events: none;
         }
-        .hud-box { background: rgba(0,0,0,0.7); border: 1px solid var(--p); padding: 5px 10px; color: var(--p); font-size: 12px; pointer-events: all; }
-
-        /* Controles Inferiores */
+        .hud-row { display: flex; justify-content: space-between; }
+        .hud-box { background: rgba(0,0,0,0.8); border: 1px solid var(--p); padding: 5px 10px; color: var(--p); font-size: 11px; pointer-events: all; }
+        
         #controls { 
             position: absolute; bottom: 25px; width: 100%; display: flex; 
             justify-content: space-around; z-index: 10; padding: 0 10px; box-sizing: border-box;
         }
         .btn-tactic { 
-            width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--p);
+            width: 75px; height: 75px; border-radius: 50%; border: 2px solid var(--p);
             background: rgba(0,0,0,0.8); color: var(--p); font-size: 10px; font-weight: bold;
-            display: flex; align-items: center; justify-content: center; text-align: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
         }
-        .btn-medic { border-color: var(--red); color: var(--red); }
-        .btn-enemy { border-color: var(--gold); color: var(--gold); }
-        
-        /* Estilos de Marcadores */
-        .marker-label { color: white; font-size: 10px; font-weight: bold; text-shadow: 1px 1px black; }
+        .btn-medic { border-color: var(--gold); color: var(--gold); }
+        .btn-enemy { border-color: var(--red); color: var(--red); }
+        .btn-ptt { border-color: var(--p); position: relative; }
+        .ptt-active { background: var(--p) !important; color: #000 !important; box-shadow: 0 0 20px var(--p); }
+
+        .life-counter { color: var(--red); font-weight: bold; letter-spacing: 2px; }
     </style>
 </head>
 <body>
 
+    <div id="death-screen">
+        <h1 class="blink">K.I.A.</h1>
+        <p>REQUISITOS DE MÉDICO AGOTADOS</p>
+        <h2 style="color:white;">REGRESE AL RESPAWN</h2>
+        <button onclick="requestRespawn()" style="margin-top:20px; padding:10px 20px; background:var(--red); color:white; border:none; font-family:inherit;">RE-ESTABLECER</button>
+    </div>
+
     <div id="hud-top">
-        <div class="hud-box" id="bando-indicator">BANDO: ---</div>
-        <div class="hud-box" id="status-indicator">STATUS: OK</div>
+        <div class="hud-row">
+            <div class="hud-box" id="bando-indicator">BANDO: ---</div>
+            <div class="hud-box">VIDAS: <span id="life-display" class="life-counter">♥♥</span></div>
+        </div>
+        <div class="hud-box" id="status-indicator">STATUS: OPERATIVO</div>
     </div>
 
     <div id="map"></div>
 
     <div id="controls">
         <button class="btn-tactic btn-enemy" onclick="markEnemy()">⚠️<br>ENEMIGO</button>
-        <button class="btn-tactic" onmousedown="startVoice()" onmouseup="stopVoice()" ontouchstart="startVoice()" ontouchend="stopVoice()">🎙️<br>RADIO</button>
-        <button class="btn-tactic btn-medic" id="btn-medic" onclick="toggleMedic()">🚑<br>MÉDICO</button>
+        <button class="btn-tactic btn-ptt" id="ptt-btn">🎙️<br>RADIO</button>
+        <button class="btn-tactic btn-medic" id="btn-medic" onclick="handleMedicRequest()">🚑<br>MÉDICO</button>
     </div>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58"></script>
 <script>
-   // Configuración Real de A.T.O.M v2.0
 const firebaseConfig = {
-  apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-  authDomain: "atom---sistem.firebaseapp.com",
-  databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-  projectId: "atom---sistem",
-  storageBucket: "atom---sistem.firebasestorage.app",
-  messagingSenderId: "151110156876",
-  appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
+    apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+    authDomain: "atom---sistem.firebaseapp.com",
+    databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+    projectId: "atom---sistem",
+    storageBucket: "atom---sistem.firebasestorage.app",
+    messagingSenderId: "151110156876",
+    appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
 };
 
-// Inicializar
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
-    let map, userMarker;
-    let myBando = "";
-    let markers = {};
 
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            db.ref(`operacion_activa/despliegue/${user.uid}`).on('value', snap => {
-                const data = snap.val();
-                if (!data) return;
-                myBando = data.equipo;
-                document.getElementById('bando-indicator').innerText = `BANDO: ${myBando}`;
-                document.getElementById('bando-indicator').style.color = myBando === "ROJO" ? "var(--red)" : "var(--blue)";
-                initMap();
-                startTracking(user.uid);
-                listenTeammates();
-            });
-        }
+let map, myBando, myCallsign;
+let markers = {};
+let lives = 2;
+let isHerido = false;
+let pttTimer;
+
+auth.onAuthStateChanged(user => {
+    if (user) {
+        db.ref(`operacion_activa/despliegue/${user.uid}`).on('value', snap => {
+            const data = snap.val();
+            if (!data) return;
+            myBando = data.equipo;
+            myCallsign = data.callsign;
+            document.getElementById('bando-indicator').innerText = `BANDO: ${myBando}`;
+            document.getElementById('bando-indicator').style.color = myBando === "ROJO" ? "var(--red)" : "var(--blue)";
+            
+            if(!map) initMap();
+            startTracking(user.uid);
+            listenTacticalData();
+        });
+    } else { location.href = "index.html"; }
+});
+
+function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+        center: {lat: -34.34, lng: -56.71},
+        zoom: 18,
+        mapTypeId: "hybrid",
+        disableDefaultUI: true,
+        tilt: 45
+    });
+}
+
+function startTracking(uid) {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(pos => {
+            const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            db.ref(`operacion_activa/despliegue/${uid}/pos`).set(p);
+            if (!isHerido) map.panTo(p);
+        }, null, { enableHighAccuracy: true });
+    }
+}
+
+function listenTacticalData() {
+    // 1. Aliados (Solo equipo propio)
+    db.ref('operacion_activa/despliegue').on('value', snap => {
+        snap.forEach(child => {
+            const data = child.val();
+            if (data.equipo === myBando && child.key !== auth.currentUser.uid) {
+                updateTeammateMarker(child.key, data);
+            }
+        });
     });
 
-    function initMap() {
-        map = new google.maps.Map(document.getElementById("map"), {
-            center: {lat: -34.34, lng: -56.71},
-            zoom: 17,
-            mapTypeId: "satellite",
-            disableDefaultUI: true,
-            styles: [{ featureType: "all", elementType: "labels", stylers: [{ visibility: "on" }] }]
-        });
-    }
-
-    function startTracking(uid) {
-        if (navigator.geolocation) {
-            navigator.geolocation.watchPosition(pos => {
-                const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                db.ref(`operacion_activa/despliegue/${uid}/pos`).set(p);
-                map.setCenter(p);
-            }, null, { enableHighAccuracy: true });
-        }
-    }
-
-    function listenTeammates() {
-        db.ref('operacion_activa/despliegue').on('value', snap => {
-            snap.forEach(child => {
-                const data = child.val();
-                if (data.equipo === myBando && child.key !== auth.currentUser.uid) {
-                    updateMarker(child.key, data);
-                }
-            });
-        });
-    }
-
-    function updateMarker(uid, data) {
-        const color = data.estado === "HERIDO" ? "yellow" : (myBando === "ROJO" ? "red" : "blue");
-        if (markers[uid]) {
-            markers[uid].setPosition(data.pos);
-        } else {
-            markers[uid] = new google.maps.Marker({
+    // 2. Enemigos Detectados (30 segundos)
+    db.ref('operacion_activa/alertas_enemigas').on('child_added', snap => {
+        const data = snap.val();
+        if (data.equipo !== myBando) { // Si lo marcó alguien de mi bando
+            const enemyMarker = new google.maps.Marker({
                 position: data.pos,
                 map: map,
-                label: { text: data.callsign, color: "white", fontSize: "10px" },
                 icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 7,
-                    fillColor: color,
-                    fillOpacity: 1,
-                    strokeWeight: 2,
-                    strokeColor: "white"
-                }
+                    url: 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
+                    scaledSize: new google.maps.Size(40, 40)
+                },
+                animation: google.maps.Animation.BOUNCE
             });
+            setTimeout(() => enemyMarker.setMap(null), 30000); // 30 Segundos exactos
         }
-    }
+    });
+}
 
-    function toggleMedic() {
-        const uid = auth.currentUser.uid;
-        const btn = document.getElementById('btn-medic');
-        db.ref(`operacion_activa/despliegue/${uid}/estado`).once('value', snap => {
-            const newState = snap.val() === "VIVO" ? "HERIDO" : "VIVO";
-            db.ref(`operacion_activa/despliegue/${uid}/estado`).set(newState);
-            document.getElementById('status-indicator').innerText = `STATUS: ${newState}`;
-            btn.style.background = newState === "HERIDO" ? "var(--red)" : "rgba(0,0,0,0.8)";
+function updateTeammateMarker(uid, data) {
+    const isTeammateHerido = data.estado === "HERIDO";
+    const iconColor = isTeammateHerido ? "gold" : (myBando === "ROJO" ? "red" : "blue");
+    
+    if (markers[uid]) {
+        markers[uid].setPosition(data.pos);
+        markers[uid].setIcon(createSymbol(iconColor, isTeammateHerido));
+    } else {
+        markers[uid] = new google.maps.Marker({
+            position: data.pos,
+            map: map,
+            label: { text: data.callsign, color: "white", fontSize: "10px" },
+            icon: createSymbol(iconColor, isTeammateHerido)
         });
     }
+}
 
-    function markEnemy() {
-        const center = map.getCenter();
-        const id = Date.now();
-        db.ref(`operacion_activa/enemigos/${id}`).set({
-            pos: { lat: center.lat(), lng: center.lng() },
-            timestamp: id
-        });
-        // Lógica para borrar la marca automáticamente tras 2 minutos
-        setTimeout(() => db.ref(`operacion_activa/enemigos/${id}`).remove(), 120000);
+function createSymbol(color, herido) {
+    return {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: herido ? 10 : 7,
+        fillColor: color,
+        fillOpacity: 1,
+        strokeWeight: herido ? 4 : 2,
+        strokeColor: herido ? "white" : "black"
+    };
+}
+
+// --- LOGICA DE SALUD / MÉDICO ---
+function handleMedicRequest() {
+    if (isHerido) return; // Ya está esperando médico
+
+    const uid = auth.currentUser.uid;
+    isHerido = true;
+    lives--;
+    updateLifeDisplay();
+
+    if (lives < 0) {
+        triggerDeath();
+    } else {
+        db.ref(`operacion_activa/despliegue/${uid}/estado`).set("HERIDO");
+        document.getElementById('status-indicator').innerText = "STATUS: ¡HERIDO! SOLICITANDO AUXILIO";
+        document.getElementById('status-indicator').style.color = "var(--gold)";
+        document.getElementById('btn-medic').style.background = "var(--gold)";
     }
+}
 
-    // Lógica de Voz (Simplificada para el esquema)
-    function startVoice() { console.log("Grabando..."); }
-    function stopVoice() { console.log("Enviando audio (Máx 15s)..."); }
+function updateLifeDisplay() {
+    const display = document.getElementById('life-display');
+    display.innerText = "♥".repeat(Math.max(0, lives));
+}
+
+function triggerDeath() {
+    document.getElementById('map').classList.add('dead-map');
+    document.getElementById('death-screen').style.display = 'flex';
+    db.ref(`operacion_activa/despliegue/${auth.currentUser.uid}/estado`).set("K.I.A");
+}
+
+function requestRespawn() {
+    lives = 2;
+    isHerido = false;
+    updateLifeDisplay();
+    document.getElementById('map').classList.remove('dead-map');
+    document.getElementById('death-screen').style.display = 'none';
+    document.getElementById('status-indicator').innerText = "STATUS: OPERATIVO";
+    document.getElementById('btn-medic').style.background = "rgba(0,0,0,0.8)";
+    db.ref(`operacion_activa/despliegue/${auth.currentUser.uid}/estado`).set("VIVO");
+}
+
+// --- LOGICA DE ENEMIGO ---
+function markEnemy() {
+    const center = map.getCenter();
+    db.ref('operacion_activa/alertas_enemigas').push({
+        pos: { lat: center.lat(), lng: center.lng() },
+        equipo: myBando,
+        timestamp: Date.now()
+    });
+}
+
+// --- PTT LOGIC (Simulada para 15s) ---
+const pttBtn = document.getElementById('ptt-btn');
+
+function startPTT() {
+    pttBtn.classList.add('ptt-active');
+    console.log("Transmisión Iniciada...");
+    pttTimer = setTimeout(stopPTT, 15000); // Límite de 15 segundos
+}
+
+function stopPTT() {
+    clearTimeout(pttTimer);
+    pttBtn.classList.remove('ptt-active');
+    console.log("Transmisión Finalizada.");
+}
+
+pttBtn.addEventListener('mousedown', startPTT);
+pttBtn.addEventListener('mouseup', stopPTT);
+pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startPTT(); });
+pttBtn.addEventListener('touchend', stopPTT);
+
 </script>
 </body>
 </html>
