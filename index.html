@@ -3,219 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Lobby de Despliegue</title>
+    <title>A.T.O.M - Airsoft Tactical Operation Maps</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="logo_atom.png">
+
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <style>
-        :root { --p: #00ff00; --f: #050505; --gold: #ffd700; --gray: #1a1a1a; --red: #ff3333; }
+        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; --gray: #222; }
+        * { box-sizing: border-box; }
         body { 
             margin: 0; background: var(--f); color: var(--p); 
-            font-family: 'Courier New', monospace; display: flex; flex-direction: column; height: 100vh;
+            font-family: 'Courier New', monospace; overflow-x: hidden;
+            display: flex; flex-direction: column; min-height: 100vh;
         }
 
-        header { padding: 15px; border-bottom: 1px solid var(--p); background: #000; }
-        .op-info { display: flex; justify-content: space-between; align-items: center; }
-        .callsign { font-weight: bold; color: var(--gold); font-size: 1.2rem; }
+        .static-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://upload.wikimedia.org/wikipedia/commons/b/b1/Static_grain.gif');
+            opacity: 0.05; pointer-events: none; z-index: 2000;
+        }
 
-        #mission-container { flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
-        #mini-map { width: 100%; height: 200px; background: #111; border: 1px solid var(--p); margin-bottom: 15px; }
-
-        .mission-card { background: var(--gray); padding: 15px; border-left: 4px solid var(--gold); margin-bottom: 10px; }
-        .btn-secondary { width: 100%; padding: 12px; background: transparent; color: var(--gold); border: 1px solid var(--gold); cursor: pointer; margin-bottom: 20px; font-family: inherit; }
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--f); z-index: 1000; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
         
-        .btn-enlist { width: 100%; padding: 20px; background: var(--p); color: #000; border: none; font-weight: bold; cursor: pointer; position: sticky; bottom: 0; }
-        .btn-enlist:disabled { background: #222; color: #555; }
+        .logo-container { 
+            width: 150px; height: 150px; 
+            border: 2px solid var(--p); border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            animation: pulse 2s infinite; overflow: hidden;
+            background: rgba(0, 255, 0, 0.05);
+        }
+        .logo-img { width: 85%; height: auto; filter: drop-shadow(0 0 5px var(--p)); }
+        
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(0, 255, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); } }
 
-        footer { padding: 20px; text-align: center; border-top: 1px solid var(--gray); margin-top: auto; }
-        .btn-restricted { color: #444; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer; }
-
-        /* LOGIN DEDICADO - ZONA RESTRINGIDA */
-        #admin-login-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 5000; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .admin-box {
-            width: 90%; max-width: 350px; border: 1px solid var(--red); padding: 30px;
-            background: rgba(255, 0, 0, 0.05); text-align: center;
-        }
-        .admin-box h2 { color: var(--red); margin-top: 0; letter-spacing: 3px; }
-        .admin-input {
-            width: 100%; padding: 15px; margin-bottom: 15px; background: #111;
-            border: 1px solid var(--red); color: var(--red); font-family: inherit;
-        }
-        .btn-admin-auth {
-            width: 100%; padding: 15px; background: var(--red); color: #fff;
-            border: none; font-weight: bold; cursor: pointer; margin-bottom: 10px;
-        }
-
+        .container { width: 100%; max-width: 500px; margin: 0 auto; padding: 20px; flex: 1; display: none; }
+        
+        #status-bar { font-size: 10px; padding: 10px; border-bottom: 1px solid var(--gray); display: flex; justify-content: space-between; }
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
 
-        @media (min-width: 600px) {
-            body { align-items: center; }
-            #mission-container, header, .btn-enlist, footer { width: 500px; }
+        .auth-card { background: #111; padding: 20px; border: 1px solid var(--gray); margin-top: 20px; }
+        input { 
+            width: 100%; padding: 15px; margin-bottom: 10px; 
+            background: #000; border: 1px solid var(--p); color: var(--p);
+            font-family: inherit; font-size: 16px;
         }
+        .btn-primary { 
+            width: 100%; padding: 15px; background: var(--p); color: #000; 
+            border: none; font-weight: bold; cursor: pointer; font-size: 16px;
+        }
+        .btn-outline { 
+            width: 100%; padding: 10px; background: transparent; color: var(--p); 
+            border: 1px solid var(--p); margin-top: 10px; cursor: pointer;
+        }
+
+        /* ESTILO PANEL ADMIN */
+        #admin-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 5000; align-items: center; justify-content: center;
+        }
+        .admin-box {
+            width: 90%; max-width: 400px; border: 2px solid var(--red); padding: 30px;
+            background: #000; text-align: center;
+        }
+        .admin-box h2 { color: var(--red); margin: 0 0 20px 0; }
+        .admin-input { border-color: var(--red); color: var(--red); }
+        .btn-admin { background: var(--red); color: #fff; width: 100%; padding: 15px; border: none; font-weight: bold; cursor: pointer; }
+
+        footer { padding: 20px; text-align: center; border-top: 1px solid var(--gray); }
+        .btn-restricted { color: #444; text-decoration: none; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<!-- LOGIN DEDICADO PARA ADMIN -->
-<div id="admin-login-overlay">
+<div class="static-overlay"></div>
+
+<!-- PANEL DE LOGIN RESTRINGIDO -->
+<div id="admin-overlay">
     <div class="admin-box">
         <h2 class="blink">SISTEMA RESTRINGIDO</h2>
-        <p style="font-size: 10px; color: var(--red); margin-bottom: 20px;">SOLO PERSONAL AUTORIZADO (ADMIN/EDITOR)</p>
-        
+        <p style="color: var(--red); font-size: 11px; margin-bottom: 20px;">VALIDACIÓN DE CREDENCIALES NIVEL COMANDO</p>
         <input type="email" id="admin-email" class="admin-input" placeholder="EMAIL DE COMANDO">
-        <input type="password" id="admin-pass" class="admin-input" placeholder="PASSWORD">
-        
-        <button class="btn-admin-auth" onclick="validateAdminAccess()">VALIDAR CREDENCIALES</button>
-        <button onclick="closeAdminLogin()" style="background:none; border:none; color:#555; cursor:pointer; font-size:11px;">CANCELAR ACCESO</button>
+        <input type="password" id="admin-pass" class="admin-input" placeholder="CONTRASEÑA">
+        <button class="btn-admin" onclick="validateAdmin()">AUTENTICAR ACCESO</button>
+        <p onclick="closeAdmin()" style="margin-top: 15px; font-size: 10px; color: #555; cursor: pointer;">CANCELAR</p>
     </div>
 </div>
 
-<header>
-    <div class="op-info">
-        <div>
-            <div id="display-callsign" class="callsign">CARGANDO...</div>
-            <div style="font-size: 10px;">ESTADO: OPERATIVO</div>
-        </div>
-        <button onclick="logout()" style="background:none; border:1px solid var(--p); color:var(--p); font-size:10px; padding:5px;">SALIR</button>
+<div id="splash-screen">
+    <div class="logo-container">
+        <img src="logo_atom.png" alt="ATOM LOGO" class="logo-img">
     </div>
-</header>
-
-<div id="mission-container">
-    <div id="mission-data">
-        <h4 style="margin: 0 0 10px 0;">OPERACIÓN DISPONIBLE:</h4>
-        <div class="mission-card">
-            <p id="no-mission" style="color:var(--red);">ESPERANDO ÓRDENES DEL COMANDO...</p>
-            <div id="active-mission-info" style="display:none;">
-                <h3 id="m-name" style="margin:0; color:#fff;">--</h3>
-                <p id="m-status" style="font-size:0.8rem; color:#aaa;">--</p>
-            </div>
-        </div>
-    </div>
-
-    <button class="btn-secondary" onclick="location.href='operadores.html'">👥 OPERADORES OPERATIVOS</button>
-
-    <div id="mini-map">
-        <div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:12px; color:#444;">VISTA PREVIA TÁCTICA</div>
-    </div>
-
-    <div id="waiting-area" style="display:none; text-align:center; padding:20px; border:1px dashed var(--gold);">
-        <span class="blink" style="color:var(--gold);">[ ENLISTADO ]</span>
-        <p style="font-size: 12px; color: #888; margin-top: 10px;">POSICIÓN ENVIADA AL COMANDO.</p>
-    </div>
+    <p id="boot-text" style="margin-top: 20px; letter-spacing: 2px;">INICIALIZANDO SISTEMA...</p>
 </div>
 
-<button class="btn-enlist" id="btn-action" onclick="handleEnlist()" disabled>DESPLEGAR EN MISIÓN</button>
+<div id="status-bar">
+    <span>CONEXIÓN: <span id="net-status" class="blink">COMPROBANDO...</span></span>
+    <span>DATOS: ENCRIPTADO AES-256</span>
+</div>
+
+<div class="container" id="main-app">
+    <header style="text-align: center; margin-bottom: 30px;">
+        <h2>IDENTIFICACIÓN</h2>
+        <p style="font-size: 12px; color: var(--gold);">A.T.O.M. - Airsoft Tactical Operation Maps</p>
+        <p style="font-size: 12px; color: #666;">creado por Pablo Cerrutti - Florida</p>
+    </header>
+
+    <div class="auth-card">
+        <div id="login-form">
+            <input type="email" id="log-email" placeholder="EMAIL DE OPERADOR">
+            <input type="password" id="log-pass" placeholder="CONTRASEÑA">
+            <button class="btn-primary" onclick="login()">ACCEDER AL LOBBY</button>
+            <button class="btn-outline" onclick="toggleForm('reg')">NUEVO RECLUTA</button>
+        </div>
+
+        <div id="register-form" style="display:none;">
+            <input type="text" id="reg-callsign" placeholder="CALLSIGN (EJ: GORDO)">
+            <input type="email" id="reg-email" placeholder="EMAIL">
+            <input type="password" id="reg-pass" placeholder="CONTRASEÑA">
+            <button class="btn-primary" onclick="register()">CREAR PERFIL ÚNICO</button>
+            <button class="btn-outline" onclick="toggleForm('log')">VOLVER</button>
+        </div>
+    </div>
+</div>
 
 <footer>
-    <button class="btn-restricted" onclick="openAdminLogin()">⚙️ ZONA RESTRINGIDA</button>
+    <button class="btn-restricted" onclick="openAdmin()">⚙️ ZONA RESTRINGIDA</button>
 </footer>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing"></script>
-
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-  authDomain: "atom---sistem.firebaseapp.com",
-  databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-  projectId: "atom---sistem",
-  storageBucket: "atom---sistem.firebasestorage.app",
-  messagingSenderId: "151110156876",
-  appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
-};
+    // CONFIGURACIÓN FIREBASE
+    const firebaseConfig = {
+      apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+      authDomain: "atom---sistem.firebaseapp.com",
+      databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+      projectId: "atom---sistem",
+      storageBucket: "atom---sistem.firebasestorage.app",
+      messagingSenderId: "151110156876",
+      appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
+    };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const auth = firebase.auth();
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
 
-let userProfile = null;
+    // MANEJO DE SPLASH SCREEN
+    window.onload = () => {
+        setTimeout(() => {
+            document.getElementById('boot-text').innerText = "CONEXIÓN ESTABLECIDA";
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                document.getElementById('net-status').innerText = "ONLINE";
+                document.getElementById('net-status').classList.remove('blink');
+            }, 1000);
+        }, 1500);
+    };
 
-auth.onAuthStateChanged(user => {
-    if (user) {
-        db.ref(`usuarios/${user.uid}`).on('value', snap => {
-            userProfile = snap.val();
-            if(userProfile) {
-                document.getElementById('display-callsign').innerText = userProfile.callsign;
-                checkActiveMission(user.uid);
-            }
-        });
-    } else { location.href = "index.html"; }
-});
-
-function checkActiveMission(uid) {
-    db.ref('misiones').orderByChild('estado').equalTo('PREPARACION').on('value', snap => {
-        if (snap.exists()) {
-            const missions = snap.val();
-            const mId = Object.keys(missions)[0];
-            const m = missions[mId];
-            document.getElementById('no-mission').style.display = 'none';
-            document.getElementById('active-mission-info').style.display = 'block';
-            document.getElementById('m-name').innerText = m.nombre;
-            document.getElementById('m-status').innerText = "FASE DE RECLUTAMIENTO";
-            document.getElementById('btn-action').disabled = false;
-        }
-    });
-}
-
-function handleEnlist() {
-    const user = auth.currentUser;
-    db.ref(`operacion_activa/despliegue/${user.uid}`).set({
-        callsign: userProfile.callsign,
-        enlistado: true,
-        lanzada: false,
-        pos: { lat: 0, lng: 0 }
-    }).then(() => {
-        document.getElementById('btn-action').style.display = 'none';
-        document.getElementById('waiting-area').style.display = 'block';
-    });
-}
-
-// NUEVA LÓGICA DE LOGIN DEDICADO PARA ADMIN
-function openAdminLogin() {
-    document.getElementById('admin-login-overlay').style.display = 'flex';
-}
-
-function closeAdminLogin() {
-    document.getElementById('admin-login-overlay').style.display = 'none';
-    document.getElementById('admin-email').value = "";
-    document.getElementById('admin-pass').value = "";
-}
-
-async function validateAdminAccess() {
-    const email = document.getElementById('admin-email').value;
-    const pass = document.getElementById('admin-pass').value;
-
-    if(!email || !pass) return alert("INGRESE CREDENCIALES COMPLETAS");
-
-    try {
-        // 1. Intentamos re-autenticar con las credenciales proporcionadas
-        const userCredential = await auth.signInWithEmailAndPassword(email, pass);
-        const user = userCredential.user;
-
-        // 2. Verificamos el rol en la DB
-        const snap = await db.ref(`usuarios/${user.uid}`).once('value');
-        const data = snap.val();
-
-        if (data && (data.rol === "ADMIN" || data.rol === "EDITOR")) {
-            // 3. Si es correcto, procedemos
-            location.href = "restricted_zone.html";
-        } else {
-            // 4. Si el login es válido pero el rol no es suficiente
-            alert("ACCESO RECHAZADO: RANGO INSUFICIENTE PARA ESTA ÁREA");
-            // Opcional: Podrías desloguearlo o simplemente volver al lobby
-        }
-    } catch (error) {
-        alert("ERROR DE AUTORIZACIÓN: CREDENCIALES INVÁLIDAS");
-        console.error(error);
+    function toggleForm(type) {
+        document.getElementById('login-form').style.display = type === 'reg' ? 'none' : 'block';
+        document.getElementById('register-form').style.display = type === 'reg' ? 'block' : 'none';
     }
-}
 
-function logout() { auth.signOut(); }
+    async function register() {
+        const email = document.getElementById('reg-email').value;
+        const pass = document.getElementById('reg-pass').value;
+        const call = document.getElementById('reg-callsign').value.toUpperCase();
+
+        if(!call || !email || !pass) return alert("Completa todos los campos tácticos");
+
+        try {
+            const res = await auth.createUserWithEmailAndPassword(email, pass);
+            const userObj = { callsign: call, email: email, rol: 'PLAYER', uid: res.user.uid };
+            await db.ref(`usuarios/${res.user.uid}`).set(userObj);
+            await db.ref(`comunidad_publica/${res.user.uid}`).set({ callsign: call });
+            alert("PERFIL CREADO. BIENVENIDO A A.T.O.M");
+            location.reload();
+        } catch(e) { alert(e.message); }
+    }
+
+    async function login() {
+        const email = document.getElementById('log-email').value;
+        const pass = document.getElementById('log-pass').value;
+        try {
+            await auth.signInWithEmailAndPassword(email, pass);
+            location.href = "lobby.html";
+        } catch(e) { alert("ERROR DE ACCESO: VERIFICA CREDENCIALES"); }
+    }
+
+    // --- NUEVA LÓGICA DE ZONA RESTRINGIDA ---
+    
+    function openAdmin() {
+        document.getElementById('admin-overlay').style.display = 'flex';
+    }
+
+    function closeAdmin() {
+        document.getElementById('admin-overlay').style.display = 'none';
+    }
+
+    async function validateAdmin() {
+        const email = document.getElementById('admin-email').value;
+        const pass = document.getElementById('admin-pass').value;
+
+        if(!email || !pass) return alert("INGRESE CREDENCIALES DE MANDO");
+
+        try {
+            // Intentamos el login administrativo
+            const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+            const user = userCredential.user;
+
+            // Validamos que el rol en la DB coincida con privilegios elevados
+            const snap = await db.ref(`usuarios/${user.uid}`).once('value');
+            const data = snap.val();
+
+            if (data && (data.rol === "ADMIN" || data.rol === "EDITOR")) {
+                location.href = "restricted_zone.html";
+            } else {
+                alert("⚠️ ACCESO RECHAZADO: EL OPERADOR NO TIENE RANGO DE COMANDO");
+                // Opcional: podrías desloguear aquí si quieres máxima seguridad
+            }
+        } catch (error) {
+            alert("⚠️ ALERTA DE SEGURIDAD: CREDENCIALES INVÁLIDAS");
+        }
+    }
 </script>
 </body>
 </html>
