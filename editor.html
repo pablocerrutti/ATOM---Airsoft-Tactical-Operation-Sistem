@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.O.M - Editor de Operaciones Profesional</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M - Editor Pro Responsivo</title>
     
     <!-- Firebase Legacy SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -12,87 +12,157 @@
 
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#808080; }
-        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display:flex; height:100vh; overflow:hidden; }
-        #panel { width:350px; background:#000; border-right:2px solid var(--p); display:flex; flex-direction:column; overflow-y: auto; z-index: 10; }
-        #map { flex:1; }
-        .menu-header { padding:15px; background:#111; border-bottom:1px solid var(--p); text-align: center; }
-        details { border-bottom: 1px solid #222; }
-        summary { padding: 12px; cursor: pointer; outline: none; background: #111; font-weight: bold; font-size: 12px; color: var(--gold); }
-        summary:hover { background: #1a1a1a; }
-        .tool-content { padding: 15px; background: #080808; }
-        h4 { margin: 0 0 10px 0; font-size: 11px; text-transform: uppercase; color: #888; }
-        button { width:100%; padding:10px; background:#111; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; margin-bottom: 8px; transition: 0.2s; font-size: 11px; }
-        button:hover { background:var(--p); color:#000; }
-        button.active { background: var(--p); color: #000; box-shadow: 0 0 10px var(--p); }
-        .btn-delete { background: #300; color: var(--red); border-color: var(--red); }
-        .btn-save { background: var(--gold); color: #000; border: none; font-size: 14px; margin-top: 10px; }
-        .btn-launch { background: var(--red); color: #fff; border: none; font-size: 16px; animation: blink 2s infinite; }
-        input, select { width:100%; padding:12px; background:#000; border:1px solid #444; color:var(--p); font-family: inherit; margin-bottom: 10px; box-sizing: border-box; }
-        #timer-display { font-size: 2.2rem; text-align: center; color: var(--gold); font-weight: bold; margin: 10px 0; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
-        .edit-tag { background: var(--gold); color: #000; padding: 5px; font-size: 10px; text-align: center; font-weight: bold; display:none; margin-top: 5px; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        
+        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
+        
+        /* Contenedor Principal */
+        .wrapper { display: flex; height: 100vh; width: 100vw; position: relative; }
+
+        /* Panel Lateral Desplegable */
+        #panel { 
+            width: 320px; 
+            background: rgba(0,0,0,0.95); 
+            border-right: 1px solid var(--p); 
+            display: flex; 
+            flex-direction: column; 
+            overflow-y: auto; 
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            position: absolute;
+            height: 100%;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Estado del Panel (Cerrado por defecto en móvil) */
+        .panel-hidden { transform: translateX(-100%); }
+
+        /* Botón de Toggle para el Panel */
+        #menu-toggle {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 1100;
+            background: var(--f);
+            color: var(--p);
+            border: 1px solid var(--p);
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(0,255,0,0.3);
+        }
+
+        #map { flex:1; width: 100%; height: 100%; }
+
+        /* UI Interna del Panel */
+        .menu-header { padding: 60px 15px 15px 15px; background:#111; border-bottom:1px solid var(--p); text-align: center; }
+        
+        details { border-bottom: 1px solid #222; background: #080808; }
+        summary { padding: 15px; cursor: pointer; outline: none; font-weight: bold; font-size: 13px; color: var(--gold); list-style: none; display: flex; justify-content: space-between; align-items: center; }
+        summary::-webkit-details-marker { display: none; }
+        summary::after { content: '▼'; font-size: 10px; }
+        details[open] summary::after { content: '▲'; }
+
+        .tool-content { padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+        
+        h4 { margin: 0; font-size: 10px; text-transform: uppercase; color: #666; letter-spacing: 1px; }
+        
+        button { 
+            width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); 
+            cursor:pointer; font-family:inherit; font-weight: bold; transition: 0.2s; font-size: 11px; 
+            text-transform: uppercase;
+        }
+        button:active { background:var(--p); color:#000; }
+        button.active { background: var(--p); color: #000; box-shadow: 0 0 15px var(--p); }
+
+        .btn-delete { border-color: var(--red); color: var(--red); }
+        .btn-save { background: var(--gold); color: #000; border: none; font-size: 13px; margin-top: 10px; }
+        .btn-launch { background: var(--red); color: #fff; border: none; font-size: 14px; animation: blink 2s infinite; }
+        
+        input, select { 
+            width:100%; padding:12px; background:#000; border:1px solid #333; 
+            color:var(--p); font-family: inherit; box-sizing: border-box; font-size: 14px;
+        }
+
+        #timer-display { font-size: 2rem; text-align: center; color: var(--gold); font-weight: bold; margin: 10px 0; }
+
+        /* Media Queries para Escritorio */
+        @media (min-width: 1024px) {
+            #panel { position: relative; transform: translateX(0); width: 350px; }
+            #menu-toggle { display: none; }
+            .menu-header { padding: 15px; }
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
 
-<div id="panel">
-    <div class="menu-header">
-        <h3 style="margin:0;">A.T.O.M EDITOR</h3>
-        <div id="edit-tag" class="edit-tag">MODO EDICIÓN: <span id="active-id">NUEVO</span></div>
+<button id="menu-toggle" onclick="togglePanel()">☰ MENÚ</button>
+
+<div class="wrapper">
+    <div id="panel" class="panel-hidden">
+        <div class="menu-header">
+            <h3 style="margin:0; font-size: 1.2rem;">A.T.O.M EDITOR</h3>
+            <div id="edit-tag" style="font-size: 10px; color: var(--gold); display:none; margin-top:5px;">
+                EDITANDO ID: <span id="active-id"></span>
+            </div>
+        </div>
+
+        <details open>
+            <summary>📂 OPERACIONES</summary>
+            <div class="tool-content">
+                <h4>Cargar Existente</h4>
+                <select id="mission-selector" onchange="loadMissionToEdit(this.value)">
+                    <option value="">-- NUEVA MISIÓN --</option>
+                </select>
+                <h4>Configuración</h4>
+                <input id="mission-name" placeholder="NOMBRE DE OP...">
+                <select id="mission-status">
+                    <option value="RECLUTANDO">ESTADO: RECLUTANDO</option>
+                    <option value="EN_CURSO">ESTADO: EN CURSO</option>
+                    <option value="FINALIZADA">ESTADO: FINALIZADA</option>
+                </select>
+                <button class="btn-save" onclick="saveMission()">💾 GUARDAR CAMBIOS</button>
+                <button id="delete-mission-btn" class="btn-delete" style="display:none;" onclick="deleteMission()">❌ BORRAR MISIÓN</button>
+            </div>
+        </details>
+
+        <details>
+            <summary>🛠️ HERRAMIENTAS TÁCTICAS</summary>
+            <div class="tool-content">
+                <button onclick="setMode('GAME_ZONE', this)">🟢 LÍMITE DE JUEGO</button>
+                <button onclick="setMode('SAFE_ZONE', this)">🟠 ZONA SEGURA</button>
+                <button onclick="setMode('RESPAWN_RED', this)">🔴 RESPAWN ROJO</button>
+                <button onclick="setMode('RESPAWN_BLUE', this)">🔵 RESPAWN AZUL</button>
+                <button onclick="setMode('OBJ_POINT', this)">⚪ PUNTO CAPTURABLE</button>
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <button onclick="undoLast()" style="border-color:var(--gold); color:var(--gold);">↩️ UNDO</button>
+                    <button onclick="clearMap()" style="border-color:#444; color:#666;">LIMPIAR</button>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>🚀 CONTROL DE CAMPO</summary>
+            <div class="tool-content">
+                <div id="timer-display">00:00:00</div>
+                <button id="btn-launch" class="btn-launch" onclick="launchMission()">⚡ INICIAR OPERACIÓN</button>
+                
+                <h4 style="margin-top:10px;">Operadores en Lobby</h4>
+                <div id="player-lobby" style="background:#000; padding:10px; border:1px solid #222; max-height:150px; overflow-y:auto; font-size:11px; border-radius:4px;">
+                    Sincronizando...
+                </div>
+                <button onclick="autoBalance()" style="font-size:10px; border-color:var(--gold); color:var(--gold);">⚖️ BALANCEAR EQUIPOS</button>
+            </div>
+        </details>
     </div>
 
-    <details open>
-        <summary>📂 GESTIÓN DE OPERACIONES</summary>
-        <div class="tool-content">
-            <h4>Cargar Misión</h4>
-            <select id="mission-selector" onchange="loadMissionToEdit(this.value)">
-                <option value="">-- NUEVA OPERACIÓN --</option>
-            </select>
-            <input id="mission-name" placeholder="NOMBRE CLAVE...">
-            <select id="mission-status">
-                <option value="RECLUTANDO">RECLUTANDO</option>
-                <option value="EN_CURSO">EN CURSO</option>
-                <option value="FINALIZADA">FINALIZADA</option>
-            </select>
-            <button class="btn-save" onclick="saveMission()">💾 GUARDAR EN NUBE</button>
-            <button id="delete-mission-btn" class="btn-delete" style="display:none;" onclick="deleteMission()">❌ ELIMINAR REGISTRO</button>
-        </div>
-    </details>
-
-    <details open>
-        <summary>🛠️ HERRAMIENTAS DE MAPA</summary>
-        <div class="tool-content">
-            <button onclick="setMode('GAME_ZONE', this)">🟢 LÍMITE DE JUEGO</button>
-            <button onclick="setMode('SAFE_ZONE', this)">🟠 ZONA SEGURA</button>
-            <button onclick="setMode('RESPAWN_RED', this)">🔴 RESPAWN ROJO</button>
-            <button onclick="setMode('RESPAWN_BLUE', this)">🔵 RESPAWN AZUL</button>
-            <button onclick="setMode('OBJ_POINT', this)">⚪ OBJETIVO CAPTURABLE</button>
-            
-            <div style="display:flex; gap:5px; margin-top:10px;">
-                <button onclick="undoLast()" style="border-color:var(--gold); color:var(--gold);">↩️ DESHACER</button>
-                <button onclick="clearMap()" style="border-color:#555; color:#777;">LIMPIAR</button>
-            </div>
-        </div>
-    </details>
-
-    <details open>
-        <summary>🚀 CONTROL DE MISIÓN</summary>
-        <div class="tool-content">
-            <div id="timer-display">00:00:00</div>
-            <button id="btn-launch" class="btn-launch" onclick="launchMission()">⚡ LANZAR OPERACIÓN</button>
-            
-            <h4 style="margin-top:15px;">Lobby de Operadores</h4>
-            <div id="player-lobby" style="background:#111; padding:5px; border:1px solid #333; max-height:100px; overflow-y:auto; font-size:10px;">
-                Esperando reclutas...
-            </div>
-            <button onclick="autoBalance()" style="font-size:9px; margin-top:5px; border-color:var(--gold); color:var(--gold);">⚖️ AUTO-BALANCEAR</button>
-        </div>
-    </details>
+    <div id="map"></div>
 </div>
 
-<div id="map"></div>
-
 <script>
+// Configuración de Firebase (Se mantiene igual)
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
     authDomain: "atom---sistem.firebaseapp.com",
@@ -110,13 +180,22 @@ let currentMissionId = null;
 let mapOverlays = [];
 let clockInterval = null;
 
+// Función para abrir/cerrar panel en móvil
+function togglePanel() {
+    const p = document.getElementById('panel');
+    p.classList.toggle('panel-hidden');
+    const btn = document.getElementById('menu-toggle');
+    btn.innerText = p.classList.contains('panel-hidden') ? '☰ MENÚ' : '✕ CERRAR';
+}
+
 function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
         center: {lat:-34.34, lng:-56.71}, 
         zoom: 15,
         mapTypeId: "hybrid",
-        tilt: 45,
-        disableDefaultUI: false
+        disableDefaultUI: true, // Mapa limpio
+        zoomControl: true,
+        tilt: 45
     });
 
     drawingManager = new google.maps.drawing.DrawingManager({
@@ -128,12 +207,12 @@ function initMap() {
 
     google.maps.event.addListener(drawingManager, 'overlaycomplete', (e) => {
         const mode = document.body.dataset.mode;
-        if (!mode) { e.overlay.setMap(null); return alert("Selecciona una herramienta primero"); }
+        if (!mode) { e.overlay.setMap(null); return; }
         e.overlay.atomType = mode;
-        const style = getStyleByMode(mode);
-        e.overlay.setOptions(style);
-        if(mode === 'OBJ_POINT') e.overlay.dominio = 'NEUTRO';
+        e.overlay.setOptions(getStyleByMode(mode));
         mapOverlays.push(e.overlay);
+        // En móvil, cerramos el panel automáticamente al empezar a dibujar
+        if(window.innerWidth < 1024) togglePanel();
     });
 
     loadMissionList();
@@ -146,7 +225,7 @@ function getStyleByMode(mode) {
         'SAFE_ZONE': { fillColor: '#ffa500', strokeColor: '#ffa500' },
         'RESPAWN_RED': { fillColor: '#ff0000', strokeColor: '#ff0000' },
         'RESPAWN_BLUE': { fillColor: '#0000ff', strokeColor: '#0000ff' },
-        'OBJ_POINT': { fillColor: '#808080', strokeColor: '#ffffff', fillOpacity: 0.6 }
+        'OBJ_POINT': { fillColor: '#ffffff', strokeColor: '#ffffff', fillOpacity: 0.6 }
     };
     return styles[mode] || {};
 }
@@ -155,167 +234,95 @@ function setMode(mode, btn) {
     document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.body.dataset.mode = mode;
+    
     if (mode.includes("RESPAWN") || mode === 'OBJ_POINT') {
         drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE);
-    } else if (mode.includes("ZONE")) {
+    } else {
         drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
     }
 }
 
-function undoLast() {
-    if (mapOverlays.length > 0) {
-        const last = mapOverlays.pop();
-        last.setMap(null);
-    }
-}
-
-function clearMap() {
-    mapOverlays.forEach(o => o.setMap(null));
-    mapOverlays = [];
-}
-
-// PERSISTENCIA MEJORADA PARA LOBBY
+// Lógica de Persistencia y Firebase (Optimizada)
 function saveMission() {
     const name = document.getElementById('mission-name').value;
-    const status = document.getElementById('mission-status').value;
-    if (!name || mapOverlays.length === 0) return alert("Nombre o dibujo táctico ausente.");
+    if (!name) return alert("Asigna un nombre a la operación");
 
     let elements = {};
-    let objetivosCount = 0;
-    
     mapOverlays.forEach((obj, i) => {
         const id = "el_" + i;
-        let data = { type: obj.atomType, dominio: obj.dominio || 'N/A' };
-        
+        let data = { type: obj.atomType };
         if (obj.atomType.includes("ZONE")) {
             data.path = obj.getPath().getArray().map(p => ({lat:p.lat(), lng:p.lng()}));
         } else {
             data.center = {lat: obj.getCenter().lat(), lng: obj.getCenter().lng()};
             data.radius = obj.getRadius();
-            if(obj.atomType === 'OBJ_POINT') objetivosCount++;
         }
         elements[id] = data;
     });
 
     const mId = currentMissionId || db.ref('misiones').push().key;
-    const centerPos = map.getCenter();
-    
-    db.ref(`misiones/${mId}`).set({
+    db.ref(`misiones/${mId}`).update({
         id: mId,
         nombre: name,
-        estado: status,
+        estado: document.getElementById('mission-status').value,
         elementos: elements,
-        cant_objetivos: objetivosCount, // Para ver en el lobby
-        config_mapa: {
-            centro: { lat: centerPos.lat(), lng: centerPos.lng() },
-            zoom: map.getZoom(),
-            gps_url: `https://www.google.com/maps?q=${centerPos.lat()},${centerPos.lng()}` // Link directo
-        },
         timestamp: firebase.database.ServerValue.TIMESTAMP
-    }).then(() => {
-        alert("Operación Sincronizada.");
-        location.reload();
-    });
+    }).then(() => alert("SINCRIZADO"));
 }
 
 function loadMissionList() {
     db.ref('misiones').on('value', snap => {
         const sel = document.getElementById('mission-selector');
-        sel.innerHTML = '<option value="">-- NUEVA OPERACIÓN --</option>';
-        snap.forEach(child => {
-            sel.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
+        sel.innerHTML = '<option value="">-- NUEVA MISIÓN --</option>';
+        snap.forEach(c => {
+            sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`;
         });
     });
 }
 
 function loadMissionToEdit(id) {
-    if(!id) { location.reload(); return; }
-    clearMap();
+    if(!id) return location.reload();
     currentMissionId = id;
-    document.getElementById('edit-tag').style.display = "block";
-    document.getElementById('active-id').innerText = id;
-    document.getElementById('delete-mission-btn').style.display = "block";
-    
+    clearMap();
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
         document.getElementById('mission-name').value = m.nombre;
-        document.getElementById('mission-status').value = m.estado;
+        document.getElementById('edit-tag').style.display = 'block';
+        document.getElementById('active-id').innerText = id;
+        document.getElementById('delete-mission-btn').style.display = 'block';
         
         if(m.elementos) {
-            const bounds = new google.maps.LatLngBounds();
             Object.values(m.elementos).forEach(el => {
                 let overlay;
                 if(el.type.includes("ZONE")) {
-                    overlay = new google.maps.Polygon({
-                        path: el.path, map: map, editable: true, draggable: true, atomType: el.type,
-                        ...getStyleByMode(el.type)
-                    });
-                    el.path.forEach(p => bounds.extend(p));
+                    overlay = new google.maps.Polygon({ path: el.path, map: map, ...getStyleByMode(el.type), editable:true });
                 } else {
-                    overlay = new google.maps.Circle({
-                        center: el.center, radius: el.radius, map: map, editable: true, draggable: true, atomType: el.type,
-                        dominio: el.dominio, ...getStyleByMode(el.type)
-                    });
-                    bounds.extend(el.center);
-                    if(el.dominio === 'ROJO') overlay.setOptions({fillColor:'#ff0000', strokeColor:'#ff0000'});
-                    if(el.dominio === 'AZUL') overlay.setOptions({fillColor:'#0000ff', strokeColor:'#0000ff'});
+                    overlay = new google.maps.Circle({ center: el.center, radius: el.radius, map: map, ...getStyleByMode(el.type), editable:true });
                 }
+                overlay.atomType = el.type;
                 mapOverlays.push(overlay);
             });
-            map.fitBounds(bounds);
         }
-        if(m.startTime) startClock(m.startTime);
     });
 }
 
-function launchMission() {
-    if(!currentMissionId) return alert("Carga o guarda una misión primero.");
-    const t0 = Date.now();
-    db.ref(`misiones/${currentMissionId}`).update({ estado: "EN_CURSO", startTime: t0 });
-    db.ref('operacion_activa/control').set({ misionActiva: currentMissionId, t0: t0, comando: "START" });
-    startClock(t0);
-}
-
-function startClock(t0) {
-    if(clockInterval) clearInterval(clockInterval);
-    clockInterval = setInterval(() => {
-        const diff = Date.now() - t0;
-        const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-        const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-        const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-        document.getElementById('timer-display').innerText = `${h}:${m}:${s}`;
-    }, 1000);
-}
-
-function deleteMission() {
-    if(confirm("¿CONFIRMA ELIMINACIÓN TOTAL?")) {
-        db.ref(`misiones/${currentMissionId}`).remove().then(() => location.reload());
-    }
-}
+function undoLast() { if(mapOverlays.length) mapOverlays.pop().setMap(null); }
+function clearMap() { mapOverlays.forEach(o => o.setMap(null)); mapOverlays = []; }
 
 function loadEnlistedPlayers() {
     db.ref('operacion_activa/despliegue').on('value', snap => {
         const lobby = document.getElementById('player-lobby');
         lobby.innerHTML = "";
-        snap.forEach(child => {
-            const p = child.val();
+        snap.forEach(c => {
+            const p = c.val();
             const color = p.equipo === 'ROJO' ? 'var(--red)' : (p.equipo === 'AZUL' ? 'var(--blue)' : '#fff');
-            lobby.innerHTML += `<div style="margin-bottom:2px; color:${color}">• ${p.callsign} [${p.equipo}]</div>`;
-        });
-    });
-}
-
-function autoBalance() {
-    db.ref('operacion_activa/despliegue').once('value', snap => {
-        let players = [];
-        snap.forEach(c => players.push(c.key));
-        players.sort(() => Math.random() - 0.5);
-        players.forEach((uid, i) => {
-            db.ref(`operacion_activa/despliegue/${uid}`).update({ equipo: (i % 2 === 0) ? 'ROJO' : 'AZUL' });
+            lobby.innerHTML += `<div style="color:${color}">• ${p.callsign}</div>`;
         });
     });
 }
 </script>
+
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing,geometry&callback=initMap" async defer></script>
+
 </body>
 </html>
