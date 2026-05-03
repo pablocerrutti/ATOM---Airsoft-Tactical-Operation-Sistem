@@ -51,8 +51,15 @@
             pointer-events: none;
         }
 
-        .leaflet-container { background: #000 !important; }
+        /* Banner de estado en curso */
+        #live-indicator {
+            position: absolute; top: 10px; left: 10px; z-index: 1100;
+            background: var(--red); color: white; padding: 4px 10px;
+            font-size: 10px; font-weight: 900; border-radius: 3px;
+            display: none; animation: blink 0.8s infinite;
+        }
 
+        .leaflet-container { background: #000 !important; }
         .nav-links { display: flex; gap: 10px; margin-top: 15px; }
         .nav-links a { 
             flex: 1; padding: 12px; font-size: 11px; text-decoration: none; 
@@ -91,20 +98,21 @@
 
     <div id="screen-preview" class="screen">
         <div id="radar-static">
+            <div id="live-indicator">● OPERACIÓN EN CURSO</div>
             <div id="preview-map" style="width: 100%; height: 100%;"></div>
             <div id="no-signal" class="blink" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 1000; font-weight: bold; letter-spacing: 5px; pointer-events: none; text-shadow: 2px 2px #000; color: var(--p);">RECUPERANDO DATOS...</div>
         </div>
         
         <div style="padding: 20px; flex-grow: 1;">
             <h2 id="prev-name" style="margin:0; color: var(--gold); text-transform: uppercase;">SIN SELECCIÓN</h2>
-            <p style="font-size: 12px; color: var(--p); opacity: 0.7;">VISTA DE SATÉLITE HÍBRIDA OK</p>
+            <p id="mission-status-text" style="font-size: 12px; color: var(--p); opacity: 0.7;">VISTA DE SATÉLITE HÍBRIDA OK</p>
             
             <div class="nav-links">
                 <a id="link-google" target="_blank">MAPS GOOGLE</a>
                 <a id="link-waze" target="_blank">WAZE NAV</a>
             </div>
 
-            <button class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ENLISTAMIENTO</button>
+            <button id="enlist-btn" class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ENLISTAMIENTO</button>
             <button onclick="showScreen('screen-selector')" style="background:none; border:none; color:var(--gray); margin-top:20px; width:100%; font-family: monospace;">⬅ CANCELAR Y VOLVER</button>
         </div>
     </div>
@@ -131,6 +139,7 @@ let userCallsign = null;
 let selectedMissionId = null;
 let previewMap;
 let drawnItems;
+let activeMissionIdOnServer = null;
 
 auth.onAuthStateChanged(user => {
     if (user) {
@@ -147,6 +156,7 @@ auth.onAuthStateChanged(user => {
 });
 
 function initLobby() {
+    // 1. Obtener misiones para el dropdown
     db.ref('misiones').on('value', snap => {
         const dropdown = document.getElementById('mission-dropdown');
         dropdown.innerHTML = '<option value="">-- ARCHIVOS ENCRIPTADOS --</option>';
@@ -157,7 +167,41 @@ function initLobby() {
             dropdown.appendChild(option);
         });
     });
-    listenGlobalStatus();
+
+    // 2. Monitorear si hay una misión iniciada por el Admin
+    db.ref('operacion_activa/control').on('value', snap => {
+        const ctrl = snap.val();
+        activeMissionIdOnServer = ctrl ? ctrl.missionId : null;
+        updateMissionUIStatus(ctrl);
+        
+        // REGLA: Solo si el jugador ya está enlistado Y la misión está en curso, lo mandamos al mapa
+        if(ctrl && ctrl.status === 'EN_CURSO') {
+            db.ref(`jugadores_enlistados/${userCallsign}`).once('value', pSnap => {
+                const p = pSnap.val();
+                if(p && p.equipo !== 'S/E') {
+                    window.location.href = 'mapa_tactico.html';
+                }
+            });
+        }
+    });
+}
+
+function updateMissionUIStatus(ctrl) {
+    const indicator = document.getElementById('live-indicator');
+    const statusText = document.getElementById('mission-status-text');
+    const enlistBtn = document.getElementById('enlist-btn');
+
+    if(ctrl && ctrl.status === 'EN_CURSO' && ctrl.missionId === selectedMissionId) {
+        indicator.style.display = 'block';
+        statusText.innerText = "ATENCIÓN: OPERACIÓN ACTUALMENTE EN CURSO";
+        statusText.style.color = "var(--red)";
+        enlistBtn.innerText = "SOLICITAR INCORPORACIÓN";
+    } else {
+        indicator.style.display = 'none';
+        statusText.innerText = "VISTA DE SATÉLITE HÍBRIDA OK";
+        statusText.style.color = "var(--p)";
+        enlistBtn.innerText = "CONFIRMAR ENLISTAMIENTO";
+    }
 }
 
 function viewMission(id) {
@@ -165,17 +209,12 @@ function viewMission(id) {
     selectedMissionId = id;
     showScreen('screen-preview');
     
+    // Forzar actualización visual si esta misión es la que está activa
+    db.ref('operacion_activa/control').once('value', snap => updateMissionUIStatus(snap.val()));
+
     if(!previewMap) {
-        previewMap = L.map('preview-map', { 
-            zoomControl: false, 
-            attributionControl: false 
-        }).setView([0,0], 2);
-
-        // IMPLEMENTACIÓN GOOGLE MUTANT HÍBRIDO
-        L.gridLayer.googleMutant({
-            type: 'hybrid' 
-        }).addTo(previewMap);
-
+        previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false }).setView([0,0], 2);
+        L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(previewMap);
         drawnItems = L.featureGroup().addTo(previewMap);
     }
 
@@ -196,19 +235,14 @@ function viewMission(id) {
                 if(el.type.includes('SAFE')) color = '#ffd700';
 
                 const style = { color: color, fillColor: color, fillOpacity: 0.3, weight: 2 };
-
                 let layer;
                 let centerPos;
 
                 if (el.path) {
                     layer = L.polygon(el.path, style);
-                    // Cálculo del centro del polígono para la etiqueta
                     let lats = el.path.map(p => p.lat);
                     let lngs = el.path.map(p => p.lng);
-                    centerPos = [
-                        (Math.min(...lats) + Math.max(...lats)) / 2,
-                        (Math.min(...lngs) + Math.max(...lngs)) / 2
-                    ];
+                    centerPos = [(Math.min(...lats) + Math.max(...lats)) / 2, (Math.min(...lngs) + Math.max(...lngs)) / 2];
                 } else if (el.radius) {
                     layer = L.circle(el.center, { radius: el.radius, ...style });
                     centerPos = el.center;
@@ -217,7 +251,6 @@ function viewMission(id) {
                     centerPos = el.center;
                 }
 
-                // ETIQUETA TÁCTICA (Mismo estilo que el Editor)
                 const label = L.marker(centerPos, {
                     icon: L.divIcon({
                         className: 'tactical-label',
@@ -242,6 +275,7 @@ function viewMission(id) {
 }
 
 function enlistOperative() {
+    // Alistamos al jugador siempre con equipo 'S/E' (Sin Equipo)
     db.ref(`jugadores_enlistados/${userCallsign}`).set({
         callsign: userCallsign,
         equipo: 'S/E',
@@ -258,19 +292,16 @@ function listenMyAssignment() {
         const display = document.getElementById('bando-display');
         if(p && p.equipo !== 'S/E') {
             display.style.display = 'block';
-            display.innerText = `TU BANDO ES: ${p.equipo}`;
+            display.innerText = `BANDO ASIGNADO: ${p.equipo}`;
             display.style.borderColor = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
             display.style.color = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
-        }
-    });
-}
-
-function listenGlobalStatus() {
-    db.ref('operacion_activa/control').on('value', snap => {
-        const status = snap.val();
-        if(status && status.status === 'EN_CURSO') {
-            db.ref(`jugadores_enlistados/${userCallsign}`).once('value', pSnap => {
-                if(pSnap.exists()) window.location.href = 'mapa_tactico.html';
+            
+            // Si el equipo ya fue asignado Y la misión está en curso, saltamos al mapa
+            db.ref('operacion_activa/control').once('value', cSnap => {
+                const ctrl = cSnap.val();
+                if(ctrl && ctrl.status === 'EN_CURSO') {
+                    setTimeout(() => window.location.href = 'mapa_tactico.html', 2000);
+                }
             });
         }
     });
