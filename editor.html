@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Tactical Editor Pro</title>
+    <title>A.T.O.M - Tactical Editor Pro (Hybrid)</title>
     
     <!-- Firebase Legacy SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -15,6 +15,10 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+    <!-- Google Maps API & GoogleMutant Plugin -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58"></script>
+    <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
 
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#808080; }
@@ -46,7 +50,6 @@
         .btn-save { background: var(--gold); color: #000; border: none; font-size: 12px; }
         .btn-delete { background: var(--red); color: #fff; border: none; font-size: 10px; margin-top: 5px; }
 
-        /* Control de Misión */
         .mission-control-box { background: #111; padding: 10px; border: 1px solid var(--gold); border-radius: 4px; }
         #timer-display { font-size: 24px; font-weight: 900; text-align: center; color: var(--gold); display: block; margin: 5px 0; }
         .score-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 10px; }
@@ -81,10 +84,11 @@
                 <input id="mission-name" placeholder="NOMBRE DE OPERACIÓN..." style="width:100%; padding:8px; background:#000; border:1px solid #333; color:var(--p); box-sizing: border-box;">
                 <button class="btn-save" onclick="saveMission()">💾 GUARDAR / ACTUALIZAR</button>
                 <button id="btn-delete-mission" class="btn-delete" style="display:none;" onclick="deleteCurrentMission()">🗑️ ELIMINAR MISIÓN</button>
-                <button onclick="toggleMapStyle()" id="btn-map-style" style="margin-top:5px; border-color:var(--gray);">🛰️ VISTA: SATÉLITE</button>
+                <button onclick="toggleMapStyle()" id="btn-map-style" style="margin-top:5px; border-color:var(--gray);">🛰️ VISTA: HÍBRIDA</button>
             </div>
         </details>
 
+        <!-- El resto de los detalles del panel se mantienen igual -->
         <details open>
             <summary>⏱️ CONTROL DE PARTIDA</summary>
             <div class="tool-content mission-control-box">
@@ -127,7 +131,6 @@
 </div>
 
 <script>
-// -- CONFIGURACIÓN FIREBASE (Mantener tu config original) --
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
     databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
@@ -139,30 +142,28 @@ const db = firebase.database();
 
 let map, drawnItems, currentMissionId = null;
 let currentAtomType = '';
-let isSatellite = false;
 let missionTimerInterval;
 
-// Capas de Mapa
-const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
-const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+// CAPAS DE MAPA CON GOOGLE MUTANT
+let currentLayer;
 
 function initMap() {
     map = L.map('map', { zoomControl: false }).setView([-34.34, -56.71], 15);
-    streetLayer.addTo(map);
+    
+    // Iniciar con Capa Híbrida de Google (Satelite + Etiquetas)
+    currentLayer = L.gridLayer.googleMutant({
+        type: 'hybrid' 
+    }).addTo(map);
+    
     drawnItems = new L.FeatureGroup().addTo(map);
 
     map.on(L.Draw.Event.CREATED, (e) => {
         const layer = e.layer;
         layer.atomType = currentAtomType;
-        
         const colors = {
-            'GAME_ZONE': '#00ff00',
-            'SAFE_ZONE': '#ffd700',
-            'RESPAWN_RED': '#ff3333',
-            'RESPAWN_BLUE': '#3333ff',
-            'OBJ_POINT': '#ffffff'
+            'GAME_ZONE': '#00ff00', 'SAFE_ZONE': '#ffd700', 'RESPAWN_RED': '#ff3333',
+            'RESPAWN_BLUE': '#3333ff', 'OBJ_POINT': '#ffffff'
         };
-
         if(layer.setStyle) layer.setStyle({ color: colors[currentAtomType], fillColor: colors[currentAtomType], fillOpacity: 0.3 });
         drawnItems.addLayer(layer);
         resetButtons();
@@ -173,23 +174,20 @@ function initMap() {
     listenMissionControl();
 }
 
-// GESTIÓN DE MAPA Y CAPAS
 function toggleMapStyle() {
-    isSatellite = !isSatellite;
-    if(isSatellite) {
-        map.removeLayer(streetLayer);
-        satelliteLayer.addTo(map);
-        document.getElementById('btn-map-style').innerText = "🗺️ VISTA: CALLES";
-        document.querySelector('.leaflet-tile-container').style.filter = "none";
+    const btn = document.getElementById('btn-map-style');
+    map.removeLayer(currentLayer);
+
+    if (btn.innerText.includes("HÍBRIDA")) {
+        currentLayer = L.gridLayer.googleMutant({ type: 'roadmap' }).addTo(map);
+        btn.innerText = "🗺️ VISTA: CALLEJERO";
     } else {
-        map.removeLayer(satelliteLayer);
-        streetLayer.addTo(map);
-        document.getElementById('btn-map-style').innerText = "🛰️ VISTA: SATÉLITE";
-        document.querySelector('.leaflet-tile-container').style.filter = "invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%)";
+        currentLayer = L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(map);
+        btn.innerText = "🛰️ VISTA: HÍBRIDA";
     }
 }
 
-// CONTROL DE MISIONES
+// Las funciones de guardado y lógica de misión se mantienen intactas
 function saveMission() {
     const name = document.getElementById('mission-name').value;
     if (!name) return alert("Indica nombre de Operación");
@@ -206,14 +204,6 @@ function saveMission() {
     const mId = currentMissionId || db.ref('misiones').push().key;
     db.ref(`misiones/${mId}`).set({ id: mId, nombre: name, elementos: elementos })
       .then(() => alert("BASE DE DATOS ACTUALIZADA"));
-}
-
-function deleteCurrentMission() {
-    if(!currentMissionId) return;
-    if(confirm("¿ELIMINAR ESTA MISIÓN PERMANENTEMENTE?")) {
-        db.ref(`misiones/${currentMissionId}`).remove();
-        location.reload();
-    }
 }
 
 function loadMissionToEdit(id) {
@@ -246,7 +236,14 @@ function loadMissionToEdit(id) {
     });
 }
 
-// CONTROL DE TIEMPO Y ESTADOS
+function deleteCurrentMission() {
+    if(!currentMissionId) return;
+    if(confirm("¿ELIMINAR ESTA MISIÓN PERMANENTEMENTE?")) {
+        db.ref(`misiones/${currentMissionId}`).remove();
+        location.reload();
+    }
+}
+
 function launchMission() {
     if(!currentMissionId) return alert("Selecciona una misión primero");
     db.ref('operacion_activa/control').update({
@@ -287,7 +284,6 @@ function listenMissionControl() {
     });
 }
 
-// OPERADORES Y ASIGNACIÓN
 function syncPlayers() {
     db.ref('jugadores_enlistados').on('value', snap => {
         const listDiv = document.getElementById('player-list');
@@ -317,7 +313,6 @@ function autoBalanceTeams() {
     });
 }
 
-// UTILIDADES
 function startDraw(type, atomType, btn) {
     resetButtons();
     btn.classList.add('active');
