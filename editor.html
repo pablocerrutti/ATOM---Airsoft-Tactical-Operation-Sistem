@@ -35,7 +35,6 @@
         summary { padding: 15px; cursor: pointer; outline: none; font-weight: bold; font-size: 13px; color: var(--gold); list-style: none; display: flex; justify-content: space-between; align-items: center; }
         
         .tool-content { padding: 15px; display: flex; flex-direction: column; gap: 8px; }
-        h4 { margin: 0; font-size: 10px; text-transform: uppercase; color: #666; letter-spacing: 1px; }
         
         button { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; transition: 0.2s; font-size: 11px; text-transform: uppercase; }
         button:active { background:var(--p); color:#000; }
@@ -43,13 +42,9 @@
         
         .btn-save { background: var(--gold); color: #000; border: none; font-size: 13px; margin-top: 10px; }
         .btn-launch { background: var(--red); color: #fff; border: none; font-size: 14px; animation: blink 2s infinite; }
-        .btn-stop { background: #550000; color: #fff; border: 1px solid var(--red); margin-top: 5px; }
         .btn-reset { border-color: var(--gray); color: var(--gray); margin-top: 15px; font-size: 10px; }
         
-        /* Botón Salir Estilizado dentro del Menú */
-        .btn-exit-menu {
-            margin-top: 20px; border-color: var(--red); color: var(--red); background: rgba(255,0,0,0.05);
-        }
+        .btn-exit-menu { margin-top: 20px; border-color: var(--red); color: var(--red); background: rgba(255,0,0,0.05); }
         .btn-exit-menu:hover { background: var(--red); color: #fff; }
         
         input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:var(--p); font-family: inherit; box-sizing: border-box; font-size: 14px; }
@@ -62,8 +57,7 @@
         .active-blue { border-color: var(--blue); color: var(--blue); }
         .active-none { border-color: var(--p); color: var(--p); }
 
-        .timer-container { display: flex; align-items: center; justify-content: space-around; margin: 10px 0; background: #111; padding: 10px 0; border-radius: 8px; }
-        #timer-display { font-size: 1.8rem; text-align: center; color: var(--gold); font-weight: bold; }
+        #timer-display { font-size: 1.8rem; text-align: center; color: var(--gold); font-weight: bold; margin: 10px 0; }
 
         @media (min-width: 1024px) { #panel { position: relative; transform: translateX(0); width: 350px; } #menu-toggle { display: none; } .menu-header { padding: 15px; } }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
@@ -122,7 +116,6 @@
                 <button id="btn-launch" class="btn-launch" onclick="launchMission()">⚡ INICIAR</button>
                 <button class="btn-reset" onclick="resetToLobby()">🔄 RESET LOBBY</button>
                 
-                <!-- BOTÓN SALIR INTEGRADO EN EL MENÚ -->
                 <button class="btn-exit-menu" onclick="window.location.href='index.html'">
                     ✖ SALIR AL MENÚ PRINCIPAL
                 </button>
@@ -148,8 +141,13 @@ const db = firebase.database();
 let map, drawingManager, currentMissionId = null, mapOverlays = [];
 
 function initMap() {
+    // Ubicación central por defecto (Florida, Uruguay)
     map = new google.maps.Map(document.getElementById("map"), {
-        center: {lat:-34.34, lng:-56.71}, zoom: 15, mapTypeId: "hybrid", disableDefaultUI: true, zoomControl: true
+        center: {lat:-34.34, lng:-56.71}, 
+        zoom: 18, 
+        mapTypeId: "hybrid", 
+        disableDefaultUI: true, 
+        zoomControl: true
     });
 
     drawingManager = new google.maps.drawing.DrawingManager({
@@ -170,6 +168,52 @@ function initMap() {
 
     loadMissionList();
     syncPlayers();
+}
+
+function loadMissionToEdit(id) {
+    if (!id) {
+        currentMissionId = null;
+        document.getElementById('mission-name').value = '';
+        document.getElementById('mission-status').value = 'RECLUTANDO';
+        map.panTo({lat:-34.34, lng:-56.71});
+        map.setZoom(18);
+        return;
+    }
+    
+    currentMissionId = id;
+    db.ref(`misiones/${id}`).once('value', snap => {
+        const data = snap.val();
+        if (data) {
+            document.getElementById('mission-name').value = data.nombre || '';
+            document.getElementById('mission-status').value = data.estado || 'RECLUTANDO';
+
+            // Auto-centrado en la zona de la misión
+            if (data.lat && data.lng) {
+                map.setZoom(18);
+                map.panTo({ lat: parseFloat(data.lat), lng: parseFloat(data.lng) });
+            }
+        }
+    });
+}
+
+function saveMission() {
+    const name = document.getElementById('mission-name').value;
+    if (!name) return alert("Nombre requerido");
+    
+    const mId = currentMissionId || db.ref('misiones').push().key;
+    const currentCenter = map.getCenter(); // Captura la ubicación actual
+    
+    const missionData = { 
+        id: mId, 
+        nombre: name, 
+        estado: document.getElementById('mission-status').value,
+        lat: currentCenter.lat(),
+        lng: currentCenter.lng()
+    };
+
+    db.ref(`misiones/${mId}`).update(missionData)
+        .then(() => alert("Misión guardada con ubicación actual"))
+        .catch(err => alert("Error: " + err));
 }
 
 function syncPlayers() {
@@ -211,23 +255,23 @@ function setMode(mode, btn) {
     drawingManager.setDrawingMode(mode.includes('ZONE') ? google.maps.drawing.OverlayType.POLYGON : google.maps.drawing.OverlayType.CIRCLE);
 }
 
-function saveMission() {
-    const name = document.getElementById('mission-name').value;
-    if (!name) return alert("Nombre requerido");
-    const mId = currentMissionId || db.ref('misiones').push().key;
-    db.ref(`misiones/${mId}`).set({ id: mId, nombre: name, estado: document.getElementById('mission-status').value });
-    alert("Guardado");
-}
-
 function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
+
 function loadMissionList() {
     db.ref('misiones').on('value', snap => {
         const sel = document.getElementById('mission-selector');
-        sel.innerHTML = '<option value="">-- NUEVA --</option>';
-        snap.forEach(c => sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`);
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="">-- NUEVA MISIÓN --</option>';
+        snap.forEach(c => {
+            sel.innerHTML += `<option value="${c.key}" ${currentVal === c.key ? 'selected' : ''}>${c.val().nombre}</option>`;
+        });
     });
 }
+
 function undoLast() { if(mapOverlays.length) mapOverlays.pop().setMap(null); }
+function launchMission() { alert("Iniciando Misión..."); }
+function resetToLobby() { alert("Reseteando Lobby..."); }
+
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58&libraries=drawing,geometry&callback=initMap" async defer></script>
 </body>
