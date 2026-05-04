@@ -55,10 +55,10 @@
         .score-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 10px; }
 
         .player-item { 
-            padding: 5px; border-bottom: 1px solid #222; font-size: 11px; 
+            padding: 8px 5px; border-bottom: 1px solid #222; font-size: 11px; 
             display: flex; align-items: center; gap: 5px;
         }
-        .team-btn { padding: 2px 5px; font-size: 9px; border: 1px solid var(--gray); cursor: pointer; }
+        .team-btn { padding: 4px 6px; font-size: 10px; border: 1px solid var(--gray); cursor: pointer; width: auto; min-width: 25px; }
         .team-red { color: var(--red); border-color: var(--red); }
         .team-blue { color: var(--blue); border-color: var(--blue); }
 
@@ -88,7 +88,6 @@
             </div>
         </details>
 
-        <!-- El resto de los detalles del panel se mantienen igual -->
         <details open>
             <summary>⏱️ CONTROL DE PARTIDA</summary>
             <div class="tool-content mission-control-box">
@@ -118,11 +117,10 @@
             </div>
         </details>
 
-        <details>
+        <details open>
             <summary>👥 OPERADORES EN ESPERA</summary>
             <div class="tool-content">
-                <div id="player-list" style="max-height: 180px; overflow-y: auto; background: #000; padding: 5px;"></div>
-                <button onclick="autoBalanceTeams()" style="border-color: var(--gold); color: var(--gold); margin-top:10px;">⚖️ AUTOBALANCEAR EQUIPOS</button>
+                <div id="player-list" style="max-height: 250px; overflow-y: auto; background: #000; padding: 5px; border: 1px solid #222;"></div>
                 <button onclick="window.location.href='restricted_zone.html'" style="margin-top:20px; border-color:var(--red); color:var(--red);">⬅ VOLVER AL MENÚ</button>
             </div>
         </details>
@@ -143,14 +141,11 @@ const db = firebase.database();
 let map, drawnItems, currentMissionId = null;
 let currentAtomType = '';
 let missionTimerInterval;
-
-// CAPAS DE MAPA CON GOOGLE MUTANT
 let currentLayer;
 
 function initMap() {
     map = L.map('map', { zoomControl: false }).setView([-34.34, -56.71], 15);
     
-    // Iniciar con Capa Híbrida de Google (Satelite + Etiquetas)
     currentLayer = L.gridLayer.googleMutant({
         type: 'hybrid' 
     }).addTo(map);
@@ -177,7 +172,6 @@ function initMap() {
 function toggleMapStyle() {
     const btn = document.getElementById('btn-map-style');
     map.removeLayer(currentLayer);
-
     if (btn.innerText.includes("HÍBRIDA")) {
         currentLayer = L.gridLayer.googleMutant({ type: 'roadmap' }).addTo(map);
         btn.innerText = "🗺️ VISTA: CALLEJERO";
@@ -187,11 +181,9 @@ function toggleMapStyle() {
     }
 }
 
-// Las funciones de guardado y lógica de misión se mantienen intactas
 function saveMission() {
     const name = document.getElementById('mission-name').value;
     if (!name) return alert("Indica nombre de Operación");
-
     let elementos = [];
     drawnItems.eachLayer(layer => {
         let item = { type: layer.atomType };
@@ -200,7 +192,6 @@ function saveMission() {
         else if (layer instanceof L.Marker) item.center = layer.getLatLng();
         elementos.push(item);
     });
-
     const mId = currentMissionId || db.ref('misiones').push().key;
     db.ref(`misiones/${mId}`).set({ id: mId, nombre: name, elementos: elementos })
       .then(() => alert("BASE DE DATOS ACTUALIZADA"));
@@ -211,9 +202,9 @@ function loadMissionToEdit(id) {
     clearMap();
     document.getElementById('btn-delete-mission').style.display = id ? 'block' : 'none';
     if(!id) return;
-
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
+        if(!m) return;
         document.getElementById('mission-name').value = m.nombre;
         if(m.elementos) {
             m.elementos.forEach(el => {
@@ -223,11 +214,9 @@ function loadMissionToEdit(id) {
                 if(el.type === 'SAFE_ZONE') style.color = '#ffd700';
                 if(el.type.includes('RED')) style.color = '#ff3333';
                 if(el.type.includes('BLUE')) style.color = '#3333ff';
-
                 if(el.path) layer = L.polygon(el.path, style);
                 else if(el.radius) layer = L.circle(el.center, {radius: el.radius, ...style});
                 else layer = L.marker(el.center);
-                
                 layer.atomType = el.type;
                 drawnItems.addLayer(layer);
             });
@@ -273,7 +262,6 @@ function listenMissionControl() {
         const data = snap.val() || {};
         document.getElementById('kills-red').innerText = data.killsRed || 0;
         document.getElementById('kills-blue').innerText = data.killsBlue || 0;
-        
         clearInterval(missionTimerInterval);
         if(data.status === 'EN_CURSO' && !data.paused) {
             missionTimerInterval = setInterval(() => {
@@ -287,30 +275,41 @@ function listenMissionControl() {
 function syncPlayers() {
     db.ref('jugadores_enlistados').on('value', snap => {
         const listDiv = document.getElementById('player-list');
-        listDiv.innerHTML = '';
+        listDiv.innerHTML = ''; // Limpieza total antes de reconstruir
+        
+        if(!snap.exists()) {
+            listDiv.innerHTML = '<div style="color:#666; text-align:center; padding:10px;">SIN OPERADORES</div>';
+            return;
+        }
+
         snap.forEach(child => {
             const p = child.val();
-            listDiv.innerHTML += `
-                <div class="player-item">
-                    <span style="flex-grow:1">${p.callsign}</span>
-                    <button class="team-btn team-red" onclick="assignTeam('${p.callsign}', 'RED')">R</button>
-                    <button class="team-btn team-blue" onclick="assignTeam('${p.callsign}', 'BLUE')">B</button>
-                    <button class="team-btn" onclick="assignTeam('${p.callsign}', 'S/E')">--</button>
-                    <button onclick="kickPlayer('${p.callsign}')" style="width:auto; padding:2px 5px; border-color:var(--red); color:var(--red);">✖</button>
-                </div>`;
+            const cid = child.key; // Usamos la key de Firebase para mayor precisión
+            
+            const playerRow = document.createElement('div');
+            playerRow.className = 'player-item';
+            playerRow.innerHTML = `
+                <span style="flex-grow:1; color:${p.equipo === 'RED' ? 'var(--red)' : p.equipo === 'BLUE' ? 'var(--blue)' : 'var(--p)'}">
+                    ${p.callsign} [${p.equipo || 'S/E'}]
+                </span>
+                <button class="team-btn team-red" onclick="assignTeam('${cid}', 'RED')">R</button>
+                <button class="team-btn team-blue" onclick="assignTeam('${cid}', 'BLUE')">B</button>
+                <button class="team-btn" onclick="assignTeam('${cid}', 'S/E')">--</button>
+                <button onclick="kickPlayer('${cid}', '${p.callsign}')" style="width:auto; padding:4px 8px; border-color:var(--red); color:var(--red); margin-left:5px;">✖</button>
+            `;
+            listDiv.appendChild(playerRow);
         });
     });
 }
 
-function assignTeam(callsign, team) { db.ref(`jugadores_enlistados/${callsign}`).update({ equipo: team }); }
-function kickPlayer(callsign) { if(confirm(`¿ELIMINAR A ${callsign}?`)) db.ref(`jugadores_enlistados/${callsign}`).remove(); }
+function assignTeam(key, team) { 
+    db.ref(`jugadores_enlistados/${key}`).update({ equipo: team }); 
+}
 
-function autoBalanceTeams() {
-    db.ref('jugadores_enlistados').once('value', snap => {
-        let players = []; snap.forEach(c => players.push(c.key));
-        players.sort(() => Math.random() - 0.5);
-        players.forEach((id, i) => assignTeam(id, i % 2 === 0 ? 'RED' : 'BLUE'));
-    });
+function kickPlayer(key, callsign) { 
+    if(confirm(`¿ELIMINAR A ${callsign} DE LA LISTA?`)) {
+        db.ref(`jugadores_enlistados/${key}`).remove();
+    }
 }
 
 function startDraw(type, atomType, btn) {
@@ -320,9 +319,19 @@ function startDraw(type, atomType, btn) {
     let drawer = (type === 'polygon') ? new L.Draw.Polygon(map) : (type === 'circle') ? new L.Draw.Circle(map) : new L.Draw.Marker(map);
     drawer.enable();
 }
-function resetButtons() { document.querySelectorAll('button').forEach(b => b.classList.remove('active')); }
-function clearMap() { drawnItems.clearLayers(); }
-function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
+
+function resetButtons() { 
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active')); 
+}
+
+function clearMap() { 
+    drawnItems.clearLayers(); 
+}
+
+function togglePanel() { 
+    document.getElementById('panel').classList.toggle('panel-hidden'); 
+}
+
 function loadMissionList() {
     db.ref('misiones').on('value', snap => {
         const sel = document.getElementById('mission-selector');
