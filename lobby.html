@@ -21,7 +21,7 @@
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#444; }
         body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
-        .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); }
+        .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); padding: 20px; box-sizing: border-box; }
         .active { display: flex !important; }
         
         .btn-logout {
@@ -31,16 +31,26 @@
             text-transform: uppercase; font-weight: bold;
         }
 
-        #screen-selector { padding: 20px; box-sizing: border-box; text-align: center; }
+        #screen-welcome { justify-content: center; align-items: center; text-align: center; }
+        
+        .welcome-card {
+            border: 1px solid var(--p);
+            padding: 30px;
+            background: rgba(0,255,0,0.05);
+            box-shadow: 0 0 20px rgba(0,255,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
         select {
-            background: #111; color: var(--p); border: 1px solid var(--p);
+            background: #000; color: var(--p); border: 1px solid var(--p);
             padding: 15px; width: 100%; font-family: monospace; font-size: 14px;
-            text-transform: uppercase; outline: none; cursor: pointer; margin: 20px 0;
+            text-transform: uppercase; outline: none; cursor: pointer; margin: 25px 0;
         }
 
         #radar-static {
-            height: 45%; width: 100%; border-bottom: 1px solid var(--p);
-            background: #000; position: relative; overflow: hidden;
+            height: 45%; width: 100%; border: 1px solid var(--p);
+            background: #000; position: relative; overflow: hidden; margin-top: 10px;
         }
         
         .tactical-label {
@@ -51,7 +61,6 @@
             pointer-events: none;
         }
 
-        /* Banner de estado en curso */
         #live-indicator {
             position: absolute; top: 10px; left: 10px; z-index: 1100;
             background: var(--red); color: white; padding: 4px 10px;
@@ -59,7 +68,6 @@
             display: none; animation: blink 0.8s infinite;
         }
 
-        .leaflet-container { background: #000 !important; }
         .nav-links { display: flex; gap: 10px; margin-top: 15px; }
         .nav-links a { 
             flex: 1; padding: 12px; font-size: 11px; text-decoration: none; 
@@ -68,7 +76,7 @@
         }
 
         .btn-action { background: var(--p); color: #000; border: none; padding: 18px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 20px; text-transform: uppercase; letter-spacing: 2px; }
-        .btn-secondary { background: none; border: 1px solid var(--gold); color: var(--gold); padding: 12px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 20px; text-transform: uppercase; font-size: 11px; }
+        .btn-secondary { background: none; border: 1px solid var(--gold); color: var(--gold); padding: 12px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; font-size: 11px; }
 
         #screen-waiting { justify-content: center; align-items: center; background: radial-gradient(circle, #111 0%, #000 100%); }
         .radar-circle { width: 120px; height: 120px; border: 2px solid var(--p); border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite; margin-bottom: 20px; }
@@ -83,19 +91,23 @@
 
     <button class="btn-logout" onclick="logout()">✖ SALIR</button>
 
-    <div id="screen-selector" class="screen active">
-        <h1 style="letter-spacing: 5px; color: var(--gold); margin: 40px 0 5px 0;">A.T.O.M SYSTEM</h1>
-        <p id="op-display" style="font-size: 10px; color: var(--p); margin-bottom: 20px;">[ VALIDANDO CREDENCIALES... ]</p>
-        
-        <label style="font-size: 10px; color: var(--gray);">SELECCIONE OPERACIÓN DISPONIBLE:</label>
-        <select id="mission-dropdown" onchange="viewMission(this.value)">
-            <option value="">-- ARCHIVOS ENCRIPTADOS --</option>
-        </select>
+    <!-- PANTALLA INICIAL DE BIENVENIDA -->
+    <div id="screen-welcome" class="screen active">
+        <div class="welcome-card">
+            <h1 style="letter-spacing: 5px; color: var(--gold); margin: 0 0 10px 0; font-size: 1.5rem;">BIENVENIDO</h1>
+            <h2 id="welcome-callsign" style="color: var(--p); margin: 0 0 30px 0; border-bottom: 1px solid var(--p); display: inline-block; padding: 0 10px;">[ CARGANDO... ]</h2>
+            
+            <p style="font-size: 12px; color: var(--p); margin-bottom: 10px; opacity: 0.8;">SELECCIONE LA MISIÓN EN LA QUE QUIERE ENLISTARSE:</p>
+            
+            <select id="mission-dropdown" onchange="viewMission(this.value)">
+                <option value="">-- ARCHIVOS DISPONIBLES --</option>
+            </select>
 
-        <div style="flex-grow: 1;"></div>
-        <button class="btn-secondary" onclick="window.location.href='operadores.html'">👤 VER OPERADORES ACTIVOS</button>
+            <button class="btn-secondary" onclick="window.location.href='operadores.html'">👤 OPERADORES ACTIVOS</button>
+        </div>
     </div>
 
+    <!-- PANTALLA DE PREVISUALIZACIÓN (Mantiene mini mapa) -->
     <div id="screen-preview" class="screen">
         <div id="radar-static">
             <div id="live-indicator">● OPERACIÓN EN CURSO</div>
@@ -103,7 +115,7 @@
             <div id="no-signal" class="blink" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 1000; font-weight: bold; letter-spacing: 5px; pointer-events: none; text-shadow: 2px 2px #000; color: var(--p);">RECUPERANDO DATOS...</div>
         </div>
         
-        <div style="padding: 20px; flex-grow: 1;">
+        <div style="padding: 10px 0; flex-grow: 1;">
             <h2 id="prev-name" style="margin:0; color: var(--gold); text-transform: uppercase;">SIN SELECCIÓN</h2>
             <p id="mission-status-text" style="font-size: 12px; color: var(--p); opacity: 0.7;">VISTA DE SATÉLITE HÍBRIDA OK</p>
             
@@ -113,10 +125,11 @@
             </div>
 
             <button id="enlist-btn" class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ENLISTAMIENTO</button>
-            <button onclick="showScreen('screen-selector')" style="background:none; border:none; color:var(--gray); margin-top:20px; width:100%; font-family: monospace;">⬅ CANCELAR Y VOLVER</button>
+            <button onclick="showScreen('screen-welcome')" style="background:none; border:none; color:var(--gray); margin-top:20px; width:100%; font-family: monospace; cursor:pointer;">⬅ VOLVER AL SELECTOR</button>
         </div>
     </div>
 
+    <!-- PANTALLA DE ESPERA -->
     <div id="screen-waiting" class="screen">
         <div class="radar-circle"></div>
         <h2 class="blink" style="margin-top: 0; letter-spacing: 2px;">ESPERANDO ÓRDENES</h2>
@@ -139,7 +152,6 @@ let userCallsign = null;
 let selectedMissionId = null;
 let previewMap;
 let drawnItems;
-let activeMissionIdOnServer = null;
 
 auth.onAuthStateChanged(user => {
     if (user) {
@@ -147,7 +159,7 @@ auth.onAuthStateChanged(user => {
             if (snap.exists()) {
                 const data = Object.values(snap.val())[0];
                 userCallsign = data.callsign;
-                document.getElementById('op-display').innerText = `[ OPERATIVO: ${userCallsign} ]`;
+                document.getElementById('welcome-callsign').innerText = userCallsign;
                 document.getElementById('id-tag').innerText = userCallsign;
                 initLobby();
             }
@@ -156,25 +168,23 @@ auth.onAuthStateChanged(user => {
 });
 
 function initLobby() {
-    // 1. Obtener misiones para el dropdown
+    // Carga de misiones en el dropdown
     db.ref('misiones').on('value', snap => {
         const dropdown = document.getElementById('mission-dropdown');
-        dropdown.innerHTML = '<option value="">-- ARCHIVOS ENCRIPTADOS --</option>';
+        dropdown.innerHTML = '<option value="">-- ARCHIVOS DISPONIBLES --</option>';
         snap.forEach(c => {
             let option = document.createElement('option');
             option.value = c.key;
-            option.text = `MISIÓN: ${c.val().nombre}`;
+            option.text = `OP: ${c.val().nombre}`;
             dropdown.appendChild(option);
         });
     });
 
-    // 2. Monitorear si hay una misión iniciada por el Admin
+    // Monitoreo de misión activa
     db.ref('operacion_activa/control').on('value', snap => {
         const ctrl = snap.val();
-        activeMissionIdOnServer = ctrl ? ctrl.missionId : null;
         updateMissionUIStatus(ctrl);
         
-        // REGLA: Solo si el jugador ya está enlistado Y la misión está en curso, lo mandamos al mapa
         if(ctrl && ctrl.status === 'EN_CURSO') {
             db.ref(`jugadores_enlistados/${userCallsign}`).once('value', pSnap => {
                 const p = pSnap.val();
@@ -192,12 +202,12 @@ function updateMissionUIStatus(ctrl) {
     const enlistBtn = document.getElementById('enlist-btn');
 
     if(ctrl && ctrl.status === 'EN_CURSO' && ctrl.missionId === selectedMissionId) {
-        indicator.style.display = 'block';
+        if(indicator) indicator.style.display = 'block';
         statusText.innerText = "ATENCIÓN: OPERACIÓN ACTUALMENTE EN CURSO";
         statusText.style.color = "var(--red)";
         enlistBtn.innerText = "SOLICITAR INCORPORACIÓN";
     } else {
-        indicator.style.display = 'none';
+        if(indicator) indicator.style.display = 'none';
         statusText.innerText = "VISTA DE SATÉLITE HÍBRIDA OK";
         statusText.style.color = "var(--p)";
         enlistBtn.innerText = "CONFIRMAR ENLISTAMIENTO";
@@ -209,7 +219,6 @@ function viewMission(id) {
     selectedMissionId = id;
     showScreen('screen-preview');
     
-    // Forzar actualización visual si esta misión es la que está activa
     db.ref('operacion_activa/control').once('value', snap => updateMissionUIStatus(snap.val()));
 
     if(!previewMap) {
@@ -231,12 +240,10 @@ function viewMission(id) {
                 let color = '#00ff00';
                 if(el.type.includes('RED')) color = '#ff3333';
                 if(el.type.includes('BLUE')) color = '#3333ff';
-                if(el.type.includes('OBJ')) color = '#ffd700';
-                if(el.type.includes('SAFE')) color = '#ffd700';
+                if(el.type.includes('OBJ') || el.type.includes('SAFE')) color = '#ffd700';
 
                 const style = { color: color, fillColor: color, fillOpacity: 0.3, weight: 2 };
-                let layer;
-                let centerPos;
+                let layer, centerPos;
 
                 if (el.path) {
                     layer = L.polygon(el.path, style);
@@ -263,10 +270,8 @@ function viewMission(id) {
                 drawnItems.addLayer(layer);
                 drawnItems.addLayer(label);
             });
-
             const bounds = drawnItems.getBounds();
             previewMap.fitBounds(bounds, { padding: [40, 40] });
-
             const center = bounds.getCenter();
             document.getElementById('link-google').href = `https://www.google.com/maps/dir/?api=1&destination=${center.lat},${center.lng}`;
             document.getElementById('link-waze').href = `https://waze.com/ul?ll=${center.lat},${center.lng}&navigate=yes`;
@@ -275,7 +280,6 @@ function viewMission(id) {
 }
 
 function enlistOperative() {
-    // Alistamos al jugador siempre con equipo 'S/E' (Sin Equipo)
     db.ref(`jugadores_enlistados/${userCallsign}`).set({
         callsign: userCallsign,
         equipo: 'S/E',
@@ -296,7 +300,6 @@ function listenMyAssignment() {
             display.style.borderColor = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
             display.style.color = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
             
-            // Si el equipo ya fue asignado Y la misión está en curso, saltamos al mapa
             db.ref('operacion_activa/control').once('value', cSnap => {
                 const ctrl = cSnap.val();
                 if(ctrl && ctrl.status === 'EN_CURSO') {
