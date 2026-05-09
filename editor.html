@@ -5,15 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>A.T.O.M - Tactical Editor Pro</title>
     
-    <!-- Bloqueo de renderizado hasta validar -->
     <style>html { display: none; }</style>
 
-    <!-- Firebase Legacy SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
-    <!-- Script de Seguridad para el Editor -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
@@ -22,78 +19,191 @@
         };
         firebase.initializeApp(firebaseConfig);
 
+        // Verificación de sesión para el Editor
         firebase.auth().onAuthStateChanged(user => {
-            const ADMIN_EMAIL = "tu-email-registrado@gmail.com"; 
-            if (user && user.email === ADMIN_EMAIL) {
+            if (user) {
                 document.documentElement.style.display = 'block';
-                // Aquí podrías llamar a initMap() si fuera necesario, 
-                // pero lo maneja el window.onload
             } else {
-                window.location.href = 'index.html';
+                window.location.href = 'login.html';
             }
         });
     </script>
 
-    <!-- Leaflet Assets -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 
-    <!-- Google Maps API & GoogleMutant -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58"></script>
     <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
 
     <style>
-        /* MANTENEMOS TUS ESTILOS ORIGINALES SIN TOCAR */
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#808080; }
         body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
         .wrapper { display: flex; height: 100vh; width: 100vw; position: relative; }
-        #panel { width: 320px; background: rgba(0,0,0,0.95); border-right: 1px solid var(--p); display: flex; flex-direction: column; overflow-y: auto; z-index: 1000; position: absolute; height: 100%; transition: 0.3s; }
+        
+        #panel { 
+            width: 320px; background: rgba(0,0,0,0.95); border-right: 1px solid var(--p); 
+            display: flex; flex-direction: column; overflow-y: auto; z-index: 1000;
+            transition: transform 0.3s ease; position: absolute; height: 100%; backdrop-filter: blur(10px);
+        }
         .panel-hidden { transform: translateX(-100%); }
+        #menu-toggle { position: absolute; top: 15px; left: 15px; z-index: 1100; background: var(--f); color: var(--p); border: 1px solid var(--p); padding: 10px; cursor: pointer; }
         #map { flex:1; width: 100%; height: 100%; background: #000; }
-        /* ... el resto de tus estilos de panel, botones y detalles ... */
-        textarea, input { width:100%; padding:8px; background:#000; border:1px solid #333; color:var(--p); font-family: inherit; margin-bottom: 5px; }
-        button { width:100%; padding:10px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-weight: bold; margin-bottom: 5px; }
-        .btn-save { background: var(--gold); color: #000; border: none; }
+        
+        .menu-header { padding: 60px 15px 15px 15px; background:#111; border-bottom:1px solid var(--p); text-align: center; }
+        summary { padding: 15px; cursor: pointer; font-weight: bold; font-size: 13px; color: var(--gold); border-bottom: 1px solid #222; list-style: none; }
+        .tool-content { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+        
+        textarea, input { width:100%; padding:8px; background:#000; border:1px solid #333; color:var(--p); box-sizing: border-box; font-family: inherit; font-size: 12px; }
+        label { font-size: 10px; color: var(--gold); text-transform: uppercase; margin-top: 5px; }
+        button { width:100%; padding:10px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-size: 10px; text-transform: uppercase; font-weight: bold; }
+        button.active { background: var(--p); color: #000; box-shadow: 0 0 10px var(--p); }
+        .btn-save { background: var(--gold); color: #000; border: none; font-size: 12px; margin-top: 10px; }
+        #preview-mission-img { width: 100%; height: 80px; object-fit: cover; border: 1px solid #333; margin-top: 5px; display: none; }
+        
+        @media (min-width: 1024px) { #panel { position: relative; transform: translateX(0); width: 350px; } #menu-toggle { display: none; } .menu-header { padding: 15px; } }
     </style>
 </head>
 <body>
 
-<button id="menu-toggle" onclick="togglePanel()" style="position:absolute; top:10px; left:10px; z-index:1100;">☰</button>
+<button id="menu-toggle" onclick="togglePanel()">☰ MENÚ</button>
 
 <div class="wrapper">
-    <div id="panel">
-        <div style="padding: 20px; border-bottom: 1px solid var(--p);">
-            <h3 style="margin:0;">TACTICAL EDITOR</h3>
+    <div id="panel" class="panel-hidden">
+        <div class="menu-header">
+            <h3 style="margin:0;">A.T.O.M COMMAND CENTER</h3>
         </div>
 
         <details open>
-            <summary style="padding:10px; cursor:pointer; color:var(--gold)">📂 GESTIÓN MISIONES</summary>
-            <div style="padding:10px;">
-                <select id="mission-selector" onchange="loadMissionToEdit(this.value)" style="width:100%; background:#000; color:var(--p); padding:10px;">
+            <summary>📂 GESTIÓN DE MISIÓN</summary>
+            <div class="tool-content">
+                <select id="mission-selector" onchange="loadMissionToEdit(this.value)" style="width:100%; padding:8px; background:#000; color:var(--p); border:1px solid #333;">
                     <option value="">-- NUEVA MISIÓN --</option>
                 </select>
-                <label>NOMBRE:</label>
-                <input id="mission-name" type="text">
-                <label>BRIEFING:</label>
-                <textarea id="mission-history"></textarea>
-                <label>OBJETIVOS:</label>
-                <textarea id="mission-objectives"></textarea>
-                <label>URL PORTADA:</label>
-                <input id="mission-image-url" type="text">
-                <button class="btn-save" onclick="saveMission()">💾 GUARDAR CAMBIOS</button>
+                <label>Operación:</label>
+                <input id="mission-name" placeholder="Nombre...">
+                <label>Briefing:</label>
+                <textarea id="mission-history" placeholder="Historia..."></textarea>
+                <label>Objetivos:</label>
+                <textarea id="mission-objectives" placeholder="Objetivos..."></textarea>
+                <label>Imagen (URL):</label>
+                <input id="mission-image-url" onchange="updateImagePreview(this.value)" placeholder="https://...">
+                <img id="preview-mission-img" src="">
+                <button class="btn-save" onclick="saveMission()">💾 GUARDAR MISIÓN</button>
             </div>
         </details>
-        <!-- Resto de tus details de Herramientas y Operadores... -->
+
+        <details>
+            <summary>🛠️ HERRAMIENTAS MAPA</summary>
+            <div class="tool-content">
+                <button onclick="startDraw('polygon', 'GAME_ZONE', this)">🟢 LÍMITE JUEGO</button>
+                <button onclick="startDraw('circle', 'RESPAWN_RED', this)">🔴 SPAWN RED</button>
+                <button onclick="startDraw('circle', 'RESPAWN_BLUE', this)">🔵 SPAWN BLUE</button>
+                <button onclick="startDraw('marker', 'OBJ_POINT', this)">⚪ OBJETIVO</button>
+                <button onclick="clearMap()" style="border-color:#444; color:#666;">LIMPIAR</button>
+                <button onclick="window.location.href='restricted_zone.html'" style="margin-top:20px; border-color:var(--red); color:var(--red);">⬅ VOLVER</button>
+            </div>
+        </details>
     </div>
     <div id="map"></div>
 </div>
 
 <script>
-    // AQUÍ MANTENEMOS TODA TU LÓGICA DE MAPA, DRAW Y FIREBASE SIN CAMBIOS
-    // Asegúrate de copiar el resto de tus funciones: initMap, saveMission, loadMissionList, etc.
-    // Solo he modificado la parte superior para la validación de seguridad.
+const db = firebase.database();
+let map, drawnItems, currentMissionId = null, currentAtomType = '', currentLayer;
+
+function initMap() {
+    map = L.map('map', { zoomControl: false }).setView([-34.34, -56.71], 15);
+    currentLayer = L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(map);
+    drawnItems = new L.FeatureGroup().addTo(map);
+
+    map.on(L.Draw.Event.CREATED, (e) => {
+        const layer = e.layer;
+        layer.atomType = currentAtomType;
+        const colors = { 'GAME_ZONE': '#0f0', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
+        if(layer.setStyle) layer.setStyle({ color: colors[currentAtomType], fillColor: colors[currentAtomType], fillOpacity: 0.3 });
+        drawnItems.addLayer(layer);
+    });
+
+    loadMissionList();
+}
+
+function updateImagePreview(url) {
+    const img = document.getElementById('preview-mission-img');
+    if(url) { img.src = url; img.style.display = 'block'; }
+    else { img.style.display = 'none'; }
+}
+
+function saveMission() {
+    const name = document.getElementById('mission-name').value;
+    if (!name) return alert("Falta nombre");
+    
+    let elementos = [];
+    drawnItems.eachLayer(layer => {
+        let item = { type: layer.atomType };
+        if (layer instanceof L.Polygon) item.path = layer.getLatLngs()[0];
+        else if (layer instanceof L.Circle) { item.center = layer.getLatLng(); item.radius = layer.getRadius(); }
+        else if (layer instanceof L.Marker) item.center = layer.getLatLng();
+        elementos.push(item);
+    });
+
+    const mId = currentMissionId || db.ref('misiones').push().key;
+    db.ref(`misiones/${mId}`).set({
+        id: mId, nombre: name,
+        historia: document.getElementById('mission-history').value,
+        objetivos: document.getElementById('mission-objectives').value,
+        imagen: document.getElementById('mission-image-url').value,
+        elementos: elementos
+    }).then(() => alert("MISIÓN GUARDADA"));
+}
+
+function loadMissionToEdit(id) {
+    currentMissionId = id;
+    drawnItems.clearLayers();
+    if(!id) return;
+
+    db.ref(`misiones/${id}`).once('value', snap => {
+        const m = snap.val();
+        document.getElementById('mission-name').value = m.nombre;
+        document.getElementById('mission-history').value = m.historia || '';
+        document.getElementById('mission-objectives').value = m.objetivos || '';
+        document.getElementById('mission-image-url').value = m.imagen || '';
+        updateImagePreview(m.imagen);
+
+        if(m.elementos) {
+            m.elementos.forEach(el => {
+                let layer;
+                if(el.path) layer = L.polygon(el.path, {color:'#0f0', fillOpacity:0.3});
+                else if(el.radius) layer = L.circle(el.center, {radius:el.radius, color:'#0f0'});
+                else layer = L.marker(el.center);
+                layer.atomType = el.type;
+                drawnItems.addLayer(layer);
+            });
+        }
+    });
+}
+
+function loadMissionList() {
+    db.ref('misiones').on('value', snap => {
+        const sel = document.getElementById('mission-selector');
+        sel.innerHTML = '<option value="">-- NUEVA MISIÓN --</option>';
+        snap.forEach(c => { sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`; });
+    });
+}
+
+function startDraw(type, atomType, btn) {
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentAtomType = atomType;
+    let drawer = (type === 'polygon') ? new L.Draw.Polygon(map) : (type === 'circle') ? new L.Draw.Circle(map) : new L.Draw.Marker(map);
+    drawer.enable();
+}
+
+function clearMap() { drawnItems.clearLayers(); }
+function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
+
+window.onload = initMap;
 </script>
 </body>
 </html>
