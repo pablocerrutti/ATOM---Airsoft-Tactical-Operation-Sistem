@@ -16,18 +16,17 @@
         .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); padding: 15px; box-sizing: border-box; }
         .active { display: flex !important; }
         
-        /* Contenedor Dual: Mapa y Portada */
         .mission-header-flex { display: flex; gap: 10px; height: 180px; margin-bottom: 15px; }
-        #radar-static { flex: 1; border: 1px solid var(--p); background: #000; position: relative; }
-        #mission-cover-frame { flex: 1; border: 1px solid #444; overflow: hidden; display: none; }
+        #radar-static { flex: 1.2; border: 1px solid var(--p); background: #111; position: relative; overflow: hidden; }
+        #mission-cover-frame { flex: 0.8; border: 1px solid #444; overflow: hidden; display: none; background: #000; }
         #mission-cover-img { width: 100%; height: 100%; object-fit: cover; }
 
-        .info-block { margin-bottom: 15px; padding: 10px; border-left: 2px solid var(--p); background: rgba(0,255,0,0.03); }
-        .btn-action { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-bottom: 5px;}
+        .info-block { margin-bottom: 12px; padding: 10px; border-left: 2px solid var(--p); background: rgba(0,255,0,0.03); }
+        .btn-action { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         .btn-secondary { background: transparent; color: var(--p); border: 1px solid var(--p); padding: 12px; width: 100%; cursor: pointer; font-family: inherit; font-size: 11px; margin-top: 10px; }
         
         select { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px; font-family: inherit; }
-        .op-list { background: rgba(0,0,0,0.5); border: 1px solid #222; padding: 10px; font-size: 11px; max-height: 120px; overflow-y: auto; }
+        .op-list { background: rgba(0,0,0,0.5); border: 1px solid #222; padding: 10px; font-size: 11px; max-height: 100px; overflow-y: auto; }
         .op-tag { display: inline-block; padding: 2px 5px; border: 1px solid var(--p); margin: 2px; font-size: 10px; }
         .op-tag.enlisted { background: var(--p); color: #000; }
     </style>
@@ -38,32 +37,30 @@
         <div style="border: 1px solid var(--p); padding: 25px; text-align: center; width: 100%; max-width: 380px;">
             <h2 style="color:var(--gold)">SISTEMA A.T.O.M</h2>
             <p id="welcome-callsign">IDENTIFICANDO...</p>
-            
             <select id="mission-dropdown" onchange="viewMission(this.value)">
                 <option value="">-- BUSCANDO MISIONES --</option>
             </select>
-            
             <button class="btn-secondary" onclick="window.location.href='operadores.html'">📡 OPERADORES ACTIVOS EN A.T.O.M</button>
         </div>
         <button onclick="window.location.href='index.html'" style="margin-top:20px; background:none; border:none; color:#444; cursor:pointer;">CERRAR TERMINAL</button>
     </div>
 
     <div id="screen-preview" class="screen">
-        <h2 id="prev-name" style="margin-top:0;">CARGANDO...</h2>
+        <h2 id="prev-name" style="margin:0 0 10px 0; font-size: 1.2rem;">CARGANDO...</h2>
         
         <div class="mission-header-flex">
-            <div id="radar-static"><div id="preview-map" style="height:100%"></div></div>
+            <div id="radar-static"><div id="preview-map" style="width:100%; height:100%;"></div></div>
             <div id="mission-cover-frame"><img id="mission-cover-img" src=""></div>
         </div>
         
-        <div style="flex-grow:1; overflow-y:auto;">
+        <div style="flex-grow:1; overflow-y:auto; margin-bottom: 10px;">
             <div class="info-block">
-                <div style="color:var(--gold); font-size:10px;">I. BRIEFING DE OPERACIÓN</div>
-                <div id="mission-history-text" style="font-size:12px; line-height:1.4;"></div>
+                <div style="color:var(--gold); font-size:10px;">I. BRIEFING</div>
+                <div id="mission-history-text" style="font-size:12px;"></div>
             </div>
             <div class="info-block">
-                <div style="color:var(--gold); font-size:10px;">II. OBJETIVOS ESTRATÉGICOS</div>
-                <div id="mission-objectives-text" style="font-size:12px; line-height:1.4;"></div>
+                <div style="color:var(--gold); font-size:10px;">II. OBJETIVOS</div>
+                <div id="mission-objectives-text" style="font-size:12px;"></div>
             </div>
             <div class="info-block">
                 <div style="color:var(--gold); font-size:10px;">III. PERSONAL ENLISTADO</div>
@@ -72,7 +69,7 @@
         </div>
 
         <button id="btn-enlist" class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ASISTENCIA</button>
-        <button onclick="showScreen('screen-welcome')" style="background:none; color:#666; border:none; padding:10px; cursor:pointer; font-family: inherit;">⬅ VOLVER AL MENÚ</button>
+        <button onclick="showScreen('screen-welcome')" style="background:none; color:#666; border:none; padding:10px; cursor:pointer; font-family: inherit;">⬅ VOLVER</button>
     </div>
 
     <script>
@@ -117,6 +114,7 @@
             showScreen('screen-preview');
             
             if(!previewMap) {
+                // Usamos la misma capa que el Editor para asegurar compatibilidad
                 previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false });
                 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(previewMap);
                 drawnItems = L.featureGroup().addTo(previewMap);
@@ -127,70 +125,62 @@
                 if(!m) return;
                 
                 document.getElementById('prev-name').innerText = m.nombre;
-                document.getElementById('mission-history-text').innerText = m.historia || "Sin datos.";
-                document.getElementById('mission-objectives-text').innerText = m.objetivos || "Sin datos.";
+                document.getElementById('mission-history-text').innerText = m.historia || "---";
+                document.getElementById('mission-objectives-text').innerText = m.objetivos || "---";
                 
-                const cover = document.getElementById('mission-cover-frame');
+                const frame = document.getElementById('mission-cover-frame');
                 if(m.imagen) { 
-                    cover.style.display='block'; 
+                    frame.style.display='block'; 
                     document.getElementById('mission-cover-img').src = m.imagen; 
-                } else { cover.style.display='none'; }
+                } else { frame.style.display='none'; }
 
                 drawnItems.clearLayers();
                 if(m.elementos) {
                     const colors = { 'GAME_ZONE': '#0f0', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
                     m.elementos.forEach(el => {
                         let layer;
-                        const color = colors[el.type] || '#0f0';
-                        if(el.path) layer = L.polygon(el.path, {color: color, weight: 2, fillOpacity: 0.2});
-                        else if(el.radius) layer = L.circle(el.center, {radius: el.radius, color: color});
+                        const col = colors[el.type] || '#0f0';
+                        if(el.path) layer = L.polygon(el.path, {color: col, weight: 2, fillOpacity: 0.3});
+                        else if(el.radius) layer = L.circle(el.center, {radius: el.radius, color: col, fillOpacity: 0.3});
                         else layer = L.marker(el.center);
                         drawnItems.addLayer(layer);
                     });
-                    // Lógica de Zoom Automático (igual al editor)
-                    if(drawnItems.getLayers().length > 0) {
-                        setTimeout(() => {
-                            previewMap.fitBounds(drawnItems.getBounds(), {padding: [15,15]});
-                        }, 400);
-                    }
+
+                    // Forzar actualización de tamaño y centrado
+                    setTimeout(() => {
+                        previewMap.invalidateSize();
+                        if(drawnItems.getLayers().length > 0) {
+                            previewMap.fitBounds(drawnItems.getBounds(), {padding: [20,20]});
+                        }
+                    }, 500);
                 }
             });
 
-            // Sincronizar alistados
             db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(id).on('value', snap => {
                 const container = document.getElementById('enlisted-ops');
                 container.innerHTML = '';
                 let yaEnlistado = false;
                 snap.forEach(child => {
-                    const p = child.val();
-                    if(p.callsign === userCallsign) yaEnlistado = true;
-                    container.innerHTML += `<span class="op-tag enlisted">${p.callsign}</span>`;
+                    if(child.val().callsign === userCallsign) yaEnlistado = true;
+                    container.innerHTML += `<span class="op-tag enlisted">${child.val().callsign}</span>`;
                 });
-                
                 const btn = document.getElementById('btn-enlist');
-                btn.innerText = yaEnlistado ? "✓ ASISTENCIA CONFIRMADA" : "📝 CONFIRMAR ASISTENCIA";
-                btn.style.background = yaEnlistado ? "#222" : "var(--p)";
-                btn.style.color = yaEnlistado ? "#666" : "#000";
+                btn.innerText = yaEnlistado ? "✓ ENLISTADO" : "📝 CONFIRMAR ASISTENCIA";
                 btn.disabled = yaEnlistado;
+                btn.style.opacity = yaEnlistado ? "0.5" : "1";
             });
         }
 
         function enlistOperative() {
             if(!selectedMissionId) return;
             db.ref(`jugadores_enlistados/${auth.currentUser.uid}`).set({
-                callsign: userCallsign,
-                equipo: 'S/E',
-                misionId: selectedMissionId,
-                timestamp: Date.now()
+                callsign: userCallsign, equipo: 'S/E', misionId: selectedMissionId, timestamp: Date.now()
             });
         }
 
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if(id === 'screen-preview' && previewMap) {
-                setTimeout(() => { previewMap.invalidateSize(); }, 300);
-            }
         }
     </script>
 </body>
