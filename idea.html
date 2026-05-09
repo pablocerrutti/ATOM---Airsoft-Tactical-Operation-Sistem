@@ -1,14 +1,15 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.O.M - COMANDO TÁCTICO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M - Tactical Editor Pro</title>
     
     <style>html { display: none; }</style>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
     <script>
         const firebaseConfig = {
@@ -22,49 +23,227 @@
             if (user) { document.documentElement.style.display = 'block'; } 
             else { window.location.href = 'login.html'; }
         });
-
-        function logoutAndExit() {
-            firebase.auth().signOut().then(() => {
-                window.location.href = 'index.html';
-            });
-        }
     </script>
 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
     <style>
-        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; --red:#ff3333; }
-        body { 
-            margin:0; font-family: 'Courier New', monospace; 
-            background:var(--f); color:var(--p); 
-            display: flex; align-items: center; justify-content: center; 
-            height: 100vh; overflow: hidden;
-        }
-        .menu-box { 
-            border: 1px solid var(--p); padding: 30px; 
-            background: rgba(0,20,0,0.5); text-align: center; 
-            width: 90%; max-width: 400px; box-shadow: 0 0 20px rgba(0,255,0,0.2);
-        }
-        h1 { color: var(--gold); font-size: 1.4rem; margin-bottom: 25px; letter-spacing: 2px; }
-        .btn-group { display: flex; flex-direction: column; gap: 15px; }
-        button { 
-            padding: 15px; background: transparent; border: 1px solid var(--p); 
-            color: var(--p); font-weight: bold; cursor: pointer; 
-            text-transform: uppercase; font-family: inherit; transition: 0.3s;
-        }
-        button:hover { background: var(--p); color: #000; box-shadow: 0 0 10px var(--p); }
-        .logout { border-color: var(--red); color: var(--red); margin-top: 10px; }
-        .logout:hover { background: var(--red); color: #fff; box-shadow: 0 0 10px var(--red); }
+        :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
+        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
+        .wrapper { display: flex; height: 100vh; width: 100vw; position: relative; }
+        #panel { width: 320px; background: rgba(0,0,0,0.95); border-right: 1px solid var(--p); display: flex; flex-direction: column; overflow-y: auto; z-index: 1000; position: absolute; height: 100%; transition: 0.3s; }
+        .panel-hidden { transform: translateX(-100%); }
+        #map { flex:1; width: 100%; height: 100%; background: #111; }
+        .tool-content { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+        button { width:100%; padding:10px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-weight: bold; font-size: 10px; text-transform: uppercase; }
+        button.active { background: var(--p); color: #000; }
+        input, textarea, select { background: #000; border: 1px solid #333; color: var(--p); padding: 8px; font-family: inherit; }
+        .op-card { background: #111; border: 1px solid #333; padding: 8px; margin-bottom: 5px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
+        .stats-box { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 10px; border: 1px solid #333; }
+        .stat-btn { width: 30px !important; padding: 5px !important; }
+        
+        @media (min-width: 1024px) { #panel { position: relative; transform: translateX(0); width: 350px; } #menu-toggle { display: none; } }
     </style>
 </head>
 <body>
 
-    <div class="menu-box">
-        <h1>COMANDO TÁCTICO</h1>
-        <div class="btn-group">
-            <button onclick="window.location.href='editor.html'">🛠️ EDITOR DE MISIONES</button>
-            <button onclick="window.location.href='lobby.html'">📡 VISTA DE LOBBY</button>
-            <button class="logout" onclick="logoutAndExit()">✖ CERRAR SESIÓN</button>
-        </div>
-    </div>
+<button id="menu-toggle" onclick="togglePanel()" style="position:absolute; top:10px; left:10px; z-index:1100; padding:10px; background:#000; color:var(--p); border:1px solid var(--p);">☰</button>
 
+<div class="wrapper">
+    <div id="panel" class="panel-hidden">
+        <div style="padding:15px; background:#111; border-bottom:1px solid var(--p); text-align:center;">
+            <h3 style="margin:0;">A.T.O.M COMMAND CENTER</h3>
+        </div>
+
+        <details>
+            <summary style="padding:10px; cursor:pointer; color:var(--gold)">🗺️ CAPAS DE MAPA</summary>
+            <div class="tool-content">
+                <button id="btn-sat" class="active" onclick="changeBaseLayer('sat')">🛰️ SATELITAL (ESRI)</button>
+                <button id="btn-osm" onclick="changeBaseLayer('osm')">🏙️ CALLEJERO (OSM)</button>
+            </div>
+        </details>
+
+        <details open>
+            <summary style="padding:10px; cursor:pointer; color:var(--gold)">📂 CONFIGURACIÓN MISIÓN</summary>
+            <div class="tool-content">
+                <select id="mission-selector" onchange="loadMissionToEdit(this.value)">
+                    <option value="">-- NUEVA MISIÓN --</option>
+                </select>
+                <input id="mission-name" placeholder="Nombre Operación...">
+                <textarea id="mission-history" placeholder="Briefing..."></textarea>
+                <textarea id="mission-objectives" placeholder="Objetivos..."></textarea>
+                <input id="mission-image-url" placeholder="URL Imagen...">
+                <button class="active" onclick="saveMission()" style="background:var(--gold); color:#000; border:none;">💾 GUARDAR Y PUBLICAR</button>
+            </div>
+        </details>
+
+        <details>
+            <summary style="padding:10px; cursor:pointer; color:var(--gold)">👥 OPERADORES</summary>
+            <div class="tool-content" id="enlisted-list">
+                <p style="font-size:10px; color:#666; text-align:center;">Selecciona misión...</p>
+            </div>
+        </details>
+
+        <details>
+            <summary style="padding:10px; cursor:pointer; color:var(--gold)">⏱️ CONTROL TÁCTICO</summary>
+            <div class="tool-content">
+                <div class="stats-box">
+                    <span>BAJAS ROJO: <b id="val-red">0</b></span>
+                    <div>
+                        <button class="stat-btn" onclick="adjustStat('bajasRed', -1)">-</button>
+                        <button class="stat-btn" onclick="adjustStat('bajasRed', 1)">+</button>
+                    </div>
+                </div>
+                <div class="stats-box">
+                    <span>BAJAS AZUL: <b id="val-blue">0</b></span>
+                    <div>
+                        <button class="stat-btn" onclick="adjustStat('bajasBlue', -1)">-</button>
+                        <button class="stat-btn" onclick="adjustStat('bajasBlue', 1)">+</button>
+                    </div>
+                </div>
+                <label style="font-size:10px;">DURACIÓN (MIN):</label>
+                <input id="mission-duration" type="number" value="60">
+                <button id="btn-state-toggle" style="background:var(--red); color:#fff; border:none;" onclick="toggleMissionState()">🚀 LANZAR OPERACIÓN</button>
+            </div>
+        </details>
+
+        <details>
+            <summary style="padding:10px; cursor:pointer; color:var(--gold)">🛠️ DIBUJO DE MAPA</summary>
+            <div class="tool-content">
+                <button onclick="startDraw('polygon', 'GAME_ZONE', this)">🟢 LÍMITE JUEGO</button>
+                <button onclick="startDraw('circle', 'RESPAWN_RED', this)">🔴 SPAWN ROJO</button>
+                <button onclick="startDraw('circle', 'RESPAWN_BLUE', this)">🔵 SPAWN AZUL</button>
+                <button onclick="startDraw('marker', 'OBJ_POINT', this)">⚪ OBJETIVO</button>
+                <button onclick="clearMap()" style="color:var(--red); border-color:var(--red);">LIMPIAR MAPA</button>
+            </div>
+        </details>
+
+        <button onclick="window.location.href='idea.html'" style="margin-top:auto; border-color:#444; color:#666;">⬅ VOLVER AL MENÚ</button>
+    </div>
+    <div id="map"></div>
+</div>
+
+<script>
+const db = firebase.database();
+let map, drawnItems, currentMissionId = null, currentAtomType = '', isMisionActiva = false;
+
+// Definición de Capas
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' });
+
+function initMap() {
+    map = L.map('map', { zoomControl: false, layers: [satLayer] }).setView([-34.34, -56.71], 15);
+    drawnItems = new L.FeatureGroup().addTo(map);
+
+    map.on(L.Draw.Event.CREATED, (e) => {
+        const layer = e.layer;
+        layer.atomType = currentAtomType;
+        const colors = { 'GAME_ZONE': '#0f0', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
+        if(layer.setStyle) layer.setStyle({ color: colors[currentAtomType], fillColor: colors[currentAtomType], fillOpacity: 0.3 });
+        drawnItems.addLayer(layer);
+    });
+
+    loadMissionList();
+}
+
+function changeBaseLayer(type) {
+    if (type === 'osm') {
+        map.removeLayer(satLayer);
+        map.addLayer(osmLayer);
+        document.getElementById('btn-osm').classList.add('active');
+        document.getElementById('btn-sat').classList.remove('active');
+    } else {
+        map.removeLayer(osmLayer);
+        map.addLayer(satLayer);
+        document.getElementById('btn-sat').classList.add('active');
+        document.getElementById('btn-osm').classList.remove('active');
+    }
+}
+
+function saveMission() {
+    const name = document.getElementById('mission-name').value;
+    if (!name) return alert("Nombre requerido");
+    let elementos = [];
+    drawnItems.eachLayer(layer => {
+        let item = { type: layer.atomType };
+        if (layer instanceof L.Polygon) item.path = layer.getLatLngs()[0];
+        else if (layer instanceof L.Circle) { item.center = layer.getLatLng(); item.radius = layer.getRadius(); }
+        else if (layer instanceof L.Marker) item.center = layer.getLatLng();
+        elementos.push(item);
+    });
+
+    const mId = currentMissionId || db.ref('misiones').push().key;
+    db.ref(`misiones/${mId}`).update({
+        id: mId, nombre: name,
+        historia: document.getElementById('mission-history').value,
+        objetivos: document.getElementById('mission-objectives').value,
+        imagen: document.getElementById('mission-image-url').value,
+        elementos: elementos,
+        estado: 'reclutando'
+    }).then(() => { currentMissionId = mId; alert("MISIÓN PUBLICADA"); });
+}
+
+function loadMissionToEdit(id) {
+    if(!id) { location.reload(); return; }
+    currentMissionId = id;
+    syncOperatives(id);
+    db.ref(`misiones/${id}`).on('value', snap => {
+        const m = snap.val();
+        if(!m) return;
+        document.getElementById('mission-name').value = m.nombre;
+        document.getElementById('mission-history').value = m.historia || '';
+        document.getElementById('mission-objectives').value = m.objetivos || '';
+        document.getElementById('mission-image-url').value = m.imagen || '';
+        document.getElementById('val-red').innerText = m.bajasRed || 0;
+        document.getElementById('val-blue').innerText = m.bajasBlue || 0;
+        isMisionActiva = m.estado === 'activa';
+        const btn = document.getElementById('btn-state-toggle');
+        btn.innerText = isMisionActiva ? "🛑 ABORTAR OPERACIÓN" : "🚀 LANZAR OPERACIÓN";
+        btn.style.background = isMisionActiva ? "var(--blue)" : "var(--red)";
+
+        drawnItems.clearLayers();
+        if(m.elementos) {
+            m.elementos.forEach(el => {
+                let layer;
+                const col = { 'GAME_ZONE': '#0f0', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
+                if(el.path) layer = L.polygon(el.path, {color: col[el.type], fillOpacity: 0.3});
+                else if(el.radius) layer = L.circle(el.center, {radius: el.radius, color: col[el.type]});
+                else layer = L.marker(el.center);
+                layer.atomType = el.type;
+                drawnItems.addLayer(layer);
+            });
+            if (drawnItems.getLayers().length > 0) map.fitBounds(drawnItems.getBounds(), { padding: [30, 30] });
+        }
+    });
+}
+
+function syncOperatives(missionId) {
+    db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(missionId).on('value', snap => {
+        const container = document.getElementById('enlisted-list');
+        container.innerHTML = '';
+        snap.forEach(child => {
+            const op = child.val();
+            container.innerHTML += `<div class="op-card"><span>${op.callsign} [${op.equipo}]</span><div><button style="width:30px;color:var(--red)" onclick="assignTeam('${child.key}', 'ROJO')">R</button><button style="width:30px;color:var(--blue)" onclick="assignTeam('${child.key}', 'AZUL')">A</button><button style="width:30px;" onclick="removeOp('${child.key}')">X</button></div></div>`;
+        });
+    });
+}
+
+function assignTeam(key, team) { db.ref(`jugadores_enlistados/${key}`).update({ equipo: team }); }
+function removeOp(key) { if(confirm("¿Eliminar?")) db.ref(`jugadores_enlistados/${key}`).remove(); }
+function toggleMissionState() {
+    if (!currentMissionId) return alert("Selecciona misión");
+    const nuevoEstado = isMisionActiva ? 'reclutando' : 'activa';
+    db.ref(`misiones/${currentMissionId}`).update({ estado: nuevoEstado, startTime: nuevoEstado === 'activa' ? Date.now() : null, duration: document.getElementById('mission-duration').value || 60, bajasRed: 0, bajasBlue: 0 });
+}
+function adjustStat(field, amount) { if (!currentMissionId) return; db.ref(`misiones/${currentMissionId}/${field}`).transaction(c => (c || 0) + amount); }
+function loadMissionList() { db.ref('misiones').on('value', snap => { const sel = document.getElementById('mission-selector'); const current = sel.value; sel.innerHTML = '<option value="">-- NUEVA MISIÓN --</option>'; snap.forEach(c => { sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`; }); sel.value = current; }); }
+function startDraw(type, atomType, btn) { document.querySelectorAll('button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentAtomType = atomType; let drawer = (type === 'polygon') ? new L.Draw.Polygon(map) : (type === 'circle') ? new L.Draw.Circle(map) : new L.Draw.Marker(map); drawer.enable(); }
+function clearMap() { drawnItems.clearLayers(); }
+function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
+window.onload = initMap;
+</script>
 </body>
 </html>
