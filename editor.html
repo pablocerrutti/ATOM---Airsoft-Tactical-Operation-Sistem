@@ -44,11 +44,26 @@
         summary { padding: 15px; cursor: pointer; outline: none; font-weight: bold; font-size: 13px; color: var(--gold); list-style: none; }
         
         .tool-content { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+        
+        /* Estilos para nuevos campos de texto */
+        textarea, input { 
+            width:100%; padding:8px; background:#000; border:1px solid #333; 
+            color:var(--p); box-sizing: border-box; font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        textarea { resize: vertical; min-height: 60px; border-color: rgba(0,255,0,0.3); }
+        label { font-size: 10px; color: var(--gold); text-transform: uppercase; margin-top: 5px; }
+
         button { width:100%; padding:10px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-family:inherit; font-weight: bold; font-size: 10px; text-transform: uppercase; }
         button.active { background: var(--p); color: #000; box-shadow: 0 0 10px var(--p); }
         
-        .btn-save { background: var(--gold); color: #000; border: none; font-size: 12px; }
+        .btn-save { background: var(--gold); color: #000; border: none; font-size: 12px; margin-top: 10px; }
         .btn-delete { background: var(--red); color: #fff; border: none; font-size: 10px; margin-top: 5px; }
+
+        #preview-mission-img { 
+            width: 100%; height: 80px; object-fit: cover; border: 1px solid #333; 
+            margin-top: 5px; display: none; background: #111;
+        }
 
         .mission-control-box { background: #111; padding: 10px; border: 1px solid var(--gold); border-radius: 4px; }
         #timer-display { font-size: 24px; font-weight: 900; text-align: center; color: var(--gold); display: block; margin: 5px 0; }
@@ -81,7 +96,21 @@
                 <select id="mission-selector" onchange="loadMissionToEdit(this.value)" style="width:100%; padding:8px; background:#000; color:var(--p); border:1px solid #333;">
                     <option value="">-- NUEVA MISIÓN --</option>
                 </select>
-                <input id="mission-name" placeholder="NOMBRE DE OPERACIÓN..." style="width:100%; padding:8px; background:#000; border:1px solid #333; color:var(--p); box-sizing: border-box;">
+                
+                <label>Nombre de Operación:</label>
+                <input id="mission-name" placeholder="Ej: Operación Tormenta...">
+
+                <!-- NUEVOS CAMPOS DE BRIEFING -->
+                <label>Historia / Briefing:</label>
+                <textarea id="mission-history" placeholder="Relato de la misión..."></textarea>
+
+                <label>Objetivos Principales:</label>
+                <textarea id="mission-objectives" placeholder="1. Capturar base..."></textarea>
+
+                <label>URL Imagen Portada:</label>
+                <input id="mission-image-url" placeholder="https://link-de-imagen.jpg" onchange="updateImagePreview(this.value)">
+                <img id="preview-mission-img" src="" alt="Vista previa">
+
                 <button class="btn-save" onclick="saveMission()">💾 GUARDAR / ACTUALIZAR</button>
                 <button id="btn-delete-mission" class="btn-delete" style="display:none;" onclick="deleteCurrentMission()">🗑️ ELIMINAR MISIÓN</button>
                 <button onclick="toggleMapStyle()" id="btn-map-style" style="margin-top:5px; border-color:var(--gray);">🛰️ VISTA: HÍBRIDA</button>
@@ -169,21 +198,24 @@ function initMap() {
     listenMissionControl();
 }
 
-function toggleMapStyle() {
-    const btn = document.getElementById('btn-map-style');
-    map.removeLayer(currentLayer);
-    if (btn.innerText.includes("HÍBRIDA")) {
-        currentLayer = L.gridLayer.googleMutant({ type: 'roadmap' }).addTo(map);
-        btn.innerText = "🗺️ VISTA: CALLEJERO";
+function updateImagePreview(url) {
+    const img = document.getElementById('preview-mission-img');
+    if(url) {
+        img.src = url;
+        img.style.display = 'block';
     } else {
-        currentLayer = L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(map);
-        btn.innerText = "🛰️ VISTA: HÍBRIDA";
+        img.style.display = 'none';
     }
 }
 
 function saveMission() {
     const name = document.getElementById('mission-name').value;
+    const history = document.getElementById('mission-history').value;
+    const objectives = document.getElementById('mission-objectives').value;
+    const imageUrl = document.getElementById('mission-image-url').value;
+
     if (!name) return alert("Indica nombre de Operación");
+    
     let elementos = [];
     drawnItems.eachLayer(layer => {
         let item = { type: layer.atomType };
@@ -192,20 +224,44 @@ function saveMission() {
         else if (layer instanceof L.Marker) item.center = layer.getLatLng();
         elementos.push(item);
     });
+
     const mId = currentMissionId || db.ref('misiones').push().key;
-    db.ref(`misiones/${mId}`).set({ id: mId, nombre: name, elementos: elementos })
-      .then(() => alert("BASE DE DATOS ACTUALIZADA"));
+    
+    db.ref(`misiones/${mId}`).set({ 
+        id: mId, 
+        nombre: name, 
+        historia: history,
+        objetivos: objectives,
+        imagen: imageUrl,
+        elementos: elementos 
+    }).then(() => alert("BASE DE DATOS ACTUALIZADA"));
 }
 
 function loadMissionToEdit(id) {
     currentMissionId = id;
     clearMap();
+    
+    // Resetear campos de texto e imagen
+    document.getElementById('mission-name').value = '';
+    document.getElementById('mission-history').value = '';
+    document.getElementById('mission-objectives').value = '';
+    document.getElementById('mission-image-url').value = '';
+    updateImagePreview('');
+
     document.getElementById('btn-delete-mission').style.display = id ? 'block' : 'none';
+    
     if(!id) return;
+
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
         if(!m) return;
+        
         document.getElementById('mission-name').value = m.nombre;
+        document.getElementById('mission-history').value = m.historia || '';
+        document.getElementById('mission-objectives').value = m.objetivos || '';
+        document.getElementById('mission-image-url').value = m.imagen || '';
+        updateImagePreview(m.imagen);
+
         if(m.elementos) {
             m.elementos.forEach(el => {
                 let layer;
@@ -225,11 +281,25 @@ function loadMissionToEdit(id) {
     });
 }
 
+// ... Resto de funciones (delete, launch, pause, etc.) se mantienen igual ...
+
 function deleteCurrentMission() {
     if(!currentMissionId) return;
     if(confirm("¿ELIMINAR ESTA MISIÓN PERMANENTEMENTE?")) {
         db.ref(`misiones/${currentMissionId}`).remove();
         location.reload();
+    }
+}
+
+function toggleMapStyle() {
+    const btn = document.getElementById('btn-map-style');
+    map.removeLayer(currentLayer);
+    if (btn.innerText.includes("HÍBRIDA")) {
+        currentLayer = L.gridLayer.googleMutant({ type: 'roadmap' }).addTo(map);
+        btn.innerText = "🗺️ VISTA: CALLEJERO";
+    } else {
+        currentLayer = L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(map);
+        btn.innerText = "🛰️ VISTA: HÍBRIDA";
     }
 }
 
@@ -275,17 +345,14 @@ function listenMissionControl() {
 function syncPlayers() {
     db.ref('jugadores_enlistados').on('value', snap => {
         const listDiv = document.getElementById('player-list');
-        listDiv.innerHTML = ''; // Limpieza total antes de reconstruir
-        
+        listDiv.innerHTML = '';
         if(!snap.exists()) {
             listDiv.innerHTML = '<div style="color:#666; text-align:center; padding:10px;">SIN OPERADORES</div>';
             return;
         }
-
         snap.forEach(child => {
             const p = child.val();
-            const cid = child.key; // Usamos la key de Firebase para mayor precisión
-            
+            const cid = child.key;
             const playerRow = document.createElement('div');
             playerRow.className = 'player-item';
             playerRow.innerHTML = `
@@ -302,15 +369,8 @@ function syncPlayers() {
     });
 }
 
-function assignTeam(key, team) { 
-    db.ref(`jugadores_enlistados/${key}`).update({ equipo: team }); 
-}
-
-function kickPlayer(key, callsign) { 
-    if(confirm(`¿ELIMINAR A ${callsign} DE LA LISTA?`)) {
-        db.ref(`jugadores_enlistados/${key}`).remove();
-    }
-}
+function assignTeam(key, team) { db.ref(`jugadores_enlistados/${key}`).update({ equipo: team }); }
+function kickPlayer(key, callsign) { if(confirm(`¿ELIMINAR A ${callsign} DE LA LISTA?`)) { db.ref(`jugadores_enlistados/${key}`).remove(); } }
 
 function startDraw(type, atomType, btn) {
     resetButtons();
@@ -320,17 +380,9 @@ function startDraw(type, atomType, btn) {
     drawer.enable();
 }
 
-function resetButtons() { 
-    document.querySelectorAll('button').forEach(b => b.classList.remove('active')); 
-}
-
-function clearMap() { 
-    drawnItems.clearLayers(); 
-}
-
-function togglePanel() { 
-    document.getElementById('panel').classList.toggle('panel-hidden'); 
-}
+function resetButtons() { document.querySelectorAll('button').forEach(b => b.classList.remove('active')); }
+function clearMap() { drawnItems.clearLayers(); }
+function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
 
 function loadMissionList() {
     db.ref('misiones').on('value', snap => {
