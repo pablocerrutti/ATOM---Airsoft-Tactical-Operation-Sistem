@@ -2,206 +2,67 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Centro de Mando</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A.T.O.M - COMANDANCIA</title>
     
-    <!-- Firebase Legacy SDK -->
+    <!-- Bloqueo preventivo de interfaz -->
+    <style>html { display: none; }</style>
+
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+            databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+            projectId: "atom---sistem",
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        // --- PROTOCOLO DE SEGURIDAD CRÍTICO ---
+        firebase.auth().onAuthStateChanged(user => {
+            if (user) {
+                // AQUÍ DEBES PONER TU EMAIL DE ADMINISTRADOR
+                const ADMIN_EMAIL = "tu-email-registrado@gmail.com"; 
+
+                if (user.email === ADMIN_EMAIL) {
+                    // Acceso concedido
+                    document.documentElement.style.display = 'block';
+                } else {
+                    // No es admin, expulsar
+                    alert("ACCESO DENEGADO: NO TIENES RANGO DE COMANDANTE");
+                    window.location.href = 'index.html';
+                }
+            } else {
+                // No está logueado, enviar al login
+                window.location.href = 'login.html';
+            }
+        });
+    </script>
 
     <style>
-        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; --gray: #222; }
-        body { margin: 0; background: var(--f); color: var(--p); font-family: 'Courier New', monospace; padding: 10px; box-sizing: border-box; }
-        
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
-        h2 { border-bottom: 1px solid var(--p); padding-bottom: 5px; font-size: 1.1rem; margin: 0; flex-grow: 1; }
-        
-        .section { background: #0a0a0a; border: 1px solid #333; padding: 15px; margin-bottom: 20px; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        
-        .player-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #1a1a1a; gap: 10px; }
-        .player-info { display: flex; flex-direction: column; font-size: 0.85rem; }
-        .team-tag { font-size: 0.7rem; font-weight: bold; margin-top: 3px; }
-
-        .controls-group { display: flex; gap: 5px; }
-        .btn { padding: 8px 10px; border: none; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.75rem; border-radius: 2px; text-transform: uppercase; }
-        .btn-red { background: var(--red); color: white; }
-        .btn-blue { background: var(--blue); color: white; }
-        .btn-delete { background: none; border: 1px solid var(--red); color: var(--red); font-size: 0.65rem; }
-        
-        .btn-launch { background: var(--p); color: black; width: 100%; padding: 18px; margin-top: 15px; font-weight: 900; font-size: 1rem; border: none; cursor: pointer; transition: 0.2s; }
-        .btn-editor { background: var(--gold); color: black; margin-bottom: 10px; width: 100%; }
-        
-        .badge { font-size: 0.65rem; padding: 2px 4px; border-radius: 2px; margin-left: 5px; }
-        .badge-admin { background: var(--gold); color: black; }
-        .badge-editor { background: var(--p); color: black; }
-        
-        .admin-label { color: var(--gold); font-size: 10px; margin-bottom: 8px; display: block; letter-spacing: 1px; }
-
-        @media (max-width: 480px) {
-            .player-row { flex-direction: column; align-items: flex-start; }
-            .controls-group { width: 100%; margin-top: 8px; }
-            .btn { flex: 1; }
-        }
+        :root { --p:#00ff00; --f:#050505; --red:#ff3333; --gold:#ffd700; }
+        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        .menu-box { border: 1px solid var(--p); padding: 30px; background: rgba(0,20,0,0.5); text-align: center; max-width: 400px; width: 90%; }
+        h1 { color: var(--gold); font-size: 1.5rem; margin-bottom: 20px; }
+        .btn-panel { display: flex; flex-direction: column; gap: 15px; }
+        button { padding: 15px; background: transparent; border: 1px solid var(--p); color: var(--p); font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        button:hover { background: var(--p); color: #000; box-shadow: 0 0 15px var(--p); }
+        .btn-danger { border-color: var(--red); color: var(--red); margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <header>
-        <h2>SISTEMA DE MANDO A.T.O.M</h2>
-        <button onclick="location.href='index.html'" style="background:none; border:1px solid #444; color:#888; font-size:10px; padding:5px; cursor:pointer;">SALIR</button>
-    </header>
-
-    <!-- Módulo de Editor (Acceso para Admin y Editor) -->
-    <div class="section" style="border-color: var(--gold);">
-        <span class="admin-label">MÓDULO DE INGENIERÍA</span>
-        <h3 style="margin: 0 0 5px 0; font-size: 1rem;">OPERACIONES TÁCTICAS</h3>
-        <button class="btn btn-editor" onclick="location.href='editor.html'">🗺️ GESTIONAR MISIONES (EDITOR)</button>
+    <div class="menu-box">
+        <h1>COMMAND CENTER</h1>
+        <div class="btn-panel">
+            <button onclick="window.location.href='editor.html'">🛠️ EDITOR DE MISIONES</button>
+            <button onclick="window.location.href='gestion_operadores.html'">👥 GESTIÓN OPERADORES</button>
+            <button onclick="window.location.href='lobby.html'">📡 IR AL LOBBY</button>
+            <button class="btn-danger" onclick="firebase.auth().signOut()">✖ CERRAR SESIÓN</button>
+        </div>
     </div>
 
-    <!-- Control de Operaciones (Acceso para Admin y Editor) -->
-    <div class="section">
-        <span class="admin-label">CONTROL DE DESPLIEGUE</span>
-        <h3 style="margin-top:0; font-size: 1rem;">OPERADORES EN LOBBY</h3>
-        <div id="list-enlisted">Sincronizando...</div>
-        <button class="btn-launch" onclick="launchMission()">🚀 INICIAR OPERACIÓN</button>
-    </div>
-
-    <!-- Base de Datos (ÚNICAMENTE VISIBLE PARA EL ADMIN) -->
-    <div id="management-section" class="section" style="display:none; border-color: #444;">
-        <span class="admin-label">SEGURIDAD Y PERSONAL (SÓLO ADMIN)</span>
-        <h3 style="font-size: 1rem;">BASE DE DATOS DE OPERADORES</h3>
-        <div id="list-all-users">Cargando base de datos...</div>
-    </div>
-
-<script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-        databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-        projectId: "atom---sistem",
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const auth = firebase.auth();
-
-    let currentUserRole = "";
-
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            db.ref(`usuarios/${user.uid}`).once('value', snap => {
-                const userData = snap.val();
-                // Validar que el usuario tenga permisos mínimos de mando
-                if (userData && (userData.rol === "ADMIN" || userData.rol === "EDITOR")) {
-                    currentUserRole = userData.rol;
-                    
-                    // Solo el rol ADMIN activa el panel de gestión de base de datos
-                    if (userData.rol === "ADMIN") {
-                        document.getElementById('management-section').style.display = 'block';
-                        loadAllUsers();
-                    }
-                    
-                    loadEnlisted();
-                } else {
-                    alert("ACCESO RESTRINGIDO: SE REQUIEREN PERMISOS DE MANDO");
-                    location.href = "index.html";
-                }
-            });
-        } else {
-            location.href = "index.html";
-        }
-    });
-
-    // Función exclusiva para ADMIN para gestionar usuarios
-    function loadAllUsers() {
-        db.ref('usuarios').on('value', snap => {
-            const list = document.getElementById('list-all-users');
-            list.innerHTML = "";
-            snap.forEach(child => {
-                const u = child.val();
-                const div = document.createElement('div');
-                div.className = "player-row";
-                
-                div.innerHTML = `
-                    <div class="player-info">
-                        <span>${u.callsign} <span class="badge ${u.rol === 'ADMIN' ? 'badge-admin' : (u.rol === 'EDITOR' ? 'badge-editor' : '')}">${u.rol}</span></span>
-                        <small style="color:#444; font-size:9px;">ID: ${child.key.substring(0,8)}...</small>
-                    </div>
-                    <div class="controls-group">
-                        <button class="btn" onclick="toggleRole('${child.key}', '${u.rol}')" style="background:#222; color:var(--p); border:1px solid var(--p)">↑ RANGO</button>
-                        <button class="btn btn-delete" onclick="deletePlayer('${child.key}', '${u.callsign}')">ELIMINAR</button>
-                    </div>
-                `;
-                list.appendChild(div);
-            });
-        });
-    }
-
-    // Función de eliminación: solo ejecutable si el rol es ADMIN
-    function deletePlayer(uid, callsign) {
-        if(currentUserRole !== "ADMIN") return;
-
-        if(confirm(`¿ELIMINAR REGISTRO DE ${callsign}?\nEl operador será dado de baja del sistema permanentemente.`)) {
-            // Elimina el registro del usuario en la base de datos
-            db.ref(`usuarios/${uid}`).remove()
-            .then(() => {
-                // Limpia también su estado en el lobby si estuviera activo
-                db.ref(`jugadores_enlistados/${callsign}`).remove();
-                alert("OPERADOR ELIMINADO EXITOSAMENTE.");
-            })
-            .catch(err => alert("ERROR DE SISTEMA: " + err.message));
-        }
-    }
-
-    // Cambiar rango: Solo para ADMIN
-    function toggleRole(uid, currentRol) {
-        if(currentUserRole !== "ADMIN") return;
-        const roles = ["PLAYER", "EDITOR", "ADMIN"];
-        let nextIndex = (roles.indexOf(currentRol) + 1) % roles.length;
-        db.ref(`usuarios/${uid}`).update({ rol: roles[nextIndex] });
-    }
-
-    // Gestión de operadores en el lobby
-    function loadEnlisted() {
-        db.ref('jugadores_enlistados').on('value', snap => {
-            const list = document.getElementById('list-enlisted');
-            list.innerHTML = "";
-            if (!snap.exists()) { 
-                list.innerHTML = "<small style='color:#555'>No hay operadores esperando...</small>"; 
-                return; 
-            }
-            snap.forEach(child => {
-                const p = child.val();
-                const div = document.createElement('div');
-                div.className = "player-row";
-                let teamColor = p.equipo === 'ROJO' ? 'var(--red)' : (p.equipo === 'AZUL' ? 'var(--blue)' : '#666');
-
-                div.innerHTML = `
-                    <div class="player-info">
-                        <span style="font-weight:bold">${p.callsign}</span>
-                        <span class="team-tag" style="color:${teamColor}">[${p.equipo || 'S/E'}]</span>
-                    </div>
-                    <div class="controls-group">
-                        <button class="btn btn-red" onclick="assignTeam('${child.key}', 'ROJO')">ROJO</button>
-                        <button class="btn btn-blue" onclick="assignTeam('${child.key}', 'AZUL')">AZUL</button>
-                    </div>
-                `;
-                list.appendChild(div);
-            });
-        });
-    }
-
-    function assignTeam(callsign, team) {
-        db.ref(`jugadores_enlistados/${callsign}`).update({ equipo: team });
-    }
-
-    function launchMission() {
-        if(confirm("¿INICIAR DESPLIEGUE TÁCTICO?")) {
-            db.ref('operacion_activa/control').update({ 
-                status: 'EN_CURSO',
-                startTime: Date.now()
-            });
-        }
-    }
-</script>
 </body>
 </html>
