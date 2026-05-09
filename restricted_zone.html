@@ -2,67 +2,28 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A.T.O.M - COMANDANCIA</title>
-    
-    <!-- Bloqueo preventivo de interfaz -->
-    <style>html { display: none; }</style>
-
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-            databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-            projectId: "atom---sistem",
-        };
-        firebase.initializeApp(firebaseConfig);
-
-        // --- PROTOCOLO DE SEGURIDAD CRÍTICO ---
-        firebase.auth().onAuthStateChanged(user => {
-            if (user) {
-                // AQUÍ DEBES PONER TU EMAIL DE ADMINISTRADOR
-                const ADMIN_EMAIL = "tu-email-registrado@gmail.com"; 
-
-                if (user.email === ADMIN_EMAIL) {
-                    // Acceso concedido
-                    document.documentElement.style.display = 'block';
-                } else {
-                    // No es admin, expulsar
-                    alert("ACCESO DENEGADO: NO TIENES RANGO DE COMANDANTE");
-                    window.location.href = 'index.html';
-                }
-            } else {
-                // No está logueado, enviar al login
-                window.location.href = 'login.html';
-            }
-        });
-    </script>
-
     <style>
-        :root { --p:#00ff00; --f:#050505; --red:#ff3333; --gold:#ffd700; }
-        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        .menu-box { border: 1px solid var(--p); padding: 30px; background: rgba(0,20,0,0.5); text-align: center; max-width: 400px; width: 90%; }
-        h1 { color: var(--gold); font-size: 1.5rem; margin-bottom: 20px; }
-        .btn-panel { display: flex; flex-direction: column; gap: 15px; }
-        button { padding: 15px; background: transparent; border: 1px solid var(--p); color: var(--p); font-weight: bold; cursor: pointer; text-transform: uppercase; }
-        button:hover { background: var(--p); color: #000; box-shadow: 0 0 15px var(--p); }
-        .btn-danger { border-color: var(--red); color: var(--red); margin-top: 10px; }
+        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; }
+        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
+        .menu-box { border: 1px solid var(--p); padding: 30px; background: rgba(0,20,0,0.5); width: 90%; max-width: 400px; }
+        button { width: 100%; padding: 15px; margin: 10px 0; background: transparent; border: 1px solid var(--p); color: var(--p); cursor: pointer; font-weight: bold; text-transform: uppercase; }
+        button:hover { background: var(--p); color: #000; }
     </style>
 </head>
 <body>
-
     <div class="menu-box">
-        <h1>COMMAND CENTER</h1>
-        <div class="btn-panel">
-            <button onclick="window.location.href='editor.html'">🛠️ EDITOR DE MISIONES</button>
-            <button onclick="window.location.href='gestion_operadores.html'">👥 GESTIÓN OPERADORES</button>
-            <button onclick="window.location.href='lobby.html'">📡 IR AL LOBBY</button>
-            <button class="btn-danger" onclick="firebase.auth().signOut()">✖ CERRAR SESIÓN</button>
-        </div>
+        <h1 style="color:var(--gold)">COMMAND CENTER</h1>
+        <button onclick="window.location.href='editor.html'">🛠️ EDITOR DE MISIONES</button>
+        <button onclick="window.location.href='lobby.html'">📡 IR AL LOBBY</button>
+        <button onclick="firebase.auth().signOut().then(() => window.location.href='login.html')">✖ SALIR</button>
     </div>
-
+    <script>
+        const firebaseConfig = { apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY", databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com", projectId: "atom---sistem" };
+        firebase.initializeApp(firebaseConfig);
+        firebase.auth().onAuthStateChanged(user => { if (!user) window.location.href = 'login.html'; });
+    </script>
 </body>
 </html>
