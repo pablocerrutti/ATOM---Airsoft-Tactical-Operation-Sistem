@@ -30,11 +30,11 @@
         .mission-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--p); padding-bottom: 5px; }
         
         #mission-cover-frame {
-            width: 100%; height: 120px; border: 1px solid var(--gray); margin-bottom: 10px;
+            width: 100%; height: 140px; border: 1px solid var(--gray); margin-bottom: 10px;
             background: #111; overflow: hidden; position: relative; display: none;
         }
-        #mission-cover-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
-        .scanline { width: 100%; height: 2px; background: rgba(0,255,0,0.3); position: absolute; top: 0; animation: scan 3s linear infinite; }
+        #mission-cover-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
+        .scanline { width: 100%; height: 2px; background: rgba(0,255,0,0.3); position: absolute; top: 0; animation: scan 3s linear infinite; z-index: 2; }
 
         #radar-static { height: 180px; width: 100%; border: 1px solid var(--p); background: #000; position: relative; flex-shrink: 0; margin-bottom: 10px; }
         
@@ -73,10 +73,9 @@
             <h1 style="color:var(--gold); font-size: 1.2rem; margin:0;">SYSTEM A.T.O.M</h1>
             <p id="welcome-callsign" style="color:var(--p); font-weight: bold; margin: 10px 0 20px 0;">[ IDENTIFICANDO... ]</p>
             
-            <label style="font-size: 10px; display: block; margin-bottom: 5px;">OPERACIONES DISPONIBLES:</label>
-            <!-- SELECTOR CRÍTICO: Asegurarse de que el ID coincida con el código JS -->
+            <label style="font-size: 10px; display: block; margin-bottom: 5px;">MISIONES DISPONIBLES EN DB:</label>
             <select id="mission-dropdown" onchange="viewMission(this.value)" style="width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px;">
-                <option value="">-- BUSCANDO MISIONES --</option>
+                <option value="">-- CONECTANDO CON COMANDANCIA --</option>
             </select>
 
             <button class="btn-action" onclick="window.location.href='operadores.html'">👤 VER OPERADORES</button>
@@ -87,7 +86,7 @@
     <div id="screen-preview" class="screen">
         <div class="mission-header">
             <div style="background: var(--p); color: #000; padding: 2px 8px; font-weight: bold; font-size: 12px;">OP</div>
-            <h2 id="prev-name" style="margin:0; font-size: 1.1rem; flex-grow:1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">CARGANDO...</h2>
+            <h2 id="prev-name" style="margin:0; font-size: 1.1rem; flex-grow:1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-</h2>
         </div>
         
         <div id="mission-cover-frame">
@@ -97,17 +96,17 @@
 
         <div id="radar-static">
             <div id="preview-map" style="width: 100%; height: 100%;"></div>
-            <div id="no-signal" class="blink" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1000; font-size:10px; color:var(--p);">SINC. SATELITAL...</div>
+            <div id="no-signal" class="blink" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1000; font-size:10px; color:var(--p);">ENLAZANDO...</div>
         </div>
         
         <div class="data-scroll-area">
             <div class="info-block">
-                <div class="info-label">I. Historia de Operación</div>
-                <div id="mission-history-text" class="info-text">Cargando inteligencia...</div>
+                <div class="info-label">I. HISTORIA / BRIEFING</div>
+                <div id="mission-history-text" class="info-text">--</div>
             </div>
             <div class="info-block" style="border-left-color: var(--gold);">
-                <div class="info-label" style="color:var(--gold);">II. Objetivos Directos</div>
-                <div id="mission-objectives-text" class="info-text">Estableciendo objetivos...</div>
+                <div class="info-label" style="color:var(--gold);">II. OBJETIVOS ESTRATÉGICOS</div>
+                <div id="mission-objectives-text" class="info-text">--</div>
             </div>
         </div>
 
@@ -116,19 +115,18 @@
             <a id="link-waze" target="_blank">WAZE</a>
         </div>
 
-        <button id="enlist-btn" class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ASISTENCIA</button>
-        <button onclick="showScreen('screen-welcome')" style="background:none; border:none; color:var(--gray); padding: 10px; width:100%; font-size: 10px; cursor:pointer;">⬅ CAMBIAR OPERACIÓN</button>
+        <button id="enlist-btn" class="btn-action" onclick="enlistOperative()">📝 ENLISTARSE EN OPERACIÓN</button>
+        <button onclick="showScreen('screen-welcome')" style="background:none; border:none; color:var(--gray); padding: 10px; width:100%; font-size: 10px; cursor:pointer;">⬅ VOLVER</button>
     </div>
 
     <!-- PANTALLA DE ESPERA -->
     <div id="screen-waiting" class="screen" style="justify-content:center; align-items:center;">
         <div style="border: 2px solid var(--p); border-radius: 50%; width: 80px; height: 80px; border-top-color: transparent; animation: spin 1s linear infinite;"></div>
-        <h3 class="blink" style="margin-top:20px;">ESPERANDO BANDO...</h3>
+        <h3 class="blink" style="margin-top:20px;">PROCESANDO DESPLIEGUE...</h3>
         <div id="bando-display" style="display:none; margin-top:20px; padding:20px; border:2px solid var(--p); font-weight:bold; font-size: 20px;"></div>
     </div>
 
 <script>
-// CONFIGURACIÓN CENTRALIZADA
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
     databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
@@ -144,7 +142,6 @@ let selectedMissionId = null;
 let previewMap;
 let drawnItems;
 
-// Control de Sesión y Carga de Datos
 auth.onAuthStateChanged(user => {
     if (user) {
         db.ref('operadores').orderByChild('email').equalTo(user.email).on('value', snap => {
@@ -152,37 +149,33 @@ auth.onAuthStateChanged(user => {
                 const data = Object.values(snap.val())[0];
                 userCallsign = data.callsign;
                 document.getElementById('welcome-callsign').innerText = `OPERADOR: ${userCallsign}`;
-                // INICIO DE SINCRONIZACIÓN DE MISIONES
                 initLobbySync();
             }
         });
     } else { window.location.href = 'login.html'; }
 });
 
-// FUNCIÓN CORREGIDA PARA LISTAR MISIONES DESDE EL EDITOR
+// SINCRONIZACIÓN CON EL EDITOR
 function initLobbySync() {
-    console.log("Iniciando escucha de misiones...");
     const dropdown = document.getElementById('mission-dropdown');
     
-    // Escuchar cambios en la rama 'misiones'
+    // Escuchar la rama 'misiones' que es donde guarda el Editor Pro
     db.ref('misiones').on('value', snap => {
-        dropdown.innerHTML = '<option value="">-- SELECCIONAR OPERACIÓN --</option>';
+        dropdown.innerHTML = '<option value="">-- SELECCIONAR MISIÓN --</option>';
         
         if (!snap.exists()) {
-            dropdown.innerHTML = '<option value="">-- NO HAY MISIONES ACTIVAS --</option>';
+            dropdown.innerHTML = '<option value="">-- NO HAY MISIONES DISPONIBLES --</option>';
             return;
         }
 
         snap.forEach(child => {
-            const mKey = child.key; // ID única de Firebase
+            const mKey = child.key; 
             const mData = child.val();
-            
             const option = document.createElement('option');
             option.value = mKey;
-            option.text = mData.nombre || "Sin Nombre (" + mKey.substring(0,5) + ")";
+            option.text = mData.nombre || "Misión sin nombre";
             dropdown.appendChild(option);
         });
-        console.log("Misiones cargadas con éxito.");
     });
 }
 
@@ -191,7 +184,6 @@ function viewMission(id) {
     selectedMissionId = id;
     showScreen('screen-preview');
     
-    // Reiniciar Mapa si existe
     if(!previewMap) {
         previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false });
         L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(previewMap);
@@ -201,45 +193,42 @@ function viewMission(id) {
     drawnItems.clearLayers();
     document.getElementById('no-signal').style.display = 'block';
 
-    // Cargar datos de la misión específica usando su ID única
+    // Cargar detalles completos de la misión
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
         if(!m) return;
 
-        document.getElementById('prev-name').innerText = m.nombre || "OPERACIÓN DESCONOCIDA";
-        document.getElementById('mission-history-text').innerText = m.historia || "Sin datos de inteligencia previos.";
-        document.getElementById('mission-objectives-text').innerText = m.objetivos || "Sin objetivos asignados.";
+        document.getElementById('prev-name').innerText = m.nombre;
+        document.getElementById('mission-history-text').innerText = m.historia || "SIN BRIEFING DISPONIBLE.";
+        document.getElementById('mission-objectives-text').innerText = m.objetivos || "SIN OBJETIVOS ASIGNADOS.";
         
-        // Imagen de Portada
+        // Imagen de Portada desde URL del Editor
         const coverFrame = document.getElementById('mission-cover-frame');
         const coverImg = document.getElementById('mission-cover-img');
-        if(m.imagen && m.imagen.trim() !== "") {
+        if(m.imagen && m.imagen.startsWith('http')) {
             coverImg.src = m.imagen;
             coverFrame.style.display = 'block';
         } else { coverFrame.style.display = 'none'; }
 
-        // Carga de Elementos Tácticos (Zonas, Respawns)
-        if(m.elementos && Array.isArray(m.elementos)) {
+        // Elementos Tácticos en Mini Mapa
+        if(m.elementos) {
             m.elementos.forEach(el => {
                 let color = '#00ff00';
                 if(el.type.includes('RED')) color = '#ff3333';
-                else if(el.type.includes('BLUE')) color = '#3333ff';
-                else if(el.type.includes('OBJ') || el.type.includes('SAFE')) color = '#ffd700';
+                if(el.type.includes('BLUE')) color = '#3333ff';
+                if(el.type.includes('SAFE') || el.type.includes('OBJ')) color = '#ffd700';
 
-                const style = { color: color, fillColor: color, fillOpacity: 0.2, weight: 2 };
+                const style = { color: color, fillColor: color, fillOpacity: 0.3, weight: 2 };
                 let layer;
-
                 if (el.path) layer = L.polygon(el.path, style);
                 else if (el.radius) layer = L.circle(el.center, { radius: el.radius, ...style });
                 else layer = L.circleMarker(el.center, { radius: 6, ...style });
-
                 drawnItems.addLayer(layer);
             });
             
-            // Ajustar vista del mapa a los elementos dibujados
             const bounds = drawnItems.getBounds();
             if(bounds.isValid()) {
-                previewMap.fitBounds(bounds, { padding: [20, 20] });
+                previewMap.fitBounds(bounds, { padding: [10, 10] });
                 const center = bounds.getCenter();
                 document.getElementById('link-google').href = `https://www.google.com/maps/dir/?api=1&destination=${center.lat},${center.lng}`;
                 document.getElementById('link-waze').href = `https://waze.com/ul?ll=${center.lat},${center.lng}&navigate=yes`;
@@ -250,7 +239,7 @@ function viewMission(id) {
 }
 
 function enlistOperative() {
-    if(!userCallsign) return alert("Error: No se identificó el Callsign.");
+    if(!userCallsign) return;
     
     db.ref(`jugadores_enlistados/${userCallsign}`).set({
         callsign: userCallsign,
@@ -259,18 +248,14 @@ function enlistOperative() {
         lastSeen: Date.now()
     }).then(() => {
         showScreen('screen-waiting');
-        // Escuchar asignación de bando en tiempo real
         db.ref(`jugadores_enlistados/${userCallsign}`).on('value', snap => {
             const p = snap.val();
             if(p && p.equipo !== 'S/E') {
                 const display = document.getElementById('bando-display');
                 display.style.display = 'block';
-                display.innerText = `BANDO: ${p.equipo}`;
+                display.innerText = `BANDO ASIGNADO: ${p.equipo}`;
                 display.style.color = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
-                display.style.borderColor = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
-                
-                // Redirigir al mapa táctico tras breve delay
-                setTimeout(() => window.location.href = 'mapa_tactico.html', 3000);
+                setTimeout(() => window.location.href = 'mapa_tactico.html', 2500);
             }
         });
     });
@@ -279,16 +264,10 @@ function enlistOperative() {
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
-    if(id === 'screen-preview' && previewMap) { 
-        setTimeout(() => previewMap.invalidateSize(), 400); 
-    }
+    if(id === 'screen-preview' && previewMap) { setTimeout(() => previewMap.invalidateSize(), 400); }
 }
 
 function logout() { auth.signOut().then(() => window.location.href = 'index.html'); }
 </script>
-<style>
-    @keyframes spin { to { transform: rotate(360deg); } }
-    select option { background: #000; color: var(--p); }
-</style>
 </body>
 </html>
