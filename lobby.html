@@ -9,8 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6LAM-_vTwaCS8RrvogtDO7HuQ9ke_K58"></script>
-    <script src="https://unpkg.com/leaflet.gridlayer.googlemutant@latest/dist/Leaflet.GoogleMutant.js"></script>
+    
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
         body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
@@ -20,11 +19,15 @@
         #mission-cover-img { width: 100%; height: 100%; object-fit: cover; }
         #radar-static { height: 180px; border: 1px solid var(--p); margin-bottom: 10px; background: #000; }
         .info-block { margin-bottom: 15px; padding: 10px; border-left: 2px solid var(--p); background: rgba(0,255,0,0.03); }
-        .btn-action { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; }
-        select { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px; }
+        .btn-action { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        select { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px; font-family: inherit; }
+        .op-list { background: rgba(0,0,0,0.5); border: 1px solid #222; padding: 10px; font-size: 11px; max-height: 150px; overflow-y: auto; }
+        .op-tag { display: inline-block; padding: 2px 5px; border: 1px solid var(--p); margin: 2px; font-size: 10px; }
+        .op-tag.enlisted { background: var(--p); color: #000; }
     </style>
 </head>
 <body>
+
     <div id="screen-welcome" class="screen active" style="justify-content: center; align-items: center;">
         <div style="border: 1px solid var(--p); padding: 25px; text-align: center; width: 100%; max-width: 350px;">
             <h2 style="color:var(--gold)">SISTEMA A.T.O.M</h2>
@@ -32,95 +35,177 @@
             <select id="mission-dropdown" onchange="viewMission(this.value)">
                 <option value="">-- BUSCANDO MISIONES --</option>
             </select>
+            
+            <div style="text-align: left; margin-top: 20px;">
+                <p style="font-size: 10px; color: var(--gold);">📡 OPERADORES EN BASE:</p>
+                <div id="global-ops" class="op-list"></div>
+            </div>
         </div>
+        <button onclick="window.location.href='index.html'" style="margin-top:20px; background:none; border:1px solid #333; color:#444; padding:5px;">SALIR</button>
     </div>
 
     <div id="screen-preview" class="screen">
         <h2 id="prev-name">CARGANDO...</h2>
         <div id="mission-cover-frame"><img id="mission-cover-img" src=""></div>
         <div id="radar-static"><div id="preview-map" style="height:100%"></div></div>
+        
         <div style="flex-grow:1; overflow-y:auto;">
             <div class="info-block">
-                <div style="color:var(--gold); font-size:10px;">I. HISTORIA</div>
+                <div style="color:var(--gold); font-size:10px;">I. BRIEFING</div>
                 <div id="mission-history-text" style="font-size:12px;"></div>
             </div>
             <div class="info-block">
                 <div style="color:var(--gold); font-size:10px;">II. OBJETIVOS</div>
                 <div id="mission-objectives-text" style="font-size:12px;"></div>
             </div>
+            <div class="info-block">
+                <div style="color:var(--gold); font-size:10px;">III. PERSONAL ENLISTADO</div>
+                <div id="enlisted-ops" class="op-list"></div>
+            </div>
         </div>
-        <button class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ASISTENCIA</button>
-        <button onclick="showScreen('screen-welcome')" style="background:none; color:#666; border:none; padding:10px; cursor:pointer;">⬅ VOLVER</button>
+
+        <button id="btn-enlist" class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ASISTENCIA</button>
+        <button onclick="showScreen('screen-welcome')" style="background:none; color:#666; border:none; padding:15px; cursor:pointer; font-family: inherit;">⬅ VOLVER AL MENÚ</button>
     </div>
 
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY", databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com", projectId: "atom---sistem" };
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY", 
+            databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com", 
+            projectId: "atom---sistem" 
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const auth = firebase.auth();
+        
         let userCallsign, selectedMissionId, previewMap, drawnItems;
 
+        // 1. AUTENTICACIÓN Y CARGA DE USUARIO
         auth.onAuthStateChanged(user => {
             if (user) {
-                db.ref('operadores').orderByChild('email').equalTo(user.email).on('value', snap => {
+                db.ref(`usuarios/${user.uid}`).on('value', snap => {
                     if (snap.exists()) {
-                        userCallsign = Object.values(snap.val())[0].callsign;
+                        userCallsign = snap.val().callsign;
                         document.getElementById('welcome-callsign').innerText = `OPERADOR: ${userCallsign}`;
                         initLobbySync();
+                        loadGlobalOperators();
                     }
                 });
-            } else { window.location.href = 'login.html'; }
+            } else { window.location.href = 'index.html'; }
         });
 
+        // 2. SINCRONIZAR MISIONES DISPONIBLES
         function initLobbySync() {
             db.ref('misiones').on('value', snap => {
                 const dd = document.getElementById('mission-dropdown');
+                const currentSelection = dd.value;
                 dd.innerHTML = '<option value="">-- SELECCIONAR MISIÓN --</option>';
                 snap.forEach(child => {
                     const m = child.val();
                     dd.innerHTML += `<option value="${child.key}">${m.nombre}</option>`;
                 });
+                dd.value = currentSelection;
             });
         }
 
+        // 3. MOSTRAR TODOS LOS REGISTRADOS EN LA APP
+        function loadGlobalOperators() {
+            db.ref('usuarios').on('value', snap => {
+                const container = document.getElementById('global-ops');
+                container.innerHTML = '';
+                snap.forEach(child => {
+                    const u = child.val();
+                    container.innerHTML += `<span class="op-tag">${u.callsign}</span>`;
+                });
+            });
+        }
+
+        // 4. VER DETALLES DE MISIÓN
         function viewMission(id) {
             if(!id) return;
             selectedMissionId = id;
             showScreen('screen-preview');
+            
+            // Iniciar mapa si no existe
             if(!previewMap) {
                 previewMap = L.map('preview-map', { zoomControl: false });
-                L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(previewMap);
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(previewMap);
                 drawnItems = L.featureGroup().addTo(previewMap);
             }
-            drawnItems.clearLayers();
-            db.ref(`misiones/${id}`).once('value', snap => {
+
+            // Cargar datos de la misión
+            db.ref(`misiones/${id}`).on('value', snap => {
                 const m = snap.val();
+                if(!m) return;
+                
                 document.getElementById('prev-name').innerText = m.nombre;
-                document.getElementById('mission-history-text').innerText = m.historia || "--";
-                document.getElementById('mission-objectives-text').innerText = m.objetivos || "--";
-                if(m.imagen) { document.getElementById('mission-cover-frame').style.display='block'; document.getElementById('mission-cover-img').src=m.imagen; }
+                document.getElementById('mission-history-text').innerText = m.historia || "Sin descripción.";
+                document.getElementById('mission-objectives-text').innerText = m.objetivos || "Sin objetivos definidos.";
+                
+                if(m.imagen) { 
+                    document.getElementById('mission-cover-frame').style.display='block'; 
+                    document.getElementById('mission-cover-img').src = m.imagen; 
+                } else {
+                    document.getElementById('mission-cover-frame').style.display='none';
+                }
+
+                // Dibujar elementos en el mapa
+                drawnItems.clearLayers();
                 if(m.elementos) {
+                    const colors = { 'GAME_ZONE': '#0f0', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
                     m.elementos.forEach(el => {
                         let layer;
-                        if(el.path) layer = L.polygon(el.path, {color: '#0f0'});
-                        else if(el.radius) layer = L.circle(el.center, {radius: el.radius, color: '#0f0'});
+                        const color = colors[el.type] || '#0f0';
+                        if(el.path) layer = L.polygon(el.path, {color: color, fillOpacity: 0.2});
+                        else if(el.radius) layer = L.circle(el.center, {radius: el.radius, color: color});
                         else layer = L.marker(el.center);
                         drawnItems.addLayer(layer);
                     });
-                    previewMap.fitBounds(drawnItems.getBounds());
+                    if(drawnItems.getLayers().length > 0) previewMap.fitBounds(drawnItems.getBounds(), {padding: [20,20]});
+                }
+            });
+
+            // Cargar operadores enlistados en ESTA misión
+            db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(id).on('value', snap => {
+                const container = document.getElementById('enlisted-ops');
+                container.innerHTML = '';
+                let yaEnlistado = false;
+                snap.forEach(child => {
+                    const p = child.val();
+                    if(p.callsign === userCallsign) yaEnlistado = true;
+                    container.innerHTML += `<span class="op-tag enlisted">${p.callsign} [${p.equipo || '?'}]</span>`;
+                });
+                
+                const btn = document.getElementById('btn-enlist');
+                if(yaEnlistado) {
+                    btn.innerText = "✓ YA ESTÁS ENLISTADO";
+                    btn.style.background = "#444";
+                    btn.disabled = true;
+                } else {
+                    btn.innerText = "📝 CONFIRMAR ASISTENCIA";
+                    btn.style.background = "var(--p)";
+                    btn.disabled = false;
                 }
             });
         }
 
+        // 5. ENLISTARSE
         function enlistOperative() {
-            db.ref(`jugadores_enlistados/${userCallsign}`).set({ callsign: userCallsign, equipo: 'S/E', misionId: selectedMissionId, lastSeen: Date.now() })
-            .then(() => alert("ENLISTADO. ESPERANDO BANDO..."));
+            if(!selectedMissionId) return;
+            db.ref(`jugadores_enlistados/${auth.currentUser.uid}`).set({
+                callsign: userCallsign,
+                equipo: 'S/E',
+                misionId: selectedMissionId,
+                timestamp: Date.now()
+            }).then(() => alert("SOLICITUD ENVIADA. EL COMANDO TE ASIGNARÁ UN BANDO."));
         }
 
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if(id === 'screen-preview' && previewMap) setTimeout(() => previewMap.invalidateSize(), 200);
+            if(id === 'screen-preview' && previewMap) {
+                setTimeout(() => { previewMap.invalidateSize(); }, 300);
+            }
         }
     </script>
 </body>
