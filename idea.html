@@ -1,1 +1,70 @@
- a
+ <!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A.T.O.M - COMANDO TÁCTICO</title>
+    
+    <style>html { display: none; }</style>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+            databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+            projectId: "atom---sistem",
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        firebase.auth().onAuthStateChanged(user => {
+            if (user) { document.documentElement.style.display = 'block'; } 
+            else { window.location.href = 'login.html'; }
+        });
+
+        function logoutAndExit() {
+            firebase.auth().signOut().then(() => {
+                window.location.href = 'index.html';
+            });
+        }
+    </script>
+
+    <style>
+        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; --red:#ff3333; }
+        body { 
+            margin:0; font-family: 'Courier New', monospace; 
+            background:var(--f); color:var(--p); 
+            display: flex; align-items: center; justify-content: center; 
+            height: 100vh; overflow: hidden;
+        }
+        .menu-box { 
+            border: 1px solid var(--p); padding: 30px; 
+            background: rgba(0,20,0,0.5); text-align: center; 
+            width: 90%; max-width: 400px; box-shadow: 0 0 20px rgba(0,255,0,0.2);
+        }
+        h1 { color: var(--gold); font-size: 1.4rem; margin-bottom: 25px; letter-spacing: 2px; }
+        .btn-group { display: flex; flex-direction: column; gap: 15px; }
+        button { 
+            padding: 15px; background: transparent; border: 1px solid var(--p); 
+            color: var(--p); font-weight: bold; cursor: pointer; 
+            text-transform: uppercase; font-family: inherit; transition: 0.3s;
+        }
+        button:hover { background: var(--p); color: #000; box-shadow: 0 0 10px var(--p); }
+        .logout { border-color: var(--red); color: var(--red); margin-top: 10px; }
+        .logout:hover { background: var(--red); color: #fff; box-shadow: 0 0 10px var(--red); }
+    </style>
+</head>
+<body>
+
+    <div class="menu-box">
+        <h1>COMANDO TÁCTICO</h1>
+        <div class="btn-group">
+            <button onclick="window.location.href='editor.html'">🛠️ EDITOR DE MISIONES</button>
+            <button onclick="window.location.href='lobby.html'">📡 VISTA DE LOBBY</button>
+            <button class="logout" onclick="logoutAndExit()">✖ CERRAR SESIÓN</button>
+        </div>
+    </div>
+
+</body>
+</html>
