@@ -21,166 +21,128 @@
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#444; }
         body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
-        .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); padding: 20px; box-sizing: border-box; }
+        
+        /* Layout Base */
+        .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); padding: 15px; box-sizing: border-box; }
         .active { display: flex !important; }
         
-        .btn-logout {
-            position: absolute; top: 10px; right: 10px;
-            background: rgba(0,0,0,0.7); border: 1px solid var(--red); color: var(--red);
-            padding: 5px 10px; font-size: 10px; cursor: pointer; z-index: 1100;
-            text-transform: uppercase; font-weight: bold;
-        }
+        /* Logout */
+        .btn-logout { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); border: 1px solid var(--red); color: var(--red); padding: 5px 10px; font-size: 10px; cursor: pointer; z-index: 1100; font-weight: bold; }
 
-        #screen-welcome { justify-content: center; align-items: center; text-align: center; }
+        /* Contenedores de Información */
+        .mission-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--p); padding-bottom: 5px; }
         
-        .welcome-card {
-            border: 1px solid var(--p);
-            padding: 30px;
-            background: rgba(0,255,0,0.05);
-            box-shadow: 0 0 20px rgba(0,255,0,0.1);
-            width: 100%;
-            max-width: 400px;
+        /* Portada de Misión */
+        #mission-cover-frame {
+            width: 100%; height: 120px; border: 1px solid var(--gray); margin-bottom: 10px;
+            background: #111; overflow: hidden; position: relative; display: none;
         }
+        #mission-cover-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+        .scanline { width: 100%; height: 2px; background: rgba(0,255,0,0.3); position: absolute; top: 0; animation: scan 3s linear infinite; }
 
-        select {
-            background: #000; color: var(--p); border: 1px solid var(--p);
-            padding: 15px; width: 100%; font-family: 'Courier New', monospace; font-size: 14px;
-            text-transform: uppercase; outline: none; cursor: pointer; margin: 25px 0;
-        }
-
-        /* Ajuste de Mapa */
-        #radar-static {
-            height: 35%; width: 100%; border: 1px solid var(--p);
-            background: #000; position: relative; overflow: hidden; margin-top: 10px; flex-shrink: 0;
-        }
+        /* Mapa y Radar */
+        #radar-static { height: 180px; width: 100%; border: 1px solid var(--p); background: #000; position: relative; flex-shrink: 0; margin-bottom: 10px; }
         
-        /* Contenedor de Historia/Briefing */
-        .briefing-container {
-            flex-grow: 1;
-            margin: 15px 0;
-            padding: 15px;
-            border: 1px solid rgba(0,255,0,0.2);
-            background: rgba(0,20,0,0.3);
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
-        }
+        /* Briefing & Objetivos Scrollable */
+        .data-scroll-area { flex-grow: 1; overflow-y: auto; padding-right: 5px; margin-bottom: 10px; }
+        .info-block { margin-bottom: 15px; padding: 10px; border-left: 2px solid var(--p); background: rgba(0,255,0,0.03); }
+        .info-label { color: var(--gold); font-size: 10px; text-transform: uppercase; margin-bottom: 5px; font-weight: bold; }
+        .info-text { font-size: 12px; color: #ccc; line-height: 1.3; white-space: pre-wrap; }
 
-        .briefing-title {
-            color: var(--gold);
-            font-size: 12px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-            border-bottom: 1px solid rgba(255, 215, 0, 0.3);
-            padding-bottom: 4px;
-        }
-
-        #mission-briefing-text {
-            font-size: 13px;
-            line-height: 1.4;
-            color: #ccc;
-            white-space: pre-wrap; /* Mantiene saltos de línea del editor */
-        }
-
-        .tactical-label {
-            background: rgba(0,0,0,0.85); border: 1px solid var(--p); color: var(--p);
-            padding: 2px 6px; font-size: 9px; font-weight: bold; border-radius: 2px;
-            white-space: nowrap; text-transform: uppercase; 
-            box-shadow: 0 0 8px rgba(0,255,0,0.4);
-            pointer-events: none;
-        }
-
-        #live-indicator {
-            position: absolute; top: 10px; left: 10px; z-index: 1100;
-            background: var(--red); color: white; padding: 4px 10px;
-            font-size: 10px; font-weight: 900; border-radius: 3px;
-            display: none; animation: blink 0.8s infinite;
-        }
-
-        /* Footer de Botones */
-        .preview-footer {
-            margin-top: auto;
-            padding-top: 10px;
-            border-top: 1px solid var(--gray);
-            background: var(--f);
-        }
-
-        .nav-links { display: flex; gap: 10px; margin-bottom: 10px; }
+        /* Botones y Navegación */
+        .nav-links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
         .nav-links a { 
-            flex: 1; padding: 12px; font-size: 11px; text-decoration: none; 
-            border: 1px solid var(--p); color: #000; background: var(--p);
-            text-align: center; font-weight: 900; clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+            padding: 10px; font-size: 9px; text-decoration: none; border: 1px solid var(--p); 
+            color: #000; background: var(--p); text-align: center; font-weight: 900;
+            text-transform: uppercase;
         }
 
-        .btn-action { background: var(--p); color: #000; border: none; padding: 18px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; }
+        .btn-action { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         
-        #screen-waiting { justify-content: center; align-items: center; background: radial-gradient(circle, #111 0%, #000 100%); }
-        .radar-circle { width: 120px; height: 120px; border: 2px solid var(--p); border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        .bando-msg { font-size: 1.4em; font-weight: bold; margin: 20px 0; padding: 15px; border: 2px solid var(--p); display: none; text-align: center; width: 80%; }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
+        /* Animaciones */
+        @keyframes scan { from { top: 0; } to { top: 100%; } }
         @keyframes blink { 50% { opacity: 0; } }
-        .blink { animation: blink 1.5s infinite; }
+        .blink { animation: blink 1.2s infinite; }
+
+        /* Media Queries para Tablets/Desktop */
+        @media (min-width: 768px) {
+            .screen { padding: 40px; }
+            #radar-static { height: 300px; }
+            #mission-cover-frame { height: 200px; }
+        }
     </style>
 </head>
 <body>
 
     <button class="btn-logout" onclick="logout()">✖ SALIR</button>
 
-    <!-- PANTALLA INICIAL DE BIENVENIDA -->
-    <div id="screen-welcome" class="screen active">
-        <div class="welcome-card">
-            <h1 style="letter-spacing: 5px; color: var(--gold); margin: 0 0 10px 0; font-size: 1.5rem;">BIENVENIDO</h1>
-            <h2 id="welcome-callsign" style="color: var(--p); margin: 0 0 30px 0; border-bottom: 1px solid var(--p); display: inline-block; padding: 0 10px;">[ CARGANDO... ]</h2>
+    <!-- PANTALLA INICIAL -->
+    <div id="screen-welcome" class="screen active" style="justify-content: center; align-items: center;">
+        <div style="width: 100%; max-width: 400px; border: 1px solid var(--p); padding: 25px; background: rgba(0,20,0,0.5); text-align: center;">
+            <h1 style="color:var(--gold); font-size: 1.2rem; margin:0;">SYSTEM A.T.O.M</h1>
+            <p id="welcome-callsign" style="color:var(--p); font-weight: bold; margin: 10px 0 20px 0;">[ CARGANDO... ]</p>
             
-            <p style="font-size: 12px; color: var(--p); margin-bottom: 10px; opacity: 0.8;">SELECCIONE LA MISIÓN EN LA QUE QUIERE ENLISTARSE:</p>
-            
-            <select id="mission-dropdown" onchange="viewMission(this.value)">
+            <label style="font-size: 10px; display: block; margin-bottom: 5px;">SELECCIONAR OPERACIÓN:</label>
+            <select id="mission-dropdown" onchange="viewMission(this.value)" style="width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px;">
                 <option value="">-- ARCHIVOS DISPONIBLES --</option>
             </select>
 
-            <button style="background: none; border: 1px solid var(--gold); color: var(--gold); padding: 12px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; font-size: 11px;" onclick="window.location.href='operadores.html'">👤 OPERADORES ACTIVOS</button>
+            <button class="btn-action" onclick="window.location.href='operadores.html'">👤 VER OPERADORES</button>
         </div>
     </div>
 
-    <!-- PANTALLA DE PREVISUALIZACIÓN -->
+    <!-- PANTALLA DE PREVISUALIZACIÓN (LOBBY DETALLADO) -->
     <div id="screen-preview" class="screen">
-        <h2 id="prev-name" style="margin:0; color: var(--gold); text-transform: uppercase; font-size: 1.2rem;">SIN SELECCIÓN</h2>
-        
-        <div id="radar-static">
-            <div id="live-indicator">● OPERACIÓN EN CURSO</div>
-            <div id="preview-map" style="width: 100%; height: 100%;"></div>
-            <div id="no-signal" class="blink" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 1000; font-weight: bold; letter-spacing: 5px; pointer-events: none; text-shadow: 2px 2px #000; color: var(--p);">RECUPERANDO DATOS...</div>
+        <div class="mission-header">
+            <div style="background: var(--p); color: #000; padding: 2px 8px; font-weight: bold; font-size: 12px;">OP</div>
+            <h2 id="prev-name" style="margin:0; font-size: 1.1rem; flex-grow:1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">NOMBRE MISIÓN</h2>
         </div>
         
-        <!-- Bloque de Historia / Despliegue -->
-        <div class="briefing-container">
-            <div class="briefing-title">BRIEFING DE MISIÓN & DESPLIEGUE:</div>
-            <div id="mission-briefing-text">Cargando inteligencia de campo...</div>
+        <!-- Portada de la Misión -->
+        <div id="mission-cover-frame">
+            <div class="scanline"></div>
+            <img id="mission-cover-img" src="" alt="INTEL">
         </div>
 
-        <div class="preview-footer">
-            <p id="mission-status-text" style="font-size: 10px; color: var(--p); opacity: 0.7; margin: 5px 0; text-align: center;">VISTA DE SATÉLITE HÍBRIDA OK</p>
-            
-            <div class="nav-links">
-                <a id="link-google" target="_blank">MAPS GOOGLE</a>
-                <a id="link-waze" target="_blank">WAZE NAV</a>
+        <!-- Mapa Radar -->
+        <div id="radar-static">
+            <div id="preview-map" style="width: 100%; height: 100%;"></div>
+            <div id="no-signal" class="blink" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:1000; font-size:10px; color:var(--p);">SINCRONIZANDO SATÉLITE...</div>
+        </div>
+        
+        <!-- Area de Datos (Briefing + Objetivos) -->
+        <div class="data-scroll-area">
+            <div class="info-block">
+                <div class="info-label">I. Situación y Contexto</div>
+                <div id="mission-history-text" class="info-text">No se ha proporcionado historia para esta operación.</div>
             </div>
 
-            <button id="enlist-btn" class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ENLISTAMIENTO</button>
-            <button onclick="showScreen('screen-welcome')" style="background:none; border:none; color:var(--gray); padding: 10px; width:100%; font-family: monospace; cursor:pointer; font-size: 10px;">⬅ VOLVER AL SELECTOR</button>
+            <div class="info-block" style="border-left-color: var(--gold);">
+                <div class="info-label" style="color:var(--gold);">II. Objetivos Tácticos</div>
+                <div id="mission-objectives-text" class="info-text">Sin objetivos definidos.</div>
+            </div>
         </div>
+
+        <!-- Footer fijo -->
+        <div class="nav-links">
+            <a id="link-google" target="_blank">GOOGLE MAPS</a>
+            <a id="link-waze" target="_blank">WAZE</a>
+        </div>
+
+        <button id="enlist-btn" class="btn-action" onclick="enlistOperative()">📝 ENLISTARSE AHORA</button>
+        <button onclick="showScreen('screen-welcome')" style="background:none; border:none; color:var(--gray); padding: 10px; width:100%; font-size: 10px; cursor:pointer;">⬅ CAMBIAR MISIÓN</button>
     </div>
 
     <!-- PANTALLA DE ESPERA -->
-    <div id="screen-waiting" class="screen">
-        <div class="radar-circle"></div>
-        <h2 class="blink" style="margin-top: 0; letter-spacing: 2px;">ESPERANDO ÓRDENES</h2>
-        <div id="bando-display" class="bando-msg"></div>
-        <p style="font-size: 10px; color: var(--gray); position: absolute; bottom: 30px;">ID OPERATIVO: <span id="id-tag">--</span></p>
+    <div id="screen-waiting" class="screen" style="justify-content:center; align-items:center;">
+        <div style="border: 2px solid var(--p); border-radius: 50%; width: 80px; height: 80px; border-top-color: transparent; animation: spin 1s linear infinite;"></div>
+        <h3 class="blink" style="margin-top:20px;">ESPERANDO ASIGNACIÓN...</h3>
+        <div id="bando-display" style="display:none; margin-top:20px; padding:20px; border:2px solid var(--p); font-weight:bold;"></div>
+        <p style="font-size: 9px; margin-top: 40px; color: var(--gray);">ID: <span id="id-tag">--</span></p>
     </div>
 
 <script>
-// --- CONFIGURACIÓN Y LÓGICA MANTENIDA ---
+// --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
     databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
@@ -196,13 +158,14 @@ let selectedMissionId = null;
 let previewMap;
 let drawnItems;
 
+// Manejo de Sesión
 auth.onAuthStateChanged(user => {
     if (user) {
-        db.ref('operadores').orderByChild('email').equalTo(user.email).on('value', snap => {
+        db.ref('operadores').orderByChild('email').equalTo(user.email).once('value', snap => {
             if (snap.exists()) {
                 const data = Object.values(snap.val())[0];
                 userCallsign = data.callsign;
-                document.getElementById('welcome-callsign').innerText = userCallsign;
+                document.getElementById('welcome-callsign').innerText = `CALLSIGN: ${userCallsign}`;
                 document.getElementById('id-tag').innerText = userCallsign;
                 initLobby();
             }
@@ -211,45 +174,17 @@ auth.onAuthStateChanged(user => {
 });
 
 function initLobby() {
+    // Cargar misiones al dropdown
     db.ref('misiones').on('value', snap => {
         const dropdown = document.getElementById('mission-dropdown');
         dropdown.innerHTML = '<option value="">-- ARCHIVOS DISPONIBLES --</option>';
         snap.forEach(c => {
             let option = document.createElement('option');
             option.value = c.key;
-            option.text = `OP: ${c.val().nombre}`;
+            option.text = c.val().nombre;
             dropdown.appendChild(option);
         });
     });
-
-    db.ref('operacion_activa/control').on('value', snap => {
-        const ctrl = snap.val();
-        updateMissionUIStatus(ctrl);
-        if(ctrl && ctrl.status === 'EN_CURSO') {
-            db.ref(`jugadores_enlistados/${userCallsign}`).once('value', pSnap => {
-                const p = pSnap.val();
-                if(p && p.equipo !== 'S/E') { window.location.href = 'mapa_tactico.html'; }
-            });
-        }
-    });
-}
-
-function updateMissionUIStatus(ctrl) {
-    const indicator = document.getElementById('live-indicator');
-    const statusText = document.getElementById('mission-status-text');
-    const enlistBtn = document.getElementById('enlist-btn');
-
-    if(ctrl && ctrl.status === 'EN_CURSO' && ctrl.missionId === selectedMissionId) {
-        if(indicator) indicator.style.display = 'block';
-        statusText.innerText = "ATENCIÓN: OPERACIÓN ACTUALMENTE EN CURSO";
-        statusText.style.color = "var(--red)";
-        enlistBtn.innerText = "SOLICITAR INCORPORACIÓN";
-    } else {
-        if(indicator) indicator.style.display = 'none';
-        statusText.innerText = "VISTA DE SATÉLITE HÍBRIDA OK";
-        statusText.style.color = "var(--p)";
-        enlistBtn.innerText = "CONFIRMAR ENLISTAMIENTO";
-    }
 }
 
 function viewMission(id) {
@@ -257,10 +192,9 @@ function viewMission(id) {
     selectedMissionId = id;
     showScreen('screen-preview');
     
-    db.ref('operacion_activa/control').once('value', snap => updateMissionUIStatus(snap.val()));
-
+    // Inicializar Mapa solo una vez
     if(!previewMap) {
-        previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false }).setView([0,0], 2);
+        previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false });
         L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(previewMap);
         drawnItems = L.featureGroup().addTo(previewMap);
     }
@@ -268,15 +202,24 @@ function viewMission(id) {
     drawnItems.clearLayers();
     document.getElementById('no-signal').style.display = 'block';
 
+    // Recuperar Datos de Firebase
     db.ref(`misiones/${id}`).once('value', snap => {
         const m = snap.val();
         document.getElementById('prev-name').innerText = m.nombre;
-        document.getElementById('no-signal').style.display = 'none';
+        document.getElementById('mission-history-text').innerText = m.historia || "Sin detalles de historia.";
+        document.getElementById('mission-objectives-text').innerText = m.objetivos || "Sin objetivos asignados.";
+        
+        // Manejo de Portada
+        const coverFrame = document.getElementById('mission-cover-frame');
+        const coverImg = document.getElementById('mission-cover-img');
+        if(m.imagen) {
+            coverImg.src = m.imagen;
+            coverFrame.style.display = 'block';
+        } else {
+            coverFrame.style.display = 'none';
+        }
 
-        // CARGA DE HISTORIA/BRIEFING DESDE FIREBASE
-        const briefingEl = document.getElementById('mission-briefing-text');
-        briefingEl.innerText = m.historia || "SIN INFORMACIÓN ADICIONAL DE DESPLIEGUE.";
-
+        // Dibujar elementos en mapa
         if(m.elementos) {
             m.elementos.forEach(el => {
                 let color = '#00ff00';
@@ -284,40 +227,24 @@ function viewMission(id) {
                 if(el.type.includes('BLUE')) color = '#3333ff';
                 if(el.type.includes('OBJ') || el.type.includes('SAFE')) color = '#ffd700';
 
-                const style = { color: color, fillColor: color, fillOpacity: 0.3, weight: 2 };
-                let layer, centerPos;
+                const style = { color: color, fillColor: color, fillOpacity: 0.2, weight: 1.5 };
+                let layer;
 
-                if (el.path) {
-                    layer = L.polygon(el.path, style);
-                    let lats = el.path.map(p => p.lat);
-                    let lngs = el.path.map(p => p.lng);
-                    centerPos = [(Math.min(...lats) + Math.max(...lats)) / 2, (Math.min(...lngs) + Math.max(...lngs)) / 2];
-                } else if (el.radius) {
-                    layer = L.circle(el.center, { radius: el.radius, ...style });
-                    centerPos = el.center;
-                } else {
-                    layer = L.circleMarker(el.center, { radius: 6, ...style });
-                    centerPos = el.center;
-                }
-
-                const label = L.marker(centerPos, {
-                    icon: L.divIcon({
-                        className: 'tactical-label',
-                        html: el.type.replace('_', ' '),
-                        iconAnchor: [30, 0]
-                    }),
-                    interactive: false
-                });
+                if (el.path) layer = L.polygon(el.path, style);
+                else if (el.radius) layer = L.circle(el.center, { radius: el.radius, ...style });
+                else layer = L.circleMarker(el.center, { radius: 5, ...style });
 
                 drawnItems.addLayer(layer);
-                drawnItems.addLayer(label);
             });
             const bounds = drawnItems.getBounds();
-            previewMap.fitBounds(bounds, { padding: [40, 40] });
+            previewMap.fitBounds(bounds, { padding: [20, 20] });
+            
+            // Enlaces de navegación
             const center = bounds.getCenter();
             document.getElementById('link-google').href = `https://www.google.com/maps/dir/?api=1&destination=${center.lat},${center.lng}`;
             document.getElementById('link-waze').href = `https://waze.com/ul?ll=${center.lat},${center.lng}&navigate=yes`;
         }
+        document.getElementById('no-signal').style.display = 'none';
     });
 }
 
@@ -328,26 +255,21 @@ function enlistOperative() {
         lastSeen: Date.now()
     }).then(() => {
         showScreen('screen-waiting');
-        listenMyAssignment();
+        listenAssignment();
     });
 }
 
-function listenMyAssignment() {
+function listenAssignment() {
     db.ref(`jugadores_enlistados/${userCallsign}`).on('value', snap => {
         const p = snap.val();
-        const display = document.getElementById('bando-display');
         if(p && p.equipo !== 'S/E') {
+            const display = document.getElementById('bando-display');
             display.style.display = 'block';
-            display.innerText = `BANDO ASIGNADO: ${p.equipo}`;
-            display.style.borderColor = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
+            display.innerText = `ASIGNADO A: ${p.equipo}`;
             display.style.color = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
+            display.style.borderColor = p.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
             
-            db.ref('operacion_activa/control').once('value', cSnap => {
-                const ctrl = cSnap.val();
-                if(ctrl && ctrl.status === 'EN_CURSO') {
-                    setTimeout(() => window.location.href = 'mapa_tactico.html', 2000);
-                }
-            });
+            setTimeout(() => window.location.href = 'mapa_tactico.html', 2500);
         }
     });
 }
@@ -361,7 +283,7 @@ function showScreen(id) {
 }
 
 function logout() { auth.signOut().then(() => window.location.href = 'index.html'); }
-window.onload = initLobby;
 </script>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 </body>
 </html>
