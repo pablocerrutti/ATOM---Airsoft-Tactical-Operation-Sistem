@@ -17,11 +17,40 @@
         .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); padding: 15px; box-sizing: border-box; }
         .active { display: flex !important; }
         
-        /* Layout de Portada y Mapa */
-        .mission-header-flex { display: flex; gap: 10px; height: 180px; margin-bottom: 15px; }
-        #radar-static { flex: 1.2; border: 1px solid var(--p); background: #111; position: relative; overflow: hidden; }
-        #mission-cover-frame { flex: 0.8; border: 1px solid #444; overflow: hidden; display: none; background: #000; }
-        #mission-cover-img { width: 100%; height: 100%; object-fit: cover; }
+        /* Layout con Altura Fija */
+        .mission-header-flex { 
+            display: flex; 
+            gap: 10px; 
+            height: 200px; /* Altura fija para la sección */
+            margin-bottom: 15px; 
+            width: 100%;
+        }
+
+        #radar-static { 
+            flex: 1; 
+            height: 100%;
+            border: 1px solid var(--p); 
+            background: #111; 
+            position: relative; 
+            overflow: hidden; 
+        }
+
+        #mission-cover-frame { 
+            flex: 1; 
+            height: 100%;
+            border: 1px solid #444; 
+            overflow: hidden; 
+            display: none; 
+            background: #000; 
+        }
+
+        #mission-cover-img { 
+            width: 100%; 
+            height: 100%; 
+            display: block;
+            /* Mantiene aspecto original sin recortar, adaptándose al ancho/alto */
+            object-fit: contain; 
+        }
 
         .info-block { margin-bottom: 12px; padding: 10px; border-left: 2px solid var(--p); background: rgba(0,255,0,0.03); }
         .btn-action { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; }
@@ -37,15 +66,12 @@
     <div id="screen-welcome" class="screen active" style="justify-content: center; align-items: center;">
         <div style="border: 1px solid var(--p); padding: 25px; text-align: center; width: 100%; max-width: 380px; background: rgba(0,20,0,0.4);">
             <h2 style="color:var(--gold); margin-bottom: 5px;">SISTEMA A.T.O.M</h2>
-            <p id="welcome-callsign" style="font-size: 12px; margin-bottom: 25px;">IDENTIFICANDO OPERADOR...</p>
-            
+            <p id="welcome-callsign" style="font-size: 12px; margin-bottom: 25px;">IDENTIFICANDO...</p>
             <select id="mission-dropdown" onchange="viewMission(this.value)">
                 <option value="">-- SELECCIONAR MISIÓN --</option>
             </select>
-            
             <button class="btn-secondary" onclick="window.location.href='operadores.html'">📡 OPERADORES ACTIVOS EN A.T.O.M</button>
         </div>
-        <button onclick="window.location.href='index.html'" style="margin-top:20px; background:none; border:none; color:#444; cursor:pointer; font-size: 10px;">DESCONECTAR TERMINAL</button>
     </div>
 
     <div id="screen-preview" class="screen">
@@ -53,26 +79,26 @@
         
         <div class="mission-header-flex">
             <div id="radar-static"><div id="preview-map" style="width:100%; height:100%;"></div></div>
-            <div id="mission-cover-frame"><img id="mission-cover-img" src="" onerror="this.style.display='none'"></div>
+            <div id="mission-cover-frame"><img id="mission-cover-img" src="" onerror="this.parentNode.style.display='none'"></div>
         </div>
         
         <div style="flex-grow:1; overflow-y:auto; margin-bottom: 10px;">
             <div class="info-block">
-                <div style="color:var(--gold); font-size:9px; letter-spacing: 1px;">[ BRIEFING OPERATIVO ]</div>
+                <div style="color:var(--gold); font-size:9px;">[ BRIEFING OPERATIVO ]</div>
                 <div id="mission-history-text" style="font-size:12px; margin-top:5px; color:#ccc;"></div>
             </div>
             <div class="info-block">
-                <div style="color:var(--gold); font-size:9px; letter-spacing: 1px;">[ OBJETIVOS DE MISIÓN ]</div>
+                <div style="color:var(--gold); font-size:9px;">[ OBJETIVOS DE MISIÓN ]</div>
                 <div id="mission-objectives-text" style="font-size:12px; margin-top:5px; color:#ccc;"></div>
             </div>
             <div class="info-block">
-                <div style="color:var(--gold); font-size:9px; letter-spacing: 1px;">[ PERSONAL CONFIRMADO ]</div>
+                <div style="color:var(--gold); font-size:9px;">[ PERSONAL CONFIRMADO ]</div>
                 <div id="enlisted-ops" class="op-list"></div>
             </div>
         </div>
 
         <button id="btn-enlist" class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ASISTENCIA</button>
-        <button onclick="showScreen('screen-welcome')" style="background:none; color:#666; border:none; padding:10px; cursor:pointer; font-family: inherit; font-size: 11px;">⬅ VOLVER AL LOBBY</button>
+        <button onclick="showScreen('screen-welcome')" style="background:none; color:#666; border:none; padding:10px; cursor:pointer; font-family: inherit;">⬅ VOLVER</button>
     </div>
 
     <script>
@@ -87,14 +113,13 @@
         
         let userCallsign, selectedMissionId, previewMap, drawnItems;
 
-        // Limpiar URL de Google Drive para visualización directa
         function formatDriveUrl(url) {
             if (!url) return '';
             if (url.includes('drive.google.com')) {
                 let id = "";
                 if (url.includes('/d/')) id = url.split('/d/')[1].split('/')[0];
                 else if (url.includes('id=')) id = url.split('id=')[1].split('&')[0];
-                return id ? `https://lh3.googleusercontent.com/u/0/d/${id}` : url;
+                return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
             }
             return url;
         }
@@ -139,8 +164,8 @@
                 if(!m) return;
                 
                 document.getElementById('prev-name').innerText = m.nombre;
-                document.getElementById('mission-history-text').innerText = m.historia || "No hay briefing disponible.";
-                document.getElementById('mission-objectives-text').innerText = m.objetivos || "No hay objetivos definidos.";
+                document.getElementById('mission-history-text').innerText = m.historia || "---";
+                document.getElementById('mission-objectives-text').innerText = m.objetivos || "---";
                 
                 const frame = document.getElementById('mission-cover-frame');
                 const img = document.getElementById('mission-cover-img');
@@ -161,24 +186,22 @@
                         drawnItems.addLayer(layer);
                     });
 
-                    // Refresco táctico del mapa
                     setTimeout(() => {
                         previewMap.invalidateSize();
                         if(drawnItems.getLayers().length > 0) {
                             previewMap.fitBounds(drawnItems.getBounds(), {padding: [30,30]});
                         }
-                    }, 500);
+                    }, 600);
                 }
             });
 
-            // Sincronizar operadores enlistados
             db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(id).on('value', snap => {
                 const container = document.getElementById('enlisted-ops');
                 container.innerHTML = '';
                 let yaEnlistado = false;
                 snap.forEach(child => {
                     if(child.val().callsign === userCallsign) yaEnlistado = true;
-                    container.innerHTML += `<span class="op-tag" style="background:var(--p); color:#000; font-weight:bold;">${child.val().callsign}</span>`;
+                    container.innerHTML += `<span class="op-tag" style="background:var(--p); color:#000;">${child.val().callsign}</span>`;
                 });
                 const btn = document.getElementById('btn-enlist');
                 btn.innerText = yaEnlistado ? "✓ ASISTENCIA CONFIRMADA" : "📝 CONFIRMAR ASISTENCIA";
