@@ -16,11 +16,11 @@
             display: flex; flex-direction: column; align-items: center; min-height: 100vh;
         }
 
-        /* Cabecera con imagen dinámica */
+        /* Cabecera con imagen dinámica vinculada a 'mission-image-url' */
         .mission-header {
             width: 100%; height: 280px;
             background: linear-gradient(to bottom, rgba(0,0,0,0.2), var(--f)), 
-                        url('https://images.unsplash.com/photo-1590502142455-89594008902c?q=80&w=1000'); /* Imagen por defecto */
+                        url('https://images.unsplash.com/photo-1590502142455-89594008902c?q=80&w=1000'); 
             background-size: cover; background-position: center;
             display: flex; flex-direction: column; justify-content: space-between; align-items: center;
             border-bottom: 2px solid var(--p); transition: background-image 0.6s ease-in-out;
@@ -33,7 +33,6 @@
             text-shadow: 0 0 10px var(--p);
         }
 
-        /* Logo de ATOM sobrepuesto */
         .atom-logo-overlay {
             width: 100px; height: 100px; margin-bottom: -50px; z-index: 10;
             filter: drop-shadow(0 0 15px var(--p));
@@ -42,67 +41,67 @@
         .panel { 
             width: 90%; max-width: 420px; border: 1px solid var(--p); padding: 60px 20px 20px 20px; 
             background: rgba(0,10,0,0.98); box-shadow: 0 0 40px var(--shadow); margin-top: 40px;
-            border-radius: 2px;
         }
 
-        .sitrep-box {
+        /* Bloques de información obtenidos de Firebase */
+        .info-box {
             font-size: 12px; background: rgba(0,30,0,0.6); padding: 15px;
-            border-left: 4px solid var(--gold); margin-bottom: 20px; min-height: 80px;
+            border-left: 4px solid var(--gold); margin-bottom: 15px;
             color: #fff; line-height: 1.5; border-radius: 0 5px 5px 0;
         }
+
+        .objectives-box { border-left-color: var(--p); background: rgba(0,50,0,0.2); }
 
         .label { font-size: 10px; text-transform: uppercase; margin-bottom: 8px; display: block; opacity: 0.7; letter-spacing: 1px; }
         
         select, input { 
             width: 100%; padding: 14px; background: #000; border: 1px solid var(--p); 
             color: var(--p); font-family: monospace; margin-bottom: 20px; outline: none;
-            font-size: 14px;
         }
 
         .btn { 
             width: 100%; padding: 18px; border: 1px solid var(--p); background: transparent; 
             color: var(--p); font-weight: bold; cursor: pointer; text-transform: uppercase; 
-            transition: 0.3s; letter-spacing: 2px;
+            letter-spacing: 2px; transition: 0.3s;
         }
         
         .btn-ready { background: var(--p); color: #000; border: none; font-size: 16px; box-shadow: 0 0 10px var(--p); }
-        .btn-ready:disabled { background: #1a1a1a; color: #444; border: 1px solid #333; box-shadow: none; cursor: not-allowed; }
-        .btn-ready:hover:not(:disabled) { background: #fff; color: #000; }
+        .btn-ready:disabled { background: #1a1a1a; color: #444; border: 1px solid #333; cursor: not-allowed; box-shadow: none; }
 
-        .footer-note { font-size: 9px; text-align: center; margin-top: 25px; color: #444; text-transform: uppercase; }
+        .footer-note { font-size: 9px; text-align: center; margin-top: 25px; color: #444; }
     </style>
 </head>
 <body>
 
     <div class="mission-header" id="header-bg">
-        <div class="op-title" id="display-op-name">ESPERANDO BRIEFING...</div>
+        <div class="op-title" id="display-mission-name">ESPERANDO BRIEFING...</div>
         <img src="https://i.ibb.co/v4mRLmY/atom-logo.png" alt="ATOM LOGO" class="atom-logo-overlay"> 
     </div>
 
     <div class="panel">
-        <div class="sitrep-box" id="display-sitrep">
-            Conectando con la red satelital... Seleccione una operación activa para recibir el informe de inteligencia y los objetivos de despliegue.
+        <div class="label">Briefing de Inteligencia</div>
+        <div class="info-box" id="display-mission-history">
+            Seleccione una operación para recibir el informe SITREP.
+        </div>
+
+        <div class="label">Objetivos Operativos</div>
+        <div class="info-box objectives-box" id="display-mission-objectives">
+            -- No hay objetivos asignados --
         </div>
 
         <div class="block">
-            <span class="label">Operador (Callsign)</span>
-            <input type="text" id="callsign-input" readonly>
-        </div>
-
-        <div class="block">
-            <span class="label">Operaciones de Campo Disponibles</span>
-            <select id="mission-selector" onchange="updateMissionBriefing()">
-                <option value="">-- ESTABLECIENDO CONEXIÓN... --</option>
+            <span class="label">Operaciones Activas en Red</span>
+            <select id="mission-selector" onchange="updateUI()">
+                <option value="">-- CONECTANDO... --</option>
             </select>
         </div>
 
         <button class="btn btn-ready" id="btn-join" onclick="confirmMission()" disabled>INICIAR DESPLIEGUE</button>
         
-        <div class="footer-note">Sistema Táctico A.T.O.M. - Paso Severino Sector </div>
+        <div class="footer-note">A.T.O.M. TACTICAL OS - URUGUAY</div>
     </div>
 
 <script>
-// Configuración de Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
     databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
@@ -112,60 +111,56 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let allMissions = {}; 
+let missionsData = {}; 
 
-const myCallsign = localStorage.getItem('callsign') || "OPERADOR_GHOST";
-document.getElementById('callsign-input').value = myCallsign.toUpperCase();
-
-window.onload = loadMissions;
-
-function loadMissions() {
+window.onload = () => {
     db.ref('misiones').on('value', snap => {
         const selector = document.getElementById('mission-selector');
-        selector.innerHTML = '<option value="">-- SELECCIONE OPERACIÓN --</option>';
+        selector.innerHTML = '<option value="">-- SELECCIONE MISIÓN --</option>';
         
-        if (!snap.exists()) {
-            selector.innerHTML = '<option value="">-- NO HAY DATOS DE MISIÓN --</option>';
-            return;
-        }
+        if (!snap.exists()) return;
 
-        allMissions = snap.val(); 
+        missionsData = snap.val(); 
 
         snap.forEach(child => {
             const m = child.val();
             const option = document.createElement('option');
             option.value = child.key;
-            option.innerText = (m.nombre || "OP. ANONIMA").toUpperCase();
+            // Usa el campo 'nombre' guardado desde el input 'mission-name'
+            option.innerText = (m.nombre || "OPERACIÓN S/N").toUpperCase();
             selector.appendChild(option);
         });
     });
-}
+};
 
-function updateMissionBriefing() {
-    const mId = document.getElementById('mission-selector').value;
-    const sitrepBox = document.getElementById('display-sitrep');
-    const titleBox = document.getElementById('display-op-name');
-    const header = document.getElementById('header-bg');
+function updateUI() {
+    const id = document.getElementById('mission-selector').value;
     const btn = document.getElementById('btn-join');
+    
+    // Referencias a los elementos visuales
+    const uiName = document.getElementById('display-mission-name');
+    const uiHistory = document.getElementById('display-mission-history');
+    const uiObjectives = document.getElementById('display-mission-objectives');
+    const uiHeader = document.getElementById('header-bg');
 
-    if (mId && allMissions[mId]) {
-        const data = allMissions[mId];
+    if (id && missionsData[id]) {
+        const m = missionsData[id];
         
-        titleBox.innerText = "OP. " + (data.nombre || "SIN NOMBRE").toUpperCase();
-        sitrepBox.innerHTML = `<strong>SITREP:</strong> ${data.historia || "Sin informe de inteligencia disponible."}`;
+        // Seteo de datos desde Firebase (usando tus placeholders)
+        uiName.innerText = "OP. " + (m.nombre || "DESCONOCIDA").toUpperCase();
+        uiHistory.innerHTML = `<strong>SITREP:</strong> ${m.historia || "Sin datos."}`;
+        uiObjectives.innerHTML = `<strong>PRIMARIO:</strong> ${m.objetivos || "Limpia de zona."}`;
         
-        // Cambio dinámico de imagen
-        if(data.imagen_url && data.imagen_url.trim() !== "") {
-            header.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.2), var(--f)), url('${data.imagen_url}')`;
-        } else {
-            // Imagen por defecto si no hay URL en Firebase
-            header.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.2), var(--f)), url('https://images.unsplash.com/photo-1590502142455-89594008902c?q=80&w=1000')`;
+        // Actualizar imagen desde 'mission-image-url'
+        if(m.imagen_url) {
+            uiHeader.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.2), var(--f)), url('${m.imagen_url}')`;
         }
         
         btn.disabled = false;
     } else {
-        titleBox.innerText = "ESPERANDO BRIEFING...";
-        sitrepBox.innerText = "Seleccione una operación activa para recibir el informe de inteligencia.";
+        uiName.innerText = "ESPERANDO BRIEFING...";
+        uiHistory.innerText = "Seleccione una operación para recibir el informe SITREP.";
+        uiObjectives.innerText = "-- No hay objetivos asignados --";
         btn.disabled = true;
     }
 }
@@ -178,7 +173,6 @@ function confirmMission() {
     
     db.ref('operacion_activa/control').update({
         missionId: mId,
-        last_op_joined: myCallsign,
         timestamp: firebase.database.ServerValue.TIMESTAMP
     }).then(() => {
         location.href = 'sala_de_guerra.html';
