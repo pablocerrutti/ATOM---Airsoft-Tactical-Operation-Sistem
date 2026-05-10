@@ -12,137 +12,117 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; --red:#ff3333; --blue:#3366ff; --shadow: rgba(0, 255, 0, 0.2); }
+        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; --red:#ff3333; --blue:#3366ff; }
         
         body { 
             margin:0; font-family: 'Courier New', monospace; background: var(--f); color: var(--p); 
             display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-x: hidden;
         }
 
-        /* CAPAS DE NAVEGACIÓN */
+        /* NAVEGACIÓN DE VISTAS */
         .view-layer { display: none; width: 100%; flex-direction: column; align-items: center; padding: 20px 0; animation: fadeIn 0.4s ease; }
         .active-view { display: flex; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* PANTALLA 1: MENÚ PRINCIPAL */
+        /* PANTALLA INICIAL */
         #lobby-main { justify-content: center; height: 100vh; gap: 20px; }
-        
-        /* PANTALLA 3: FICHA TÉCNICA */
+
+        /* CABECERA DINÁMICA */
         .mission-header {
-            width: 100%; height: 220px;
-            background-size: cover; background-position: center;
-            border-bottom: 2px solid var(--p); position: relative;
-            display: flex; align-items: flex-end;
+            width: 100%; height: 200px; background-size: cover; background-position: center;
+            border-bottom: 2px solid var(--p); position: relative; display: flex; align-items: flex-end;
+            transition: 0.5s;
         }
         .op-title-banner {
-            background: rgba(0,0,0,0.85); width: 100%; padding: 15px 0;
+            background: rgba(0,0,0,0.85); width: 100%; padding: 12px 0;
             text-align: center; font-weight: bold; border-top: 1px solid var(--p);
             letter-spacing: 3px; text-shadow: 0 0 10px var(--p);
         }
 
-        /* BOTONES TÁCTICOS */
+        /* ELEMENTOS DE INTERFAZ */
+        .panel { width: 92%; max-width: 450px; background: rgba(0,10,0,0.95); border: 1px solid var(--p); padding: 15px; margin-top: 15px; box-sizing: border-box; }
+        .info-box { font-size: 12px; background: rgba(0,30,0,0.5); padding: 12px; border-left: 3px solid var(--gold); margin-bottom: 12px; color: #fff; line-height: 1.4; }
+        #mini-map { width: 100%; height: 180px; border: 1px solid #333; margin: 10px 0; background: #111; z-index: 5; }
+
+        /* BOTONES */
         .btn { 
             width: 85%; max-width: 320px; padding: 18px; border: 1px solid var(--p); 
             background: rgba(0,20,0,0.5); color: var(--p); font-weight: bold; 
             cursor: pointer; text-transform: uppercase; letter-spacing: 2px; transition: 0.3s;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
-        .btn:hover { background: var(--p); color: #000; box-shadow: 0 0 20px var(--p); }
+        .btn:hover { background: var(--p); color: #000; box-shadow: 0 0 15px var(--p); }
         
-        .btn-enlist { 
-            background: var(--red); color: #fff; border: none; font-size: 18px;
-            animation: pulse-red 2s infinite; margin-top: 20px;
-        }
+        .btn-enlist { background: var(--red); color: #fff; border: none; font-size: 18px; animation: pulse-red 2s infinite; margin-top: 15px; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(255,51,51,0.7); } 70% { box-shadow: 0 0 0 15px rgba(255,51,51,0); } 100% { box-shadow: 0 0 0 0 rgba(255,51,51,0); } }
 
-        /* BOTONES DE NAVEGACIÓN GPS */
-        .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 10px; }
-        .btn-gps { 
-            padding: 12px; font-size: 10px; border: 1px solid #444; background: #111; color: #fff; 
-            cursor: pointer; text-transform: uppercase; font-weight: bold;
-        }
+        /* NAVEGACIÓN GPS */
+        .gps-container { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-bottom: 15px; }
+        .btn-gps { padding: 10px; font-size: 10px; border: 1px solid #444; background: #000; color: #fff; cursor: pointer; font-weight: bold; }
         .btn-google { border-color: #4285F4; color: #4285F4; }
         .btn-waze { border-color: #3366ff; color: #3366ff; }
-        
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(255, 51, 51, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0); }
-        }
 
-        /* CONTENEDORES */
-        .panel { width: 90%; max-width: 450px; background: rgba(0,10,0,0.95); border: 1px solid var(--p); padding: 20px; margin-top: 15px; box-sizing: border-box; }
-        .info-box { font-size: 12px; background: rgba(0,40,0,0.4); padding: 12px; border-left: 3px solid var(--gold); margin-bottom: 15px; color: #fff; line-height: 1.4; }
-        
-        #mini-map { width: 100%; height: 180px; border: 1px solid #333; margin: 10px 0; background: #000; }
-        
-        select { 
-            width: 100%; padding: 15px; background: #000; border: 1px solid var(--p); 
-            color: var(--p); margin-bottom: 20px; font-family: monospace; font-size: 14px;
-        }
-
-        .label-tag { font-size: 10px; color: var(--p); opacity: 0.8; text-transform: uppercase; margin-bottom: 5px; display: block; }
+        select { width: 100%; padding: 15px; background: #000; border: 1px solid var(--p); color: var(--p); margin-bottom: 15px; font-family: monospace; }
+        .label-tag { font-size: 9px; color: var(--p); opacity: 0.7; text-transform: uppercase; margin-bottom: 4px; display: block; }
     </style>
 </head>
 <body>
 
     <div id="lobby-main" class="view-layer active-view">
-        <h1 style="font-size: 1.2rem; letter-spacing: 4px; margin-bottom: 30px;">LOBBY TÁCTICO</h1>
-        <button class="btn" onclick="showView('selector-screen')">SALA DE DESPLIEGUE TÁCTICO</button>
-        <button class="btn" onclick="window.location.href='operadores.html'">COMPAÑEROS EN ARMAS</button>
-        <button class="btn" style="border-color:#444; color:#666;" onclick="window.location.href='index.html'">VOLVER</button>
+        <h1 style="letter-spacing: 5px;">LOBBY TÁCTICO</h1>
+        <button class="btn" onclick="showView('selector-screen')">DIRECTORIO DE MISIONES</button>
+        <button class="btn" onclick="window.location.href='operadores.html'">OPERADORES ACTIVOS</button>
+        <button class="btn" style="border-color:#444; color:#666;" onclick="window.location.href='index.html'">DESCONECTAR</button>
     </div>
 
     <div id="selector-screen" class="view-layer">
-        <h2 style="letter-spacing: 3px; text-align: center;">DIRECTORIO DE OPERACIONES</h2>
+        <h2 style="letter-spacing: 3px;">SELECCIÓN DE OP.</h2>
         <div class="panel">
-            <span class="label-tag">Conexión con Satélite...</span>
+            <span class="label-tag">Enlace de datos establecido</span>
             <select id="mission-selector">
-                <option value="">-- SELECCIONAR MISIÓN --</option>
+                <option value="">-- BUSCANDO MISIONES --</option>
             </select>
-            <button class="btn" style="width:100%;" onclick="loadMissionDetail()">VER INTELIGENCIA (SITREP)</button>
-            <button class="btn" style="width:100%; border:none; color:var(--red); font-size: 11px;" onclick="showView('lobby-main')">CANCELAR</button>
+            <button class="btn" style="width:100%;" onclick="loadMissionDetail()">DESCARGAR INTELIGENCIA</button>
+            <button class="btn" style="width:100%; border:none; color:var(--red); font-size: 10px;" onclick="showView('lobby-main')">VOLVER</button>
         </div>
     </div>
 
     <div id="mission-detail" class="view-layer">
         <div class="mission-header" id="det-img">
-            <div class="op-title-banner" id="det-name">OPERACIÓN: ---</div>
+            <div class="op-title-banner" id="det-name">CARGANDO...</div>
         </div>
         
         <div class="panel">
-            <span class="label-tag">Ubicación y Mapa</span>
+            <span class="label-tag">Ubicación del Despliegue</span>
             <div id="mini-map"></div>
 
-            <div class="nav-grid">
-                <button class="btn-gps btn-google" id="gps-google" onclick="openGPS('google')">GOOGLE MAPS</button>
-                <button class="btn-gps btn-waze" id="gps-waze" onclick="openGPS('waze')">WAZE</button>
+            <div class="gps-container">
+                <button class="btn-gps btn-google" onclick="openGPS('google')">GOOGLE MAPS</button>
+                <button class="btn-gps btn-waze" onclick="openGPS('waze')">WAZE</button>
             </div>
             
-            <span class="label-tag" style="color: var(--gold); margin-top: 15px;">Antecedentes / Briefing</span>
+            <span class="label-tag" style="color: var(--gold);">Briefing de la Misión</span>
             <div class="info-box" id="det-hist">---</div>
 
-            <span class="label-tag">Objetivos de Campo</span>
+            <span class="label-tag">Objetivos Operativos</span>
             <div class="info-box" style="border-color: var(--p);" id="det-obj">---</div>
 
-            <button class="btn btn-enlist" onclick="confirmEnlistment()">ENLISTARSE</button>
-            <button class="btn" style="width:100%; margin-top: 10px; font-size: 10px; padding: 12px; border-color: #444;" onclick="showView('selector-screen')">CAMBIAR MISIÓN</button>
+            <button class="btn btn-enlist" onclick="confirmEnlistment()">CONFIRMAR ALISTAMIENTO</button>
+            <button class="btn" style="width:100%; margin-top: 10px; font-size: 10px; padding: 10px; border-color: #444;" onclick="showView('selector-screen')">CAMBIAR OPERACIÓN</button>
         </div>
     </div>
 
 <script>
-const firebaseConfig = {
-    apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-    databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-    projectId: "atom---sistem",
-};
-
-firebase.initializeApp(firebaseConfig);
+// CONFIGURACIÓN CENTRAL
 const db = firebase.database();
 let missionsData = {};
 let selectedMissionId = "";
 let miniMap;
-let missionCoords = null; // Almacena lat/lng para GPS
+let gpsCoords = null;
 
+const ATOM_COLORS = { 'GAME_ZONE': '#0f0', 'SAFE_ZONE': '#ffd700', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
+
+// 1. CARGAR LISTA DE MISIONES DESDE FIREBASE
 window.onload = () => {
     db.ref('misiones').on('value', snap => {
         const selector = document.getElementById('mission-selector');
@@ -153,7 +133,7 @@ window.onload = () => {
             const m = child.val();
             const opt = document.createElement('option');
             opt.value = child.key;
-            opt.innerText = (m.nombre || "MISIÓN SIN NOMBRE").toUpperCase();
+            opt.innerText = (m.nombre || "OP. DESCONOCIDA").toUpperCase();
             selector.appendChild(opt);
         });
     });
@@ -164,61 +144,70 @@ function showView(viewId) {
     document.getElementById(viewId).classList.add('active-view');
 }
 
+// 2. AISLAR INTELIGENCIA DE LA MISIÓN SELECCIONADA
 function loadMissionDetail() {
     const id = document.getElementById('mission-selector').value;
-    if(!id) return alert("Seleccione una operación.");
+    if(!id) return alert("Seleccione una misión válida.");
     
     selectedMissionId = id;
     const m = missionsData[id];
 
+    // Actualizar UI
     document.getElementById('det-name').innerText = "OP. " + m.nombre.toUpperCase();
-    document.getElementById('det-hist').innerText = m.historia || "No hay briefing disponible.";
-    document.getElementById('det-obj').innerText = m.objetivos || "Sin objetivos primarios.";
+    document.getElementById('det-hist').innerText = m.historia || "Briefing no disponible.";
+    document.getElementById('det-obj').innerText = m.objetivos || "Sin objetivos definidos.";
     
     const bgUrl = m.imagen_url || "https://images.unsplash.com/photo-1590502142455-89594008902c?q=80&w=1000";
     document.getElementById('det-img').style.backgroundImage = `linear-gradient(to bottom, transparent, var(--f)), url('${bgUrl}')`;
 
     showView('mission-detail');
     
-    setTimeout(() => {
-        initMiniMap(m.elementos);
-    }, 200);
+    // Iniciar mapa después de que la capa sea visible
+    setTimeout(() => { initSitreMap(m.elementos); }, 300);
 }
 
-function initMiniMap(elementos) {
+// 3. RENDERIZAR MAPA TÁCTICO (LOGICA AISLADA DE IDEA.HTML)
+function initSitreMap(elementos) {
     if (miniMap) miniMap.remove();
     
     miniMap = L.map('mini-map', { zoomControl: false, attributionControl: false });
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(miniMap);
     
     const layers = L.featureGroup().addTo(miniMap);
-    missionCoords = null;
+    gpsCoords = null;
 
     if(elementos) {
         elementos.forEach(el => {
-            const color = (el.type === 'GAME_ZONE') ? '#0f0' : (el.type === 'SAFE_ZONE' ? '#ff0' : '#f00');
+            const color = ATOM_COLORS[el.type] || '#0f0';
+            let layer;
+            
             if(el.path) {
-                L.polygon(el.path, {color: color, weight: 2, fillOpacity: 0.2}).addTo(layers);
-                if(!missionCoords) missionCoords = el.path[0]; // Toma el primer punto para el GPS
+                layer = L.polygon(el.path, {color: color, weight: 2, fillOpacity: 0.2}).addTo(layers);
+                if(!gpsCoords) gpsCoords = el.path[0]; // Captura para GPS
             }
             else if(el.radius) {
-                L.circle(el.center, {radius: el.radius, color: color}).addTo(layers);
-                if(!missionCoords) missionCoords = el.center;
+                layer = L.circle(el.center, {radius: el.radius, color: color, fillOpacity: 0.2}).addTo(layers);
+                if(!gpsCoords) gpsCoords = el.center;
+            }
+            else if(el.center) {
+                layer = L.marker(el.center).addTo(layers);
+                if(!gpsCoords) gpsCoords = el.center;
             }
         });
         
         if(layers.getLayers().length > 0) {
-            miniMap.fitBounds(layers.getBounds(), { padding: [10, 10] });
+            miniMap.fitBounds(layers.getBounds(), { padding: [15, 15] });
         } else {
-            miniMap.setView([-34.34, -56.71], 13);
+            miniMap.setView([-34.34, -56.71], 14);
         }
     }
 }
 
+// 4. LÓGICA DE NAVEGACIÓN GPS
 function openGPS(type) {
-    if(!missionCoords) return alert("Ubicación de misión no definida.");
-    const lat = missionCoords.lat;
-    const lng = missionCoords.lng;
+    if(!gpsCoords) return alert("Ubicación no disponible para esta misión.");
+    const lat = gpsCoords.lat;
+    const lng = gpsCoords.lng;
 
     if(type === 'google') {
         window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
@@ -227,21 +216,27 @@ function openGPS(type) {
     }
 }
 
+// 5. CONFIRMACIÓN DE ALISTAMIENTO
 function confirmEnlistment() {
     const myCallsign = localStorage.getItem('callsign');
-    if(!myCallsign) return window.location.href = 'index.html';
+    if(!myCallsign) {
+        alert("ERROR: Sin identidad (Callsign).");
+        window.location.href = 'index.html';
+        return;
+    }
 
     db.ref(`jugadores_enlistados/${myCallsign}`).update({
         callsign: myCallsign,
         misionId: selectedMissionId,
         equipo: 'PENDIENTE', 
         status: 'ESPERANDO_EQUIPO',
-        last_update: Date.now()
+        timestamp: Date.now()
     }).then(() => {
         localStorage.setItem('activeMissionId', selectedMissionId);
         location.href = 'mapa_tactico.html';
     });
 }
 </script>
+
 </body>
 </html>
