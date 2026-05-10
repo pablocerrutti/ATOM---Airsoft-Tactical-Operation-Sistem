@@ -1,1 +1,156 @@
-a
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M - Operadores Registrados</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root { --p: #00ff00; --f: #050505; --gray: #222; --gold: #ffd700; --red: #ff3333; }
+        body { 
+            margin: 0; background: var(--f); color: var(--p); 
+            font-family: 'Courier New', monospace; padding: 20px;
+            display: flex; flex-direction: column; height: 100vh; box-sizing: border-box;
+        }
+        
+        .header { text-align: center; border-bottom: 1px solid var(--p); margin-bottom: 20px; padding-bottom: 10px; flex-shrink: 0; }
+        .header p { margin: 5px 0; font-size: 10px; color: var(--p); opacity: 0.8; text-transform: uppercase; }
+        
+        #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; padding-right: 5px; }
+        #operator-list::-webkit-scrollbar { width: 4px; }
+        #operator-list::-webkit-scrollbar-thumb { background: var(--p); }
+
+        .operator-card {
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid var(--gray);
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid var(--p);
+        }
+        
+        .callsign { font-size: 18px; font-weight: bold; color: var(--p); text-transform: uppercase; letter-spacing: 1px; }
+        .stats { font-size: 11px; color: var(--gold); text-align: right; line-height: 1.4; }
+        .mision-count { font-size: 16px; color: #fff; font-weight: bold; }
+        
+        .btn-back {
+            width: 100%; padding: 15px; background: transparent; 
+            border: 1px solid var(--p); color: var(--p); 
+            cursor: pointer; font-family: inherit; font-weight: bold;
+            text-transform: uppercase; flex-shrink: 0; transition: 0.3s;
+        }
+        .btn-back:hover { background: var(--p); color: #000; }
+        .loading { text-align: center; font-style: italic; opacity: 0.6; padding: 20px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2 style="margin:0; font-size: 1.2rem; letter-spacing: 2px;">REGISTRO DE OPERADORES</h2>
+    <p>Base de Datos de Personal Registrado</p>
+</div>
+
+<div id="operator-list">
+    <p class="loading">AUTENTICANDO CREDENCIALES...</p>
+</div>
+
+<button class="btn-back" onclick="location.href='idea.html'">⬅ VOLVER AL LOBBY</button>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+        databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+        projectId: "atom---sistem"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+    const listContainer = document.getElementById('operator-list');
+
+    let conteoMisiones = {};
+
+    // 1. Verificar Autenticación antes de pedir datos (Vital por las Reglas)
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            loadOperators();
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+
+    function loadOperators() {
+        // 2. Escuchar participaciones en misiones
+        db.ref('jugadores_enlistados').on('value', (snapE) => {
+            conteoMisiones = {};
+            if(snapE.exists()) {
+                snapE.forEach(child => {
+                    const reg = child.val();
+                    if(reg.callsign) {
+                        conteoMisiones[reg.callsign] = (conteoMisiones[reg.callsign] || 0) + 1;
+                    }
+                });
+            }
+            // Actualizar solo los números si las cards ya existen
+            actualizarNumeros();
+        });
+
+        // 3. Escuchar lista de usuarios registrados
+        db.ref('usuarios').on('value', (snapU) => {
+            if (!snapU.exists()) {
+                listContainer.innerHTML = '<p class="loading">SIN REGISTROS EN BASE DE DATOS</p>';
+                return;
+            }
+
+            listContainer.innerHTML = ''; 
+            let usuariosArr = [];
+            
+            snapU.forEach((child) => {
+                let u = child.val();
+                u.uid = child.key;
+                usuariosArr.push(u);
+            });
+
+            // Ordenar alfabéticamente
+            usuariosArr.sort((a, b) => (a.callsign || "").localeCompare(b.callsign || ""));
+
+            usuariosArr.forEach((user) => {
+                const callsign = user.callsign || "SIN CALLSIGN";
+                const misiones = conteoMisiones[callsign] || 0;
+
+                const card = document.createElement('div');
+                card.className = 'operator-card';
+                card.setAttribute('data-callsign', callsign);
+                card.innerHTML = `
+                    <div class="callsign">${callsign}</div>
+                    <div class="stats">
+                        MISIONES CONFIRMADAS: <span class="mision-count">${misiones}</span><br>
+                        ESTADO: <span style="color:var(--p)">OPERATIVO</span>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }, (error) => {
+            console.error(error);
+            listContainer.innerHTML = `<p class="loading" style="color:var(--red)">ERROR DE ACCESO: VERIFICAR REGLAS</p>`;
+        });
+    }
+
+    function actualizarNumeros() {
+        const cards = document.querySelectorAll('.operator-card');
+        cards.forEach(card => {
+            const cs = card.getAttribute('data-callsign');
+            const span = card.querySelector('.mision-count');
+            if(span) span.innerText = conteoMisiones[cs] || 0;
+        });
+    }
+</script>
+
+</body>
+</html>
