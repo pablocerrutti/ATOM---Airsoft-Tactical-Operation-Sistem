@@ -18,31 +18,26 @@
         };
         firebase.initializeApp(firebaseConfig);
 
-        // Verificación de sesión activa
         firebase.auth().onAuthStateChanged(user => {
             if (user) {
                 document.documentElement.style.display = 'block';
             } else {
-                // Si no hay usuario, mandamos al login para que se identifique
                 window.location.href = 'login.html';
             }
         });
 
-        // Función personalizada para cerrar sesión y volver a index.html
         function logoutAndExit() {
             firebase.auth().signOut().then(() => {
-                // Una vez cerrada la sesión, vamos a la página de inicio
                 window.location.href = 'index.html';
             }).catch((error) => {
                 console.error("Error al cerrar sesión:", error);
-                // Si algo falla, forzamos la salida de todos modos
                 window.location.href = 'index.html';
             });
         }
     </script>
 
     <style>
-        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; --red:#ff3333; }
+        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; --red:#ff3333; --gray:#444; }
         body { 
             margin:0; font-family: 'Courier New', monospace; 
             background:var(--f); color:var(--p); 
@@ -55,14 +50,20 @@
             width: 90%; max-width: 400px; box-shadow: 0 0 20px rgba(0,255,0,0.2);
         }
         h1 { color: var(--gold); font-size: 1.4rem; margin-bottom: 25px; letter-spacing: 2px; }
-        .btn-group { display: flex; flex-direction: column; gap: 15px; }
+        .btn-group { display: flex; flex-direction: column; gap: 12px; }
+        
         button { 
             padding: 15px; background: transparent; border: 1px solid var(--p); 
             color: var(--p); font-weight: bold; cursor: pointer; 
             text-transform: uppercase; font-family: inherit; transition: 0.3s;
         }
         button:hover { background: var(--p); color: #000; box-shadow: 0 0 10px var(--p); }
-        .logout { border-color: var(--red); color: var(--red); margin-top: 10px; }
+
+        /* Estilo específico para volver al inicio sin cerrar sesión */
+        .exit { border-color: #888; color: #888; margin-top: 10px; }
+        .exit:hover { border-color: #fff; color: #fff; background: transparent; box-shadow: 0 0 10px #fff; }
+
+        .logout { border-color: var(--red); color: var(--red); }
         .logout:hover { background: var(--red); color: #fff; box-shadow: 0 0 10px var(--red); }
     </style>
 </head>
@@ -73,6 +74,10 @@
         <div class="btn-group">
             <button onclick="window.location.href='editor.html'">🛠️ EDITOR DE MISIONES</button>
             <button onclick="window.location.href='lobby.html'">📡 VISTA DE LOBBY</button>
+            
+            <hr style="border: 0; border-top: 1px solid #222; margin: 10px 0;">
+
+            <button class="exit" onclick="window.location.href='index.html'">⬅ VOLVER AL INICIO</button>
             <button class="logout" onclick="logoutAndExit()">✖ CERRAR SESIÓN</button>
         </div>
     </div>
