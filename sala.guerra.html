@@ -161,8 +161,8 @@ function loadMissionData(id) {
         if(!m) return;
 
         document.getElementById('mission-title').innerText = m.nombre.toUpperCase();
-        document.getElementById('m-briefing').innerText = m.historia || "Sin descripción.";
-        document.getElementById('m-objectives').innerText = m.objetivos || "Sin objetivos.";
+        document.getElementById('m-briefing').innerText = m.historia || "Sin descripción de inteligencia.";
+        document.getElementById('m-objectives').innerText = m.objetivos || "Sin objetivos primarios.";
 
         if(m.imagen) {
             const imgEl = document.getElementById('mission-img');
@@ -174,14 +174,22 @@ function loadMissionData(id) {
         if(m.elementos) {
             m.elementos.forEach(el => {
                 let layer;
-                const style = { color: '#0f0', weight: 2, fillOpacity: 0.15, dashArray: '5, 5' };
+                const style = { 
+                    color: '#0f0', 
+                    weight: 2, 
+                    fillOpacity: 0.15, 
+                    dashArray: '5, 5' 
+                };
+
                 if(el.path) layer = L.polygon(el.path, style);
                 else if(el.radius) layer = L.circle(el.center, {radius: el.radius, ...style});
-                drawnItems.addLayer(layer);
+                
+                if(layer) drawnItems.addLayer(layer);
             });
 
+            // Ajuste automático del zoom a la zona de juego
             if(drawnItems.getLayers().length > 0) {
-                previewMap.fitBounds(drawnItems.getBounds(), { padding: [15, 15] });
+                previewMap.fitBounds(drawnItems.getBounds(), { padding: [20, 20] });
             }
         }
     });
@@ -204,13 +212,13 @@ function toggleUI(enlisted) {
         btnJoin.style.display = 'block';
         btnLeave.style.display = 'none';
     }
+    // Forzar redibujado para evitar áreas grises en el mapa
     setTimeout(() => previewMap.invalidateSize(), 200);
 }
 
 function registerOp() {
     if(!missionId) return alert("HQ AÚN NO HA DESIGNADO UNA MISIÓN");
     
-    // Guardar en Firebase
     db.ref(`jugadores_enlistados/${myCallsign}`).set({
         callsign: myCallsign,
         equipo: 'S/E',
@@ -218,8 +226,11 @@ function registerOp() {
         lat: 0, lng: 0,
         lastSeen: Date.now()
     }).then(() => {
-        // Redirección inmediata tras confirmar
+        // Redirección táctica
         location.href = 'mapa_tactico.html';
+    }).catch(err => {
+        console.error("Error de enlace:", err);
+        alert("FALLO EN EL ENLACE CON EL SERVIDOR");
     });
 }
 
