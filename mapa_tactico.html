@@ -78,8 +78,7 @@
 
         <div id="intel-map-frame">
             <div id="preview-map" class="locked-intel"></div>
-            <div id="map-overlay">
-                <div id="overlay-msg" class="blink" style="font-weight: bold;">[ RECONOCIMIENTO REQUERIDO ]</div>
+            <div id="map-overlay"
                 <div style="font-size: 10px; margin-top: 5px;">CONFIRMA ASISTENCIA PARA VER MAPA</div>
             </div>
         </div>
@@ -239,7 +238,7 @@ function checkAutoDeploy(myData) {
 }
 
 function registerOp() {
-    if(!missionId) return alert("Esperando que HQ lance una misión...");
+    if(!missionId) return alert("Esperando que Comando lance una misión...");
     db.ref(`jugadores_enlistados/${myCallsign}`).set({
         callsign: myCallsign,
         equipo: 'S/E',
