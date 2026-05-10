@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Lobby Pro</title>
+    <title>A.T.O.M - Lobby Operativo</title>
+    
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
@@ -16,6 +17,7 @@
         .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); padding: 15px; box-sizing: border-box; }
         .active { display: flex !important; }
         
+        /* Layout de Portada y Mapa */
         .mission-header-flex { display: flex; gap: 10px; height: 180px; margin-bottom: 15px; }
         #radar-static { flex: 1.2; border: 1px solid var(--p); background: #111; position: relative; overflow: hidden; }
         #mission-cover-frame { flex: 0.8; border: 1px solid #444; overflow: hidden; display: none; background: #000; }
@@ -25,49 +27,52 @@
         .btn-action { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         .btn-secondary { background: transparent; color: var(--p); border: 1px solid var(--p); padding: 12px; width: 100%; cursor: pointer; font-family: inherit; font-size: 11px; margin-top: 10px; }
         
-        select { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px; font-family: inherit; }
-        .op-list { background: rgba(0,0,0,0.5); border: 1px solid #222; padding: 10px; font-size: 11px; max-height: 100px; overflow-y: auto; }
-        .op-tag { display: inline-block; padding: 2px 5px; border: 1px solid var(--p); margin: 2px; font-size: 10px; }
+        select { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px; font-family: inherit; font-size: 14px; }
+        .op-list { background: rgba(0,0,0,0.5); border: 1px solid #222; padding: 8px; font-size: 11px; max-height: 90px; overflow-y: auto; }
+        .op-tag { display: inline-block; padding: 2px 5px; border: 1px solid var(--p); margin: 2px; font-size: 10px; border-radius: 2px; }
     </style>
 </head>
 <body>
 
     <div id="screen-welcome" class="screen active" style="justify-content: center; align-items: center;">
-        <div style="border: 1px solid var(--p); padding: 25px; text-align: center; width: 100%; max-width: 380px;">
-            <h2 style="color:var(--gold)">SISTEMA A.T.O.M</h2>
-            <p id="welcome-callsign">IDENTIFICANDO...</p>
+        <div style="border: 1px solid var(--p); padding: 25px; text-align: center; width: 100%; max-width: 380px; background: rgba(0,20,0,0.4);">
+            <h2 style="color:var(--gold); margin-bottom: 5px;">SISTEMA A.T.O.M</h2>
+            <p id="welcome-callsign" style="font-size: 12px; margin-bottom: 25px;">IDENTIFICANDO OPERADOR...</p>
+            
             <select id="mission-dropdown" onchange="viewMission(this.value)">
-                <option value="">-- BUSCANDO MISIONES --</option>
+                <option value="">-- SELECCIONAR MISIÓN --</option>
             </select>
+            
             <button class="btn-secondary" onclick="window.location.href='operadores.html'">📡 OPERADORES ACTIVOS EN A.T.O.M</button>
         </div>
+        <button onclick="window.location.href='index.html'" style="margin-top:20px; background:none; border:none; color:#444; cursor:pointer; font-size: 10px;">DESCONECTAR TERMINAL</button>
     </div>
 
     <div id="screen-preview" class="screen">
-        <h2 id="prev-name" style="margin:0 0 10px 0; font-size: 1.2rem;">CARGANDO...</h2>
+        <h2 id="prev-name" style="margin:0 0 10px 0; font-size: 1.1rem; color: var(--gold);">CARGANDO...</h2>
         
         <div class="mission-header-flex">
             <div id="radar-static"><div id="preview-map" style="width:100%; height:100%;"></div></div>
-            <div id="mission-cover-frame"><img id="mission-cover-img" src="" onerror="this.src='https://via.placeholder.com/300x180/000/0f0?text=IMG+ERROR'"></div>
+            <div id="mission-cover-frame"><img id="mission-cover-img" src="" onerror="this.style.display='none'"></div>
         </div>
         
         <div style="flex-grow:1; overflow-y:auto; margin-bottom: 10px;">
             <div class="info-block">
-                <div style="color:var(--gold); font-size:10px;">I. BRIEFING</div>
-                <div id="mission-history-text" style="font-size:12px;"></div>
+                <div style="color:var(--gold); font-size:9px; letter-spacing: 1px;">[ BRIEFING OPERATIVO ]</div>
+                <div id="mission-history-text" style="font-size:12px; margin-top:5px; color:#ccc;"></div>
             </div>
             <div class="info-block">
-                <div style="color:var(--gold); font-size:10px;">II. OBJETIVOS</div>
-                <div id="mission-objectives-text" style="font-size:12px;"></div>
+                <div style="color:var(--gold); font-size:9px; letter-spacing: 1px;">[ OBJETIVOS DE MISIÓN ]</div>
+                <div id="mission-objectives-text" style="font-size:12px; margin-top:5px; color:#ccc;"></div>
             </div>
             <div class="info-block">
-                <div style="color:var(--gold); font-size:10px;">III. PERSONAL ENLISTADO</div>
+                <div style="color:var(--gold); font-size:9px; letter-spacing: 1px;">[ PERSONAL CONFIRMADO ]</div>
                 <div id="enlisted-ops" class="op-list"></div>
             </div>
         </div>
 
         <button id="btn-enlist" class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ASISTENCIA</button>
-        <button onclick="showScreen('screen-welcome')" style="background:none; color:#666; border:none; padding:10px; cursor:pointer; font-family: inherit;">⬅ VOLVER</button>
+        <button onclick="showScreen('screen-welcome')" style="background:none; color:#666; border:none; padding:10px; cursor:pointer; font-family: inherit; font-size: 11px;">⬅ VOLVER AL LOBBY</button>
     </div>
 
     <script>
@@ -81,6 +86,18 @@
         const auth = firebase.auth();
         
         let userCallsign, selectedMissionId, previewMap, drawnItems;
+
+        // Limpiar URL de Google Drive para visualización directa
+        function formatDriveUrl(url) {
+            if (!url) return '';
+            if (url.includes('drive.google.com')) {
+                let id = "";
+                if (url.includes('/d/')) id = url.split('/d/')[1].split('/')[0];
+                else if (url.includes('id=')) id = url.split('id=')[1].split('&')[0];
+                return id ? `https://lh3.googleusercontent.com/u/0/d/${id}` : url;
+            }
+            return url;
+        }
 
         auth.onAuthStateChanged(user => {
             if (user) {
@@ -106,15 +123,6 @@
             });
         }
 
-        // FUNCIÓN PARA LIMPIAR EL LINK DE DRIVE
-        function formatDriveUrl(url) {
-            if (url.includes('drive.google.com')) {
-                const id = url.split('/d/')[1]?.split('/')[0];
-                return id ? `https://lh3.googleusercontent.com/u/0/d/${id}` : url;
-            }
-            return url;
-        }
-
         function viewMission(id) {
             if(!id) return;
             selectedMissionId = id;
@@ -131,13 +139,14 @@
                 if(!m) return;
                 
                 document.getElementById('prev-name').innerText = m.nombre;
-                document.getElementById('mission-history-text').innerText = m.historia || "---";
-                document.getElementById('mission-objectives-text').innerText = m.objetivos || "---";
+                document.getElementById('mission-history-text').innerText = m.historia || "No hay briefing disponible.";
+                document.getElementById('mission-objectives-text').innerText = m.objetivos || "No hay objetivos definidos.";
                 
                 const frame = document.getElementById('mission-cover-frame');
+                const img = document.getElementById('mission-cover-img');
                 if(m.imagen) { 
                     frame.style.display='block'; 
-                    document.getElementById('mission-cover-img').src = formatDriveUrl(m.imagen); 
+                    img.src = formatDriveUrl(m.imagen); 
                 } else { frame.style.display='none'; }
 
                 drawnItems.clearLayers();
@@ -152,28 +161,29 @@
                         drawnItems.addLayer(layer);
                     });
 
-                    // FORZAR ACTUALIZACIÓN PARA EVITAR MAPA GRIS
+                    // Refresco táctico del mapa
                     setTimeout(() => {
                         previewMap.invalidateSize();
                         if(drawnItems.getLayers().length > 0) {
-                            previewMap.fitBounds(drawnItems.getBounds(), {padding: [20,20]});
+                            previewMap.fitBounds(drawnItems.getBounds(), {padding: [30,30]});
                         }
-                    }, 300);
+                    }, 500);
                 }
             });
 
+            // Sincronizar operadores enlistados
             db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(id).on('value', snap => {
                 const container = document.getElementById('enlisted-ops');
                 container.innerHTML = '';
                 let yaEnlistado = false;
                 snap.forEach(child => {
                     if(child.val().callsign === userCallsign) yaEnlistado = true;
-                    container.innerHTML += `<span class="op-tag enlisted" style="background:var(--p); color:#000;">${child.val().callsign}</span>`;
+                    container.innerHTML += `<span class="op-tag" style="background:var(--p); color:#000; font-weight:bold;">${child.val().callsign}</span>`;
                 });
                 const btn = document.getElementById('btn-enlist');
-                btn.innerText = yaEnlistado ? "✓ ENLISTADO" : "📝 CONFIRMAR ASISTENCIA";
+                btn.innerText = yaEnlistado ? "✓ ASISTENCIA CONFIRMADA" : "📝 CONFIRMAR ASISTENCIA";
                 btn.disabled = yaEnlistado;
-                btn.style.opacity = yaEnlistado ? "0.5" : "1";
+                btn.style.opacity = yaEnlistado ? "0.4" : "1";
             });
         }
 
@@ -187,9 +197,8 @@
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            // Si pasamos a la preview, avisamos al mapa que debe redibujarse
             if(id === 'screen-preview' && previewMap) {
-                setTimeout(() => { previewMap.invalidateSize(); }, 100);
+                setTimeout(() => { previewMap.invalidateSize(); }, 200);
             }
         }
     </script>
