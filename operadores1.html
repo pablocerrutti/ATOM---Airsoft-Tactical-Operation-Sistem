@@ -1,66 +1,86 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
+<head> 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Operadores Registrados</title>
+    <title>A.T.O.M - Gestión de Personal</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
     <style>
-        :root { --p: #00ff00; --f: #050505; --gray: #222; --gold: #ffd700; --red: #ff3333; }
+        :root { --p: #00ff00; --f: #050505; --gray: #222; --gold: #ffd700; --red: #ff3333; --blue: #3366ff; }
         body { 
             margin: 0; background: var(--f); color: var(--p); 
             font-family: 'Courier New', monospace; padding: 20px;
             display: flex; flex-direction: column; height: 100vh; box-sizing: border-box;
         }
         
+        /* PANTALLA DE BLOQUEO */
+        #lock-screen {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: var(--f); z-index: 9999; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+
         .header { text-align: center; border-bottom: 1px solid var(--p); margin-bottom: 20px; padding-bottom: 10px; flex-shrink: 0; }
         .header p { margin: 5px 0; font-size: 10px; color: var(--p); opacity: 0.8; text-transform: uppercase; }
         
-        #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; padding-right: 5px; }
-        #operator-list::-webkit-scrollbar { width: 4px; }
-        #operator-list::-webkit-scrollbar-thumb { background: var(--p); }
+        #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; }
 
         .operator-card {
-            background: rgba(0, 255, 0, 0.05);
-            border: 1px solid var(--gray);
-            padding: 15px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 3px solid var(--p);
+            background: rgba(255, 255, 255, 0.02); border: 1px solid var(--gray);
+            padding: 15px; margin-bottom: 10px; display: flex;
+            justify-content: space-between; align-items: center;
         }
         
-        .callsign { font-size: 18px; font-weight: bold; color: var(--p); text-transform: uppercase; letter-spacing: 1px; }
-        .stats { font-size: 11px; color: var(--gold); text-align: right; line-height: 1.4; }
-        .mision-count { font-size: 16px; color: #fff; font-weight: bold; }
+        .role-tag { font-size: 9px; padding: 2px 5px; border-radius: 3px; margin-left: 10px; font-weight: bold; }
+        .role-editor { background: var(--blue); color: #fff; }
+        .role-admin { background: var(--gold); color: #000; }
+        .role-jugador { background: #444; color: #ccc; }
+
+        .stats { font-size: 11px; color: var(--gold); text-align: right; }
         
+        /* BOTONES */
+        .btn-action { 
+            background: transparent; border: 1px solid var(--blue); color: var(--blue);
+            padding: 5px 10px; font-size: 10px; cursor: pointer; font-family: inherit;
+            margin-top: 10px; text-transform: uppercase;
+        }
+        .btn-action:hover { background: var(--blue); color: #fff; }
+
         .btn-back {
             width: 100%; padding: 15px; background: transparent; 
             border: 1px solid var(--p); color: var(--p); 
-            cursor: pointer; font-family: inherit; font-weight: bold;
-            text-transform: uppercase; flex-shrink: 0; transition: 0.3s;
+            cursor: pointer; font-weight: bold; text-transform: uppercase;
         }
-        .btn-back:hover { background: var(--p); color: #000; }
-        .loading { text-align: center; font-style: italic; opacity: 0.6; padding: 20px; font-size: 12px; }
+
+        input { 
+            background: #000; border: 1px solid var(--p); color: var(--p); 
+            padding: 15px; text-align: center; font-size: 1.2rem; letter-spacing: 5px;
+            width: 250px; margin-bottom: 20px; outline: none;
+        }
     </style>
 </head>
 <body>
 
+<div id="lock-screen">
+    <h3 style="letter-spacing: 3px;">ACCESO NIVEL 4</h3>
+    <p style="font-size: 10px; color: var(--red);">INGRESE CLAVE DE AUTORIZACIÓN</p>
+    <input type="password" id="access-key" placeholder="****">
+    <button class="btn-back" style="width: 250px;" onclick="verifyAccess()">VALIDAR CREDENCIALES</button>
+    <button onclick="location.href='lobby.html'" style="background:none; border:none; color:#444; margin-top:20px; cursor:pointer;">ABORTAR</button>
+</div>
+
 <div class="header">
-    <h2 style="margin:0; font-size: 1.2rem; letter-spacing: 2px;">REGISTRO DE OPERADORES</h2>
-    <p>Base de Datos de Personal Registrado</p>
+    <h2 style="margin:0; letter-spacing: 2px;">GESTIÓN DE OPERADORES</h2>
+    <p id="access-level-text">Nivel de Acceso: ---</p>
 </div>
 
-<div id="operator-list">
-    <p class="loading">AUTENTICANDO CREDENCIALES...</p>
-</div>
+<div id="operator-list"></div>
 
-<button class="btn-back" onclick="location.href='idea.html'">⬅ VOLVER AL LOBBY</button>
+<button class="btn-back" onclick="location.href='lobby.html'">⬅ VOLVER AL LOBBY</button>
 
 <script>
     const firebaseConfig = {
@@ -71,84 +91,88 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const auth = firebase.auth();
-    const listContainer = document.getElementById('operator-list');
+    
+    // CONFIGURACIÓN DE CLAVES (Idealmente en Firebase, aquí para el ejemplo funcional)
+    const MASTER_KEY = "2024"; // Admin: Puede ascender rangos
+    const EDITOR_KEY = "1010"; // Editor: Solo lectura del listado
 
+    let currentRole = "guest";
     let conteoMisiones = {};
 
-    // 1. Verificar Autenticación antes de pedir datos (Vital por las Reglas)
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            loadOperators();
+    function verifyAccess() {
+        const key = document.getElementById('access-key').value;
+        if(key === MASTER_KEY) {
+            currentRole = "admin";
+            unlock();
+        } else if (key === EDITOR_KEY) {
+            currentRole = "editor";
+            unlock();
         } else {
-            window.location.href = 'login.html';
+            alert("CLAVE ERRÓNEA. ACCESO DENEGADO.");
         }
-    });
+    }
+
+    function unlock() {
+        document.getElementById('lock-screen').style.display = 'none';
+        document.getElementById('access-level-text').innerText = `Nivel de Acceso: ${currentRole.toUpperCase()}`;
+        loadOperators();
+    }
 
     function loadOperators() {
-        // 2. Escuchar participaciones en misiones
-        db.ref('jugadores_enlistados').on('value', (snapE) => {
+        // Cargar conteo de misiones
+        db.ref('jugadores_enlistados').on('value', snap => {
             conteoMisiones = {};
-            if(snapE.exists()) {
-                snapE.forEach(child => {
-                    const reg = child.val();
-                    if(reg.callsign) {
-                        conteoMisiones[reg.callsign] = (conteoMisiones[reg.callsign] || 0) + 1;
-                    }
-                });
-            }
-            // Actualizar solo los números si las cards ya existen
-            actualizarNumeros();
+            snap.forEach(c => {
+                const call = c.val().callsign;
+                if(call) conteoMisiones[call] = (conteoMisiones[call] || 0) + 1;
+            });
+            renderList();
         });
 
-        // 3. Escuchar lista de usuarios registrados
-        db.ref('usuarios').on('value', (snapU) => {
-            if (!snapU.exists()) {
-                listContainer.innerHTML = '<p class="loading">SIN REGISTROS EN BASE DE DATOS</p>';
-                return;
-            }
+        // Escuchar cambios en usuarios
+        db.ref('usuarios').on('value', snap => {
+            renderList(snap);
+        });
+    }
 
-            listContainer.innerHTML = ''; 
-            let usuariosArr = [];
-            
-            snapU.forEach((child) => {
-                let u = child.val();
-                u.uid = child.key;
-                usuariosArr.push(u);
-            });
-
-            // Ordenar alfabéticamente
-            usuariosArr.sort((a, b) => (a.callsign || "").localeCompare(b.callsign || ""));
-
-            usuariosArr.forEach((user) => {
-                const callsign = user.callsign || "SIN CALLSIGN";
+    function renderList(snap) {
+        const listContainer = document.getElementById('operator-list');
+        listContainer.innerHTML = '';
+        
+        db.ref('usuarios').once('value', (snap) => {
+            snap.forEach(child => {
+                const u = child.val();
+                const uid = child.key;
+                const callsign = u.callsign || "SIN IDENTIFICAR";
+                const role = u.role || "jugador";
                 const misiones = conteoMisiones[callsign] || 0;
 
                 const card = document.createElement('div');
                 card.className = 'operator-card';
-                card.setAttribute('data-callsign', callsign);
                 card.innerHTML = `
-                    <div class="callsign">${callsign}</div>
+                    <div>
+                        <span class="callsign">${callsign}</span>
+                        <span class="role-tag role-${role}">${role.toUpperCase()}</span>
+                        <br>
+                        ${(currentRole === 'admin' && role === 'jugador') ? 
+                            `<button class="btn-action" onclick="promote('${uid}')">⬆ ASCENDER A EDITOR</button>` : ''}
+                    </div>
                     <div class="stats">
-                        MISIONES CONFIRMADAS: <span class="mision-count">${misiones}</span><br>
-                        ESTADO: <span style="color:var(--p)">OPERATIVO</span>
+                        MISIONES: <span style="color:#fff">${misiones}</span><br>
+                        STATUS: <span style="color:var(--p)">ONLINE</span>
                     </div>
                 `;
                 listContainer.appendChild(card);
             });
-        }, (error) => {
-            console.error(error);
-            listContainer.innerHTML = `<p class="loading" style="color:var(--red)">ERROR DE ACCESO: VERIFICAR REGLAS</p>`;
         });
     }
 
-    function actualizarNumeros() {
-        const cards = document.querySelectorAll('.operator-card');
-        cards.forEach(card => {
-            const cs = card.getAttribute('data-callsign');
-            const span = card.querySelector('.mision-count');
-            if(span) span.innerText = conteoMisiones[cs] || 0;
-        });
+    function promote(uid) {
+        if(currentRole !== 'admin') return;
+        if(confirm("¿Confirmar ascenso de rango a EDITOR? El usuario tendrá permisos de creación de misiones.")) {
+            db.ref(`usuarios/${uid}`).update({ role: 'editor' })
+            .then(() => alert("RANGO ACTUALIZADO"));
+        }
     }
 </script>
 
