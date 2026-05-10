@@ -105,7 +105,7 @@
         
         let userCallsign, selectedMissionId, previewMap, drawnItems;
 
-        // Limpia y formatea URLs de Drive
+        // Limpia y formatea URLs de Drive para visualización directa
         function formatDriveUrl(url) {
             if (!url) return '';
             if (url.includes('drive.google.com')) {
@@ -130,9 +130,26 @@
             } else { window.location.href = 'index.html'; }
         });
 
+        // CIERRE DE SESIÓN: Limpia acceso, callsign y vuelve al index
         function logout() {
-            if(confirm("¿Confirmar desconexión del sistema?")) {
-                auth.signOut().then(() => { window.location.href = 'index.html'; });
+            if(confirm("¿Confirmar desconexión del sistema A.T.O.M?")) {
+                const uid = auth.currentUser ? auth.currentUser.uid : null;
+                
+                // 1. Limpiar escuchas activos
+                if (uid) {
+                    db.ref(`usuarios/${uid}`).off();
+                    db.ref(`jugadores_enlistados/${uid}`).off();
+                }
+                db.ref('misiones').off();
+                db.ref('estado_partida').off();
+                db.ref('jugadores_enlistados').off();
+
+                // 2. Cerrar sesión
+                auth.signOut().then(() => {
+                    userCallsign = null;
+                    selectedMissionId = null;
+                    window.location.href = 'index.html';
+                });
             }
         }
 
@@ -173,7 +190,6 @@
             selectedMissionId = id;
             showScreen('screen-preview');
             
-            // Inicializar Mapa una sola vez
             if(!previewMap) {
                 previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false });
                 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(previewMap);
@@ -188,7 +204,7 @@
                 document.getElementById('mission-history-text').innerText = m.historia || "Briefing no disponible.";
                 document.getElementById('mission-objectives-text').innerText = m.objetivos || "Sin objetivos específicos.";
                 
-                // Portada
+                // Imagen de Portada (URL de Admin)
                 const frame = document.getElementById('mission-cover-frame');
                 const img = document.getElementById('mission-cover-img');
                 if(m.imagen && m.imagen.trim() !== "") {
@@ -198,7 +214,7 @@
                     frame.style.display = 'none';
                 }
 
-                // Renderizar Zona de Juego en Minimapa
+                // Minimapa de la Zona
                 drawnItems.clearLayers();
                 if(m.elementos) {
                     const colors = { 'GAME_ZONE': '#0f0', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
@@ -211,17 +227,14 @@
                         drawnItems.addLayer(layer);
                     });
                     
-                    // Ajustar vista del mapa con delay para renderizado
                     setTimeout(() => {
                         previewMap.invalidateSize();
-                        if(drawnItems.getLayers().length > 0) {
-                            previewMap.fitBounds(drawnItems.getBounds(), {padding: [20,20]});
-                        }
+                        if(drawnItems.getLayers().length > 0) previewMap.fitBounds(drawnItems.getBounds(), {padding: [20,20]});
                     }, 400);
                 }
             });
 
-            // Sincronizar Operadores enlistados
+            // Sincronizar Asistencia
             db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(id).on('value', snap => {
                 const container = document.getElementById('enlisted-ops');
                 container.innerHTML = '';
@@ -257,8 +270,7 @@
 
         function abandonMission() {
             if(!confirm("¿Retirar tu asistencia de esta operación?")) return;
-            db.ref(`jugadores_enlistados/${auth.currentUser.uid}`).remove()
-            .then(() => {
+            db.ref(`jugadores_enlistados/${auth.currentUser.uid}`).remove().then(() => {
                 showScreen('screen-welcome');
                 document.getElementById('mission-dropdown').value = "";
             });
