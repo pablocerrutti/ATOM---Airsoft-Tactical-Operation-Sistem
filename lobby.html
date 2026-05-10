@@ -17,11 +17,10 @@
         .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); padding: 15px; box-sizing: border-box; }
         .active { display: flex !important; }
         
-        /* Layout con Altura Fija */
         .mission-header-flex { 
             display: flex; 
             gap: 10px; 
-            height: 200px; /* Altura fija para la sección */
+            height: 200px; 
             margin-bottom: 15px; 
             width: 100%;
         }
@@ -48,7 +47,6 @@
             width: 100%; 
             height: 100%; 
             display: block;
-            /* Mantiene aspecto original sin recortar, adaptándose al ancho/alto */
             object-fit: contain; 
         }
 
@@ -70,7 +68,7 @@
             <select id="mission-dropdown" onchange="viewMission(this.value)">
                 <option value="">-- SELECCIONAR MISIÓN --</option>
             </select>
-            <button class="btn-secondary" onclick="window.location.href='operadores.html'">📡 OPERADORES ACTIVOS EN A.T.O.M</button>
+            <button class="btn-secondary" onclick="window.location.href='operadores.html'">📡 OPERADORES ACTIVOS</button>
         </div>
     </div>
 
@@ -78,8 +76,8 @@
         <h2 id="prev-name" style="margin:0 0 10px 0; font-size: 1.1rem; color: var(--gold);">CARGANDO...</h2>
         
         <div class="mission-header-flex">
-            <div id="radar-static"><div id="preview-map" style="width:100%; height:100%;"></div></div>
-            <div id="mission-cover-frame"><img id="mission-cover-img" src="" onerror="this.parentNode.style.display='none'"></div>
+            <div id="radar-static"><div id="preview-map" style="width:100%; height:100%; z-index: 1;"></div></div>
+            <div id="mission-cover-frame"><img id="mission-cover-img" src=""></div>
         </div>
         
         <div style="flex-grow:1; overflow-y:auto; margin-bottom: 10px;">
@@ -113,13 +111,14 @@
         
         let userCallsign, selectedMissionId, previewMap, drawnItems;
 
+        // Función corregida para procesar imágenes de Google Drive
         function formatDriveUrl(url) {
             if (!url) return '';
             if (url.includes('drive.google.com')) {
                 let id = "";
                 if (url.includes('/d/')) id = url.split('/d/')[1].split('/')[0];
                 else if (url.includes('id=')) id = url.split('id=')[1].split('&')[0];
-                return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
+                return `https://lh3.googleusercontent.com/d/${id}`;
             }
             return url;
         }
@@ -153,6 +152,7 @@
             selectedMissionId = id;
             showScreen('screen-preview');
             
+            // Inicializar mapa si no existe
             if(!previewMap) {
                 previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false });
                 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(previewMap);
@@ -164,15 +164,18 @@
                 if(!m) return;
                 
                 document.getElementById('prev-name').innerText = m.nombre;
-                document.getElementById('mission-history-text').innerText = m.historia || "---";
-                document.getElementById('mission-objectives-text').innerText = m.objetivos || "---";
+                document.getElementById('mission-history-text').innerText = m.historia || "Sin briefing.";
+                document.getElementById('mission-objectives-text').innerText = m.objetivos || "Sin objetivos.";
                 
                 const frame = document.getElementById('mission-cover-frame');
                 const img = document.getElementById('mission-cover-img');
+                
                 if(m.imagen) { 
-                    frame.style.display='block'; 
+                    frame.style.display = 'block'; 
                     img.src = formatDriveUrl(m.imagen); 
-                } else { frame.style.display='none'; }
+                } else { 
+                    frame.style.display = 'none'; 
+                }
 
                 drawnItems.clearLayers();
                 if(m.elementos) {
@@ -186,27 +189,29 @@
                         drawnItems.addLayer(layer);
                     });
 
+                    // Ajuste de zoom dinámico
                     setTimeout(() => {
                         previewMap.invalidateSize();
                         if(drawnItems.getLayers().length > 0) {
-                            previewMap.fitBounds(drawnItems.getBounds(), {padding: [30,30]});
+                            previewMap.fitBounds(drawnItems.getBounds(), {padding: [20,20]});
                         }
-                    }, 600);
+                    }, 500);
                 }
             });
 
+            // Sincronizar lista de confirmados
             db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(id).on('value', snap => {
                 const container = document.getElementById('enlisted-ops');
                 container.innerHTML = '';
                 let yaEnlistado = false;
                 snap.forEach(child => {
                     if(child.val().callsign === userCallsign) yaEnlistado = true;
-                    container.innerHTML += `<span class="op-tag" style="background:var(--p); color:#000;">${child.val().callsign}</span>`;
+                    container.innerHTML += `<span class="op-tag" style="background:var(--p); color:#000; font-weight:bold;">${child.val().callsign}</span>`;
                 });
                 const btn = document.getElementById('btn-enlist');
-                btn.innerText = yaEnlistado ? "✓ ASISTENCIA CONFIRMADA" : "📝 CONFIRMAR ASISTENCIA";
+                btn.innerText = yaEnlistado ? "✓ CONFIRMADO" : "📝 CONFIRMAR ASISTENCIA";
                 btn.disabled = yaEnlistado;
-                btn.style.opacity = yaEnlistado ? "0.4" : "1";
+                btn.style.opacity = yaEnlistado ? "0.5" : "1";
             });
         }
 
@@ -221,7 +226,9 @@
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             if(id === 'screen-preview' && previewMap) {
-                setTimeout(() => { previewMap.invalidateSize(); }, 200);
+                setTimeout(() => { 
+                    previewMap.invalidateSize(); 
+                }, 300);
             }
         }
     </script>
