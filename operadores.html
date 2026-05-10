@@ -9,16 +9,20 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
     <style>
-        :root { --p: #00ff00; --f: #050505; --gray: #222; --gold: #ffd700; }
+        :root { --p: #00ff00; --f: #050505; --gray: #222; --gold: #ffd700; --red: #ff3333; }
         body { 
             margin: 0; background: var(--f); color: var(--p); 
             font-family: 'Courier New', monospace; padding: 20px;
             display: flex; flex-direction: column; height: 100vh; box-sizing: border-box;
         }
+        
         .header { text-align: center; border-bottom: 1px solid var(--p); margin-bottom: 20px; padding-bottom: 10px; flex-shrink: 0; }
         .header p { margin: 5px 0; font-size: 10px; color: var(--p); opacity: 0.8; text-transform: uppercase; }
         
-        #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; }
+        /* Lista con Scroll Táctico */
+        #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; padding-right: 5px; }
+        #operator-list::-webkit-scrollbar { width: 4px; }
+        #operator-list::-webkit-scrollbar-thumb { background: var(--p); }
 
         .operator-card {
             background: rgba(0, 255, 0, 0.05);
@@ -29,7 +33,11 @@
             justify-content: space-between;
             align-items: center;
             border-left: 3px solid var(--p);
+            transition: all 0.3s ease;
         }
+        
+        .operator-card:hover { background: rgba(0, 255, 0, 0.1); border-color: var(--p); }
+
         .callsign { font-size: 18px; font-weight: bold; color: var(--p); text-transform: uppercase; letter-spacing: 1px; }
         .stats { font-size: 11px; color: var(--gold); text-align: right; line-height: 1.4; }
         .mision-count { font-size: 16px; color: #fff; font-weight: bold; }
@@ -38,15 +46,17 @@
             width: 100%; padding: 15px; background: transparent; 
             border: 1px solid var(--p); color: var(--p); 
             cursor: pointer; font-family: inherit; font-weight: bold;
-            text-transform: uppercase; flex-shrink: 0;
+            text-transform: uppercase; flex-shrink: 0; transition: 0.3s;
         }
+        .btn-back:hover { background: var(--p); color: #000; }
+        
         .loading { text-align: center; font-style: italic; opacity: 0.6; padding: 20px; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h2 style="margin:0; font-size: 1.2rem; letter-spacing: 2px;">OPERADORES A.T.O.M.</h2>
+    <h2 style="margin:0; font-size: 1.2rem; letter-spacing: 2px;">REGISTRO DE OPERADORES</h2>
     <p>Base de Datos de Personal Registrado</p>
 </div>
 
@@ -67,13 +77,10 @@
     const db = firebase.database();
     const listContainer = document.getElementById('operator-list');
 
-    // Diccionario global para el conteo de misiones
     let conteoMisiones = {};
 
     function loadOperators() {
-        console.log("Sincronizando base de datos...");
-
-        // 1. Cargamos el conteo de misiones de forma independiente
+        // Escuchar cambios en jugadores enlistados (Conteo de misiones)
         db.ref('jugadores_enlistados').on('value', (snapE) => {
             conteoMisiones = {};
             if(snapE.exists()) {
@@ -83,11 +90,10 @@
                     }
                 });
             }
-            // Si ya hay usuarios renderizados, forzamos una actualización de los números
             actualizarNumeros();
         });
 
-        // 2. Cargamos la lista de usuarios (Rama Principal)
+        // Escuchar lista completa de usuarios registrados
         db.ref('usuarios').on('value', (snapU) => {
             if (!snapU.exists()) {
                 listContainer.innerHTML = '<p class="loading">SISTEMA VACÍO: NO HAY REGISTROS</p>';
@@ -95,32 +101,43 @@
             }
 
             listContainer.innerHTML = ''; 
-
+            
+            // Convertimos a array para poder ordenar alfabéticamente
+            let usuariosArr = [];
             snapU.forEach((child) => {
-                const user = child.val();
-                // Prioridad: 1. callsign grabado, 2. nombre grabado, 3. ID de nodo
-                const callsign = user.callsign || user.nombre || "OP-" + child.key.substring(0, 5);
+                let u = child.val();
+                u.id = child.key;
+                usuariosArr.push(u);
+            });
+
+            // Ordenar por callsign
+            usuariosArr.sort((a, b) => {
+                const nameA = (a.callsign || "").toUpperCase();
+                const nameB = (b.callsign || "").toUpperCase();
+                return nameA < nameB ? -1 : nameA > nameB ? 1 : 0;
+            });
+
+            usuariosArr.forEach((user) => {
+                const callsign = user.callsign || user.nombre || "OP-" + user.id.substring(0, 5);
                 const misiones = conteoMisiones[callsign] || 0;
 
                 const card = document.createElement('div');
                 card.className = 'operator-card';
-                card.setAttribute('data-callsign', callsign); // Para actualizar luego
+                card.setAttribute('data-callsign', callsign);
                 card.innerHTML = `
                     <div class="callsign">${callsign}</div>
                     <div class="stats">
-                        PARTICIPACIONES: <span class="mision-count">${misiones}</span><br>
-                        ESTADO: <span style="color:#0f0">ACTIVO</span>
+                        MISIONES CONFIRMADAS: <span class="mision-count">${misiones}</span><br>
+                        ESTADO: <span style="color:var(--p)">OPERATIVO</span>
                     </div>
                 `;
                 listContainer.appendChild(card);
             });
         }, (error) => {
-            console.error("Error en /usuarios:", error);
-            listContainer.innerHTML = `<p class="loading">FALLO DE ACCESO: ${error.message}</p>`;
+            listContainer.innerHTML = `<p class="loading" style="color:var(--red)">FALLO DE ACCESO: ${error.message}</p>`;
         });
     }
 
-    // Función para actualizar misiones sin recargar toda la lista
     function actualizarNumeros() {
         const cards = document.querySelectorAll('.operator-card');
         cards.forEach(card => {
