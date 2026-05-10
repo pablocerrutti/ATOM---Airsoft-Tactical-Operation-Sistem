@@ -34,7 +34,6 @@
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; --gray:#222; }
         body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
         
-        /* PANTALLA INTERMEDIA TÁCTICA */
         #access-screen {
             position: fixed; top:0; left:0; width: 100vw; height: 100vh;
             background: radial-gradient(circle, #0a1a0a 0%, #050505 100%);
@@ -57,7 +56,6 @@
         }
         .main-btn:hover { background: var(--p); color: #000; box-shadow: 0 0 30px var(--p); }
         
-        /* EDITOR E INTERFAZ */
         .wrapper { display: none; height: 100vh; width: 100vw; position: relative; overflow: hidden; }
 
         #panel { 
@@ -87,9 +85,10 @@
         
         input, textarea, select { background: #000; border: 1px solid #333; color: var(--p); padding: 10px; width: 100%; box-sizing: border-box; font-family: monospace; }
 
-        .op-card { background: #111; border: 1px solid #333; padding: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+        .op-card { background: #111; border: 1px solid #333; padding: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; }
         .stats-box { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 10px; border: 1px solid #333; }
         
+        .btn-team { width: 45px; padding: 5px; font-size: 8px; border: 1px solid #444; }
         .btn-return-command { background: #111; border: 1px solid #444; color: #777; margin-top: 15px; padding: 15px !important; }
     </style>
 </head>
@@ -135,10 +134,10 @@
             </div>
         </details>
 
-        <details>
+        <details open>
             <summary>👥 OPERADORES EN LISTA</summary>
             <div class="tool-content" id="enlisted-list">
-                <span style="font-size: 10px; opacity: 0.5;">Esperando inteligencia...</span>
+                <span style="font-size: 10px; opacity: 0.5;">Seleccione misión para asignar equipos...</span>
             </div>
         </details>
 
@@ -188,11 +187,10 @@ let map, drawnItems, currentMissionId = null, currentAtomType = '', isMisionActi
 
 const ATOM_COLORS = { 'GAME_ZONE': '#0f0', 'SAFE_ZONE': '#ffd700', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
 
-// NAVEGACIÓN
 function openCommandRoom() {
     document.getElementById('access-screen').style.display = 'none';
     document.getElementById('main-editor').style.display = 'flex';
-    if(!map) initMap(); // Inicializa mapa solo cuando se abre
+    if(!map) initMap();
 }
 
 function closeCommandRoom() {
@@ -218,7 +216,7 @@ function initMap() {
 function loadMissionToEdit(id) {
     if(!id) { location.reload(); return; }
     currentMissionId = id;
-    syncOperatives(id);
+    syncOperatives(id); // Activa la escucha de operadores para esta misión
     db.ref(`misiones/${id}`).on('value', snap => {
         const m = snap.val();
         if(!m) return;
@@ -245,6 +243,42 @@ function loadMissionToEdit(id) {
     });
 }
 
+function syncOperatives(mId) {
+    db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(mId).on('value', snap => {
+        const container = document.getElementById('enlisted-list');
+        container.innerHTML = '';
+        
+        if(!snap.exists()) {
+            container.innerHTML = '<span style="font-size:10px; opacity:0.5;">Esperando operadores...</span>';
+            return;
+        }
+
+        snap.forEach(child => {
+            const op = child.val();
+            const opKey = child.key;
+            const equipoColor = op.equipo === 'RED' ? 'var(--red)' : (op.equipo === 'BLUE' ? 'var(--blue)' : '#777');
+            
+            const card = document.createElement('div');
+            card.className = 'op-card';
+            card.innerHTML = `
+                <span style="color:${equipoColor}">[${op.callsign}]</span>
+                <div style="display:flex; gap:3px;">
+                    <button class="btn-team" onclick="setTeam('${opKey}', 'RED')" style="color:var(--red)">RED</button>
+                    <button class="btn-team" onclick="setTeam('${opKey}', 'BLUE')" style="color:var(--blue)">BLUE</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    });
+}
+
+function setTeam(opKey, team) {
+    db.ref(`jugadores_enlistados/${opKey}`).update({ 
+        equipo: team,
+        status: 'EQUIPADO'
+    });
+}
+
 function saveMission() {
     const name = document.getElementById('mission-name').value;
     if (!name) return alert("Nombre requerido");
@@ -267,13 +301,8 @@ function saveMission() {
     alert("INTELIGENCIA GUARDADA");
 }
 
-function deleteMission() {
-    if (!currentMissionId) return;
-    if (confirm("¿Eliminar misión?")) db.ref(`misiones/${currentMissionId}`).remove().then(() => location.reload());
-}
-
 function toggleMissionState() {
-    if(!currentMissionId) return;
+    if(!currentMissionId) return alert("Seleccione una misión primero");
     const nuevoEstado = isMisionActiva ? 'inactiva' : 'activa';
     db.ref(`misiones/${currentMissionId}/estado`).set(nuevoEstado);
 }
@@ -291,7 +320,6 @@ function startDraw(t, at, b) {
 }
 
 function clearMap() { if(confirm("¿Limpiar?")) drawnItems.clearLayers(); }
-
 function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
 
 function loadMissionList() {
@@ -303,18 +331,6 @@ function loadMissionList() {
         sel.value = cur;
     });
 }
-
-function syncOperatives(mId) {
-    db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(mId).on('value', snap => {
-        const container = document.getElementById('enlisted-list');
-        container.innerHTML = '';
-        snap.forEach(child => {
-            const op = child.val();
-            container.innerHTML += `<div class="op-card"><span>[${op.callsign}]</span></div>`;
-        });
-    });
-}
-
 </script>
 </body>
 </html>
