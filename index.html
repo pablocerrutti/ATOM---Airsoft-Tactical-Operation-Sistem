@@ -53,7 +53,7 @@
         input { 
             width: 100%; padding: 15px; margin-bottom: 10px; 
             background: #000; border: 1px solid var(--p); color: var(--p);
-            font-family: inherit; font-size: 16px;
+            font-family: inherit; font-size: 16px; outline: none;
         }
         .btn-primary { 
             width: 100%; padding: 15px; background: var(--p); color: #000; 
@@ -73,7 +73,7 @@
             background: #000; text-align: center;
         }
         .admin-box h2 { color: var(--red); margin: 0 0 20px 0; }
-        .admin-input { border-color: var(--red); color: var(--red); }
+        .admin-input { border-color: var(--red) !important; color: var(--red) !important; }
         .btn-admin { background: var(--red); color: #fff; width: 100%; padding: 15px; border: none; font-weight: bold; cursor: pointer; }
 
         footer { padding: 20px; text-align: center; border-top: 1px solid var(--gray); }
@@ -111,7 +111,7 @@
     <header style="text-align: center; margin-bottom: 30px;">
         <h2>IDENTIFICACIÓN</h2>
         <p style="font-size: 12px; color: var(--gold);">A.T.O.M. - Airsoft Tactical Operation Maps</p>
-        <p style="font-size: 12px; color: #666;">creado por Pablo Cerrutti - Florida</p>
+        <p style="font-size: 12px; color: #666;">Florida, Uruguay</p>
     </header>
 
     <div class="auth-card">
@@ -159,8 +159,8 @@
                 document.getElementById('main-app').style.display = 'block';
                 document.getElementById('net-status').innerText = "ONLINE";
                 document.getElementById('net-status').classList.remove('blink');
-            }, 1000);
-        }, 1500);
+            }, 800);
+        }, 1200);
     };
 
     function toggleForm(type) {
@@ -168,48 +168,80 @@
         document.getElementById('register-form').style.display = type === 'reg' ? 'block' : 'none';
     }
 
+    // REGISTRO MEJORADO: Guarda datos esenciales localmente
     async function register() {
         const email = document.getElementById('reg-email').value;
         const pass = document.getElementById('reg-pass').value;
-        const call = document.getElementById('reg-callsign').value.toUpperCase();
+        const call = document.getElementById('reg-callsign').value.toUpperCase().trim();
+        
         if(!call || !email || !pass) return alert("Completa todos los campos tácticos");
+        
         try {
             const res = await auth.createUserWithEmailAndPassword(email, pass);
-            await db.ref(`usuarios/${res.user.uid}`).set({ callsign: call, email: email, rol: 'PLAYER', uid: res.user.uid });
+            const userData = { callsign: call, email: email, rol: 'PLAYER', uid: res.user.uid };
+            
+            await db.ref(`usuarios/${res.user.uid}`).set(userData);
             await db.ref(`comunidad_publica/${res.user.uid}`).set({ callsign: call });
+            
+            localStorage.setItem('callsign', call);
+            localStorage.setItem('userRole', 'PLAYER');
+            
             alert("PERFIL CREADO. BIENVENIDO AL SISTEMA A.T.O.M");
-            location.reload();
-        } catch(e) { alert(e.message); }
+            location.href = "lobby.html";
+        } catch(e) { alert("ERROR AL REGISTRAR: " + e.message); }
     }
 
+    // LOGIN CORREGIDO: Recupera el callsign antes de saltar al lobby
     async function login() {
         const email = document.getElementById('log-email').value;
         const pass = document.getElementById('log-pass').value;
+        
+        if(!email || !pass) return alert("Ingrese credenciales");
+
         try {
-            await auth.signInWithEmailAndPassword(email, pass);
-            location.href = "lobby.html";
-        } catch(e) { alert("ERROR DE ACCESO: VERIFICA CREDENCIALES"); }
+            const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+            const user = userCredential.user;
+
+            // Buscamos el callsign en la DB
+            const snap = await db.ref(`usuarios/${user.uid}`).once('value');
+            if(snap.exists()){
+                const data = snap.val();
+                localStorage.setItem('callsign', data.callsign);
+                localStorage.setItem('userRole', data.rol || 'PLAYER');
+                location.href = "lobby.html";
+            } else {
+                alert("Perfil no encontrado en base de datos.");
+            }
+        } catch(e) { 
+            alert("ERROR DE ACCESO: VERIFICA CREDENCIALES"); 
+        }
     }
 
     function openAdmin() { document.getElementById('admin-overlay').style.display = 'flex'; }
     function closeAdmin() { document.getElementById('admin-overlay').style.display = 'none'; }
 
+    // VALIDACIÓN ADMIN CORREGIDA
     async function validateAdmin() {
         const email = document.getElementById('admin-email').value;
         const pass = document.getElementById('admin-pass').value;
-        if(!email || !pass) return alert("INGRESE CREDENCIALES DE MANDO");
+        
         try {
             const userCredential = await auth.signInWithEmailAndPassword(email, pass);
             const user = userCredential.user;
             const snap = await db.ref(`usuarios/${user.uid}`).once('value');
             const data = snap.val();
-            // RECONFIGURADO: Ahora salta directo a idea.html
+            
             if (data && (data.rol === "ADMIN" || data.rol === "EDITOR")) {
+                localStorage.setItem('callsign', data.callsign);
+                localStorage.setItem('userRole', data.rol);
                 location.href = "idea.html";
             } else {
-                alert("⚠️ ACCESO RECHAZADO: EL OPERADOR NO TIENE RANGO DE COMANDO");
+                alert("⚠️ ACCESO RECHAZADO: RANGO INSUFICIENTE");
+                auth.signOut(); // Cierra sesión si no es admin para evitar conflictos
             }
-        } catch (error) { alert("⚠️ ALERTA DE SEGURIDAD: CREDENCIALES INVÁLIDAS"); }
+        } catch (error) { 
+            alert("⚠️ ALERTA: CREDENCIALES INVÁLIDAS"); 
+        }
     }
 </script>
 </body>
