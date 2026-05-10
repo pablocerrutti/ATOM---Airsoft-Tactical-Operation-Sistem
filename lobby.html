@@ -8,25 +8,33 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
         body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
-        .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); padding: 15px; box-sizing: border-box; }
+        
+        .screen { 
+            position: fixed; top:0; left:0; width:100%; height:100%; 
+            display:none; flex-direction: column; background: var(--f); 
+            padding: 15px; box-sizing: border-box; 
+        }
         .active { display: flex !important; }
         
+        /* HEADER VISUAL AMPLIADO */
         .mission-header-flex { 
             display: flex; 
             gap: 10px; 
-            height: 200px; 
+            height: 280px; /* Aumentado para mejor visión */
             margin-bottom: 15px; 
             width: 100%;
+            flex-shrink: 0;
         }
 
         #radar-static { 
-            flex: 1; 
+            flex: 1.2; /* Mapa ligeramente más ancho */
             height: 100%;
             border: 1px solid var(--p); 
             background: #111; 
@@ -35,7 +43,7 @@
         }
 
         #mission-cover-frame { 
-            flex: 1; 
+            flex: 0.8; 
             height: 100%;
             border: 1px solid #444; 
             overflow: hidden; 
@@ -46,57 +54,67 @@
         #mission-cover-img { 
             width: 100%; 
             height: 100%; 
-            display: block;
-            object-fit: contain; 
+            object-fit: cover; /* Cambiado a cover para impacto visual */
         }
 
+        /* BLOQUES DE INFORMACIÓN */
+        .info-container { flex-grow: 1; overflow-y: auto; margin-bottom: 10px; padding-right: 5px; }
         .info-block { margin-bottom: 12px; padding: 10px; border-left: 2px solid var(--p); background: rgba(0,255,0,0.03); }
-        .btn-action { background: var(--p); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        
+        .label { color:var(--gold); font-size:10px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+        .content { font-size:13px; color:#ccc; line-height: 1.4; }
+
+        .btn-action { background: var(--p); color: #000; border: none; padding: 18px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 14px; }
         .btn-secondary { background: transparent; color: var(--p); border: 1px solid var(--p); padding: 12px; width: 100%; cursor: pointer; font-family: inherit; font-size: 11px; margin-top: 10px; }
         
-        select { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px; font-family: inherit; font-size: 14px; }
-        .op-list { background: rgba(0,0,0,0.5); border: 1px solid #222; padding: 8px; font-size: 11px; max-height: 90px; overflow-y: auto; }
-        .op-tag { display: inline-block; padding: 2px 5px; border: 1px solid var(--p); margin: 2px; font-size: 10px; border-radius: 2px; }
+        select { width:100%; padding:14px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px; font-family: inherit; font-size: 14px; outline: none; }
+        
+        .op-list { background: rgba(0,0,0,0.5); border: 1px solid #222; padding: 8px; min-height: 40px; }
+        .op-tag { display: inline-block; padding: 3px 8px; border: 1px solid var(--p); margin: 2px; font-size: 10px; font-weight: bold; color: #000; background: var(--p); }
+
+        /* Estilo Scrollbar */
+        .info-container::-webkit-scrollbar { width: 4px; }
+        .info-container::-webkit-scrollbar-thumb { background: var(--p); }
     </style>
 </head>
 <body>
 
     <div id="screen-welcome" class="screen active" style="justify-content: center; align-items: center;">
-        <div style="border: 1px solid var(--p); padding: 25px; text-align: center; width: 100%; max-width: 380px; background: rgba(0,20,0,0.4);">
-            <h2 style="color:var(--gold); margin-bottom: 5px;">SISTEMA A.T.O.M</h2>
-            <p id="welcome-callsign" style="font-size: 12px; margin-bottom: 25px;">IDENTIFICANDO...</p>
+        <div style="border: 1px solid var(--p); padding: 30px; text-align: center; width: 100%; max-width: 400px; background: rgba(0,20,0,0.4);">
+            <h2 style="color:var(--gold); margin-top: 0; letter-spacing: 2px;">SISTEMA A.T.O.M</h2>
+            <p id="welcome-callsign" style="font-size: 12px; margin-bottom: 25px; opacity: 0.8;">AUTENTICANDO OPERADOR...</p>
             <select id="mission-dropdown" onchange="viewMission(this.value)">
-                <option value="">-- SELECCIONAR MISIÓN --</option>
+                <option value="">-- SELECCIONAR OPERACIÓN --</option>
             </select>
-            <button class="btn-secondary" onclick="window.location.href='operadores.html'">📡 OPERADORES ACTIVOS</button>
+            <button class="btn-secondary" onclick="window.location.href='operadores.html'">📡 REVISAR OPERADORES ACTIVOS</button>
         </div>
     </div>
 
     <div id="screen-preview" class="screen">
-        <h2 id="prev-name" style="margin:0 0 10px 0; font-size: 1.1rem; color: var(--gold);">CARGANDO...</h2>
+        <h2 id="prev-name" style="margin:0 0 15px 0; font-size: 1.3rem; color: var(--gold); text-align: center; border-bottom: 1px solid #222; padding-bottom: 5px;">CARGANDO...</h2>
         
         <div class="mission-header-flex">
-            <div id="radar-static"><div id="preview-map" style="width:100%; height:100%; z-index: 1;"></div></div>
+            <div id="radar-static"><div id="preview-map" style="width:100%; height:100%;"></div></div>
             <div id="mission-cover-frame"><img id="mission-cover-img" src=""></div>
         </div>
         
-        <div style="flex-grow:1; overflow-y:auto; margin-bottom: 10px;">
+        <div class="info-container">
             <div class="info-block">
-                <div style="color:var(--gold); font-size:9px;">[ BRIEFING OPERATIVO ]</div>
-                <div id="mission-history-text" style="font-size:12px; margin-top:5px; color:#ccc;"></div>
+                <div class="label">[ BRIEFING OPERATIVO / HISTORIA ]</div>
+                <div id="mission-history-text" class="content"></div>
             </div>
             <div class="info-block">
-                <div style="color:var(--gold); font-size:9px;">[ OBJETIVOS DE MISIÓN ]</div>
-                <div id="mission-objectives-text" style="font-size:12px; margin-top:5px; color:#ccc;"></div>
+                <div class="label">[ OBJETIVOS ESTRATÉGICOS ]</div>
+                <div id="mission-objectives-text" class="content"></div>
             </div>
             <div class="info-block">
-                <div style="color:var(--gold); font-size:9px;">[ PERSONAL CONFIRMADO ]</div>
+                <div class="label">[ FUERZAS ENLISTADAS ]</div>
                 <div id="enlisted-ops" class="op-list"></div>
             </div>
         </div>
 
         <button id="btn-enlist" class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ASISTENCIA</button>
-        <button onclick="showScreen('screen-welcome')" style="background:none; color:#666; border:none; padding:10px; cursor:pointer; font-family: inherit;">⬅ VOLVER</button>
+        <button onclick="showScreen('screen-welcome')" style="background:none; color:#555; border:none; padding:12px; cursor:pointer; font-family: inherit; font-size: 11px; font-weight: bold;">⬅ ABORTAR / VOLVER</button>
     </div>
 
     <script>
@@ -111,14 +129,14 @@
         
         let userCallsign, selectedMissionId, previewMap, drawnItems;
 
-        // Función corregida para procesar imágenes de Google Drive
+        // Función para procesar URLs de Google Drive (Formato Vista Directa)
         function formatDriveUrl(url) {
             if (!url) return '';
             if (url.includes('drive.google.com')) {
                 let id = "";
                 if (url.includes('/d/')) id = url.split('/d/')[1].split('/')[0];
                 else if (url.includes('id=')) id = url.split('id=')[1].split('&')[0];
-                return `https://lh3.googleusercontent.com/d/${id}`;
+                return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
             }
             return url;
         }
@@ -128,7 +146,7 @@
                 db.ref(`usuarios/${user.uid}`).on('value', snap => {
                     if (snap.exists()) {
                         userCallsign = snap.val().callsign;
-                        document.getElementById('welcome-callsign').innerText = `OPERADOR: ${userCallsign}`;
+                        document.getElementById('welcome-callsign').innerText = `OPERADOR IDENTIFICADO: ${userCallsign}`;
                         initLobbySync();
                     }
                 });
@@ -139,7 +157,7 @@
             db.ref('misiones').on('value', snap => {
                 const dd = document.getElementById('mission-dropdown');
                 const current = dd.value;
-                dd.innerHTML = '<option value="">-- SELECCIONAR MISIÓN --</option>';
+                dd.innerHTML = '<option value="">-- SELECCIONAR OPERACIÓN --</option>';
                 snap.forEach(child => {
                     dd.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
                 });
@@ -152,9 +170,14 @@
             selectedMissionId = id;
             showScreen('screen-preview');
             
-            // Inicializar mapa si no existe
             if(!previewMap) {
-                previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false });
+                previewMap = L.map('preview-map', { 
+                    zoomControl: false, 
+                    attributionControl: false,
+                    dragging: true,
+                    doubleClickZoom: false,
+                    scrollWheelZoom: false
+                });
                 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(previewMap);
                 drawnItems = L.featureGroup().addTo(previewMap);
             }
@@ -163,9 +186,9 @@
                 const m = snap.val();
                 if(!m) return;
                 
-                document.getElementById('prev-name').innerText = m.nombre;
-                document.getElementById('mission-history-text').innerText = m.historia || "Sin briefing.";
-                document.getElementById('mission-objectives-text').innerText = m.objetivos || "Sin objetivos.";
+                document.getElementById('prev-name').innerText = m.nombre.toUpperCase();
+                document.getElementById('mission-history-text').innerText = m.historia || "Sin datos de inteligencia.";
+                document.getElementById('mission-objectives-text').innerText = m.objetivos || "Sin objetivos definidos.";
                 
                 const frame = document.getElementById('mission-cover-frame');
                 const img = document.getElementById('mission-cover-img');
@@ -183,42 +206,61 @@
                     m.elementos.forEach(el => {
                         let layer;
                         const col = colors[el.type] || '#0f0';
-                        if(el.path) layer = L.polygon(el.path, {color: col, weight: 2, fillOpacity: 0.3});
-                        else if(el.radius) layer = L.circle(el.center, {radius: el.radius, color: col, fillOpacity: 0.3});
-                        else layer = L.marker(el.center);
+                        if(el.path) {
+                            layer = L.polygon(el.path, {color: col, weight: 2, fillOpacity: 0.2});
+                        } else if(el.radius) {
+                            layer = L.circle(el.center, {radius: el.radius, color: col, fillOpacity: 0.2, weight: 2});
+                        } else {
+                            layer = L.marker(el.center);
+                        }
                         drawnItems.addLayer(layer);
                     });
 
-                    // Ajuste de zoom dinámico
+                    // Lógica administrativa: FitBounds inmediato y forzado
                     setTimeout(() => {
                         previewMap.invalidateSize();
                         if(drawnItems.getLayers().length > 0) {
-                            previewMap.fitBounds(drawnItems.getBounds(), {padding: [20,20]});
+                            previewMap.fitBounds(drawnItems.getBounds(), {padding: [30,30]});
                         }
                     }, 500);
                 }
             });
 
-            // Sincronizar lista de confirmados
+            // Sincronización de lista de confirmados
             db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(id).on('value', snap => {
                 const container = document.getElementById('enlisted-ops');
                 container.innerHTML = '';
                 let yaEnlistado = false;
                 snap.forEach(child => {
                     if(child.val().callsign === userCallsign) yaEnlistado = true;
-                    container.innerHTML += `<span class="op-tag" style="background:var(--p); color:#000; font-weight:bold;">${child.val().callsign}</span>`;
+                    container.innerHTML += `<span class="op-tag">${child.val().callsign}</span>`;
                 });
+                
                 const btn = document.getElementById('btn-enlist');
-                btn.innerText = yaEnlistado ? "✓ CONFIRMADO" : "📝 CONFIRMAR ASISTENCIA";
-                btn.disabled = yaEnlistado;
-                btn.style.opacity = yaEnlistado ? "0.5" : "1";
+                if(yaEnlistado) {
+                    btn.innerText = "✓ ASISTENCIA CONFIRMADA";
+                    btn.disabled = true;
+                    btn.style.background = "#222";
+                    btn.style.color = "#0f0";
+                    btn.style.border = "1px solid #0f0";
+                } else {
+                    btn.innerText = "📝 CONFIRMAR ASISTENCIA";
+                    btn.disabled = false;
+                    btn.style.background = "var(--p)";
+                    btn.style.color = "#000";
+                }
             });
         }
 
         function enlistOperative() {
             if(!selectedMissionId) return;
             db.ref(`jugadores_enlistados/${auth.currentUser.uid}`).set({
-                callsign: userCallsign, equipo: 'S/E', misionId: selectedMissionId, timestamp: Date.now()
+                callsign: userCallsign, 
+                equipo: 'S/E', 
+                misionId: selectedMissionId, 
+                timestamp: Date.now()
+            }).then(() => {
+                console.log("Alistamiento completado.");
             });
         }
 
