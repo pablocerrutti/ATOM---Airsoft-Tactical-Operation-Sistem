@@ -1,40 +1,105 @@
-<div class="block">
-    <span class="label">Selector de Operación</span>
-    <select id="mission-selector" class="btn" style="width: 100%; margin-bottom: 10px; background: #111;">
-        <option value="">-- SELECCIONAR MISIÓN --</option>
-    </select>
-    <button class="btn btn-ready" onclick="goToWarRoom()" style="width: 100%;">INGRESAR A SALA DE GUERRA</button>
-</div>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M - LOBBY</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; --red:#ff3333; }
+        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .panel { width: 90%; max-width: 400px; border: 1px solid var(--p); padding: 20px; background: rgba(0,20,0,0.9); box-shadow: 0 0 20px rgba(0,255,0,0.2); }
+        h1 { text-align: center; font-size: 22px; letter-spacing: 3px; color: var(--gold); margin-top: 0; }
+        
+        .block { margin-bottom: 20px; }
+        .label { font-size: 10px; text-transform: uppercase; margin-bottom: 8px; display: block; color: var(--p); opacity: 0.8; }
+        
+        select, input { 
+            width: 100%; padding: 12px; background: #000; border: 1px solid var(--p); 
+            color: var(--p); font-family: monospace; box-sizing: border-box; outline: none;
+        }
+
+        .btn { 
+            width: 100%; padding: 15px; border: 1px solid var(--p); background: transparent; 
+            color: var(--p); font-weight: bold; cursor: pointer; text-transform: uppercase; 
+            margin-top: 10px; transition: 0.3s;
+        }
+        .btn-ready { background: var(--p); color: #000; }
+        .btn-ready:hover { box-shadow: 0 0 15px var(--p); }
+
+        .footer-note { font-size: 9px; text-align: center; margin-top: 15px; color: #444; }
+    </style>
+</head>
+<body>
+
+    <div class="panel">
+        <h1>A.T.O.M LOBBY</h1>
+        
+        <div class="block">
+            <span class="label">Identificación de Operador</span>
+            <input type="text" id="callsign-input" placeholder="INGRESE CALLSIGN..." readonly>
+        </div>
+
+        <div class="block">
+            <span class="label">Seleccionar Operación Disponible</span>
+            <select id="mission-selector">
+                <option value="">-- BUSCANDO MISIONES... --</option>
+            </select>
+        </div>
+
+        <button class="btn btn-ready" onclick="confirmMission()">INGRESAR A SALA DE GUERRA</button>
+        <button class="btn" onclick="location.href='index.html'" style="font-size: 10px; border-color: #333;">DESCONECTAR</button>
+
+        <div class="footer-note">SISTEMA TÁCTICO DE OPERACIONES AEROTRANSPORTADAS</div>
+    </div>
 
 <script>
-// Lógica para cargar misiones en el selector
-function loadMissionList() {
+const firebaseConfig = {
+    apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+    databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+    projectId: "atom---sistem",
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Recuperar Callsign guardado
+const myCallsign = localStorage.getItem('callsign') || "DESCONOCIDO";
+document.getElementById('callsign-input').value = myCallsign;
+
+window.onload = () => {
+    loadMissions();
+};
+
+function loadMissions() {
     db.ref('misiones').on('value', snap => {
         const selector = document.getElementById('mission-selector');
-        selector.innerHTML = '<option value="">-- SELECCIONAR MISIÓN --</option>';
+        selector.innerHTML = '<option value="">-- SELECCIONE MISIÓN --</option>';
         
         snap.forEach(child => {
             const m = child.val();
-            // Solo mostramos misiones que tengan nombre
             if(m.nombre) {
-                selector.innerHTML += `<option value="${child.key}">${m.nombre.toUpperCase()}</option>`;
+                const option = document.createElement('option');
+                option.value = child.key;
+                option.innerText = m.nombre.toUpperCase();
+                selector.appendChild(option);
             }
         });
     });
 }
 
-function goToWarRoom() {
+function confirmMission() {
     const mId = document.getElementById('mission-selector').value;
-    if(!mId) return alert("SELECCIONE UNA MISIÓN PRIMERO");
+    if(!mId) return alert("ERROR: SELECCIONE UNA OPERACIÓN");
 
-    // Sincronizamos la misión elegida como la "activa" para el usuario
+    // Sincronizar missionId activo para el sistema
     db.ref('operacion_activa/control/missionId').set(mId).then(() => {
         location.href = 'sala_de_guerra.html';
     });
 }
-
-// Llamar al cargar el lobby
-window.onload = () => {
-    loadMissionList();
-};
 </script>
+</body>
+</html>
