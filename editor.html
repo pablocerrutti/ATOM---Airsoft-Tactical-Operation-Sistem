@@ -42,11 +42,8 @@
         button { width:100%; padding:10px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-weight: bold; font-size: 10px; text-transform: uppercase; }
         button.active { background: var(--p); color: #000; }
         input, textarea, select { background: #000; border: 1px solid #333; color: var(--p); padding: 8px; font-family: inherit; font-size: 12px; }
-        
-        /* Estilos de la lista de operadores */
         .op-card { background: #111; border: 1px solid #333; padding: 8px; margin-bottom: 5px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
         .op-callsign { font-weight: bold; transition: color 0.3s ease; }
-        
         .stats-box { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 10px; border: 1px solid #333; margin-bottom: 5px; }
         .stat-btn { width: 35px !important; padding: 5px !important; font-size: 16px; }
         #menu-toggle { position:absolute; top:10px; left:10px; z-index:1100; padding:10px; background:#000; color:var(--p); border:1px solid var(--p); cursor: pointer; }
@@ -118,7 +115,7 @@
             </div>
         </details>
 
-        <button onclick="window.location.href='lobby.html'" style="margin-top:auto; background:#111; border:none; color:#555;">⬅ SALIR AL LOBBY</button>
+        <button onclick="window.location.href='lobby.html'" style="margin-top:auto; background:#111; border:none; color:#555; padding:20px;">⬅ SALIR AL LOBBY</button>
     </div>
     <div id="map"></div>
 </div>
@@ -167,9 +164,14 @@ function saveMission() {
 }
 
 function deleteMission() {
-    if (!currentMissionId) return alert("Selecciona una misión");
-    if (confirm("¿ELIMINAR MISIÓN permanentemente?")) {
-        db.ref(`misiones/${currentMissionId}`).remove().then(() => { alert("ELIMINADA"); location.reload(); });
+    if (!currentMissionId) return alert("Selecciona una misión para eliminar");
+    if (confirm("¿Confirmas la eliminación TOTAL de esta misión?")) {
+        db.ref(`misiones/${currentMissionId}`).remove()
+        .then(() => { 
+            alert("MISIÓN ELIMINADA"); 
+            window.location.reload(); 
+        })
+        .catch(err => alert("Error: " + err.message));
     }
 }
 
@@ -209,9 +211,7 @@ function syncOperatives(mId) {
         container.innerHTML = '';
         snap.forEach(child => {
             const op = child.val();
-            
-            // Lógica de color dinámica según equipo asignado
-            let callsignColor = '#ffffff'; // Blanco por defecto (negrita en CSS)
+            let callsignColor = '#ffffff';
             if (op.equipo === 'RED') callsignColor = 'var(--red)';
             else if (op.equipo === 'BLUE') callsignColor = 'var(--blue)';
 
