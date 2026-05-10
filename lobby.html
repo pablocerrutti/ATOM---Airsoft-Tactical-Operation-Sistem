@@ -24,22 +24,19 @@
         #mission-cover-frame { flex: 0.8; border: 1px solid #333; overflow: hidden; background: #000; display: none; }
         #mission-cover-img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* Contenedores de Texto */
         .info-container { flex-grow: 1; overflow-y: auto; margin-bottom: 10px; }
         .info-block { margin-bottom: 12px; padding: 10px; border-left: 2px solid var(--p); background: rgba(0,255,0,0.03); }
         .label { color:var(--gold); font-size:10px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
         .content { font-size:13px; color:#ccc; line-height: 1.4; }
 
-        /* Botones */
         button { font-family: inherit; cursor: pointer; text-transform: uppercase; transition: 0.2s; border: none; }
         .btn-main { background: var(--p); color: #000; padding: 18px; width: 100%; font-weight: bold; font-size: 14px; }
         .btn-sec { background: transparent; border: 1px solid var(--p); color: var(--p); padding: 12px; width: 100%; font-weight: bold; margin-top: 10px; }
-        .btn-logout { background: transparent; color: var(--red); border: 1px solid var(--red); padding: 10px; width: 100%; font-size: 11px; margin-top: 10px; }
+        .btn-exit { background: var(--red); color: #fff; padding: 15px; width: 100%; font-weight: bold; margin-top: 20px; border-radius: 4px; box-shadow: 0 0 15px rgba(255,51,51,0.3); }
         
         .op-tag { display: inline-block; padding: 3px 8px; border: 1px solid var(--p); margin: 2px; font-size: 10px; font-weight: bold; color: #000; background: var(--p); }
         select { width:100%; padding:14px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px; font-family: inherit; }
 
-        /* Pantallas de Estado */
         #lock-screen { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; border: 4px solid var(--p); }
         .waiting-box { border: 1px dashed var(--gold); padding: 20px; color: var(--gold); text-align: center; margin-top: 15px; }
         .blink { animation: blinker 1.5s linear infinite; }
@@ -61,13 +58,14 @@
             <h2 style="color:var(--gold); margin-top: 0; letter-spacing: 2px;">SISTEMA A.T.O.M</h2>
             <p id="welcome-callsign" style="font-size: 11px; margin-bottom: 25px; color: #888;">IDENTIFICANDO OPERADOR...</p>
             
-            <div class="label" style="text-align: left;">Misiones Disponibles:</div>
+            <div class="label" style="text-align: left;">Operaciones de Campo:</div>
             <select id="mission-dropdown" onchange="viewMission(this.value)">
                 <option value="">-- SELECCIONAR OPERACIÓN --</option>
             </select>
             
             <button onclick="window.location.href='operadores.html'" class="btn-sec">📡 RADAR DE OPERADORES</button>
-            <button class="btn-logout" onclick="logout()">✖ CERRAR SESIÓN</button>
+            
+            <button class="btn-exit" onclick="exitApplication()">⬅ ABANDONAR SISTEMA (LOGOUT)</button>
         </div>
     </div>
 
@@ -91,10 +89,10 @@
 
         <div id="action-area">
             <button id="btn-enlist" class="btn-main" onclick="enlistOperative()">📝 CONFIRMAR ASISTENCIA</button>
-            <button id="btn-abandon" class="btn-sec" style="border-color: var(--red); color: var(--red);" onclick="abandonMission()">❌ RETIRARSE</button>
+            <button id="btn-abandon" class="btn-sec" style="border-color: var(--red); color: var(--red);" onclick="abandonMission()">❌ RETIRARSE DE ESTA MISIÓN</button>
         </div>
         
-        <button onclick="showScreen('screen-welcome')" style="background:none; color:#555; padding:15px; width:100%; font-size: 10px;">⬅ CANCELAR Y VOLVER AL LOBBY</button>
+        <button onclick="showScreen('screen-welcome')" style="background:none; color:#555; padding:15px; width:100%; font-size: 10px;">⬅ VOLVER AL LOBBY</button>
     </div>
 
     <script>
@@ -109,12 +107,6 @@
         
         let userCallsign, selectedMissionId, previewMap, drawnItems;
 
-        function formatDriveUrl(url) {
-            if (!url || !url.includes('drive.google.com')) return url;
-            let id = url.includes('/d/') ? url.split('/d/')[1].split('/')[0] : url.split('id=')[1].split('&')[0];
-            return `https://drive.google.com/uc?export=view&id=${id}`;
-        }
-
         auth.onAuthStateChanged(user => {
             if (user) {
                 db.ref(`usuarios/${user.uid}`).on('value', snap => {
@@ -128,32 +120,40 @@
             } else { window.location.href = 'index.html'; }
         });
 
-        function logout() {
-            if(!confirm("¿Desconectar del sistema A.T.O.M?")) return;
+        // FUNCIÓN DE SALIDA TOTAL (DESENROLAR + LOGOUT + INDEX)
+        function exitApplication() {
+            if(!confirm("¿CONFIRMAR RETIRADA? Se borrará tu asistencia de cualquier misión activa y volverás al inicio.")) return;
+            
             const uid = auth.currentUser.uid;
-            db.ref(`usuarios/${uid}`).off();
-            db.ref(`jugadores_enlistados/${uid}`).off();
-            auth.signOut().then(() => { window.location.href = 'index.html'; });
+            
+            // 1. Borrar asistencia de la base de datos de misiones
+            db.ref(`jugadores_enlistados/${uid}`).remove()
+                .then(() => {
+                    // 2. Cerrar sesión
+                    return auth.signOut();
+                })
+                .then(() => {
+                    // 3. Volver al inicio
+                    window.location.href = 'index.html';
+                })
+                .catch(err => {
+                    console.error("Error en salida:", err);
+                    window.location.href = 'index.html';
+                });
         }
 
-        // Sincronización de despliegue y equipo
         function syncTacticalStatus() {
             const uid = auth.currentUser.uid;
             db.ref('estado_partida').on('value', snapPartida => {
                 const partida = snapPartida.val() || {};
-                
-                // Si la partida está activa, mostramos pantalla de bloqueo
                 if (partida.activo === true) {
                     document.getElementById('lock-screen').style.display = 'flex';
-                    
                     db.ref(`jugadores_enlistados/${uid}`).on('value', snapUser => {
                         const userData = snapUser.val();
-                        // Solo redirige si ya tiene equipo asignado (RED o BLUE)
                         if (userData && userData.equipo && userData.equipo !== 'S/E') {
                             document.getElementById('team-reveal').style.display = 'block';
                             document.getElementById('team-name').innerText = userData.equipo;
                             document.getElementById('team-name').style.color = userData.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
-                            
                             setTimeout(() => { window.location.href = 'mapa.tactico.html'; }, 2500);
                         }
                     });
@@ -194,7 +194,7 @@
                 
                 const frame = document.getElementById('mission-cover-frame');
                 if(m.imagen) { 
-                    document.getElementById('mission-cover-img').src = formatDriveUrl(m.imagen);
+                    document.getElementById('mission-cover-img').src = m.imagen;
                     frame.style.display = 'block';
                 } else { frame.style.display = 'none'; }
 
@@ -214,7 +214,6 @@
                 }
             });
 
-            // Monitor de asistencia
             db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(id).on('value', snap => {
                 const container = document.getElementById('enlisted-ops');
                 container.innerHTML = '';
@@ -223,7 +222,6 @@
                     if(child.val().callsign === userCallsign) yaEnlistado = true;
                     container.innerHTML += `<span class="op-tag">${child.val().callsign}</span>`;
                 });
-                
                 document.getElementById('btn-enlist').style.display = yaEnlistado ? 'none' : 'block';
                 document.getElementById('btn-abandon').style.display = yaEnlistado ? 'block' : 'none';
                 document.getElementById('waiting-area').style.display = yaEnlistado ? 'block' : 'none';
