@@ -21,7 +21,7 @@
         #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; }
 
         .operator-card {
-            background: rgba(0, 255, 0, 0.03);
+            background: rgba(0, 255, 0, 0.05);
             border: 1px solid var(--gray);
             padding: 15px;
             margin-bottom: 10px;
@@ -39,9 +39,7 @@
             border: 1px solid var(--p); color: var(--p); 
             cursor: pointer; font-family: inherit; font-weight: bold;
             text-transform: uppercase; flex-shrink: 0;
-            transition: 0.3s;
         }
-        .btn-back:active { background: var(--p); color: #000; }
         .loading { text-align: center; font-style: italic; opacity: 0.6; padding: 20px; font-size: 12px; }
     </style>
 </head>
@@ -65,48 +63,58 @@
       projectId: "atom---sistem"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    // Inicializar Firebase solo si no se ha hecho
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
     const db = firebase.database();
     const listContainer = document.getElementById('operator-list');
 
     function loadOperators() {
-        // Escucha en tiempo real de la rama /usuarios
-        db.ref('usuarios').on('value', async (snapUsuarios) => {
-            if (!snapUsuarios.exists()) {
-                listContainer.innerHTML = '<p class="loading">ERROR: NO SE ENCONTRARON REGISTROS</p>';
-                return;
-            }
-
-            // Obtenemos historial de misiones para el resumen
-            const snapElistados = await db.ref('jugadores_enlistados').once('value');
-            const enlistadosData = snapElistados.val() || {};
-            
-            // Procesar conteo por callsign
+        console.log("Iniciando conexión a /usuarios...");
+        
+        // Primero obtenemos las misiones para tener el conteo listo
+        db.ref('jugadores_enlistados').once('value').then(snapE => {
+            const enlistadosData = snapE.val() || {};
             const conteoMisiones = {};
+            
             Object.values(enlistadosData).forEach(reg => {
                 if(reg.callsign) {
                     conteoMisiones[reg.callsign] = (conteoMisiones[reg.callsign] || 0) + 1;
                 }
             });
 
-            listContainer.innerHTML = ''; 
+            // Ahora escuchamos los usuarios
+            db.ref('usuarios').on('value', (snapU) => {
+                console.log("Datos recibidos de /usuarios:", snapU.val());
+                
+                if (!snapU.exists()) {
+                    listContainer.innerHTML = '<p class="loading">ERROR: NO SE ENCONTRARON REGISTROS O ACCESO DENEGADO</p>';
+                    return;
+                }
 
-            snapUsuarios.forEach((child) => {
-                const user = child.val();
-                // Verificamos si existe el callsign, sino usamos el ID del nodo
-                const callsign = user.callsign || "OP-" + child.key.substring(0, 5);
-                const totalMisiones = conteoMisiones[callsign] || 0;
+                listContainer.innerHTML = ''; 
 
-                const card = document.createElement('div');
-                card.className = 'operator-card';
-                card.innerHTML = `
-                    <div class="callsign">${callsign}</div>
-                    <div class="stats">
-                        PARTICIPACIONES: <span class="mision-count">${totalMisiones}</span><br>
-                        ESTADO: <span style="color:#0f0">ACTIVO</span>
-                    </div>
-                `;
-                listContainer.appendChild(card);
+                snapU.forEach((child) => {
+                    const user = child.val();
+                    // Si el callsign no existe directo, lo buscamos en los datos
+                    const callsign = user.callsign || user.nombre || "OP-" + child.key.substring(0, 5);
+                    const totalMisiones = conteoMisiones[callsign] || 0;
+
+                    const card = document.createElement('div');
+                    card.className = 'operator-card';
+                    card.innerHTML = `
+                        <div class="callsign">${callsign}</div>
+                        <div class="stats">
+                            PARTICIPACIONES: <span class="mision-count">${totalMisiones}</span><br>
+                            ESTADO: <span style="color:#0f0">ACTIVO</span>
+                        </div>
+                    `;
+                    listContainer.appendChild(card);
+                });
+            }, (error) => {
+                console.error("Error de Firebase:", error);
+                listContainer.innerHTML = `<p class="loading">ERROR DE RED: ${error.message}</p>`;
             });
         });
     }
