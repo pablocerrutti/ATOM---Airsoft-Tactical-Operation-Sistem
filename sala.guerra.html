@@ -1,1 +1,213 @@
-   
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M - Sala de Guerra</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
+        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
+        .screen { display: flex; flex-direction: column; height: 100vh; padding: 15px; box-sizing: border-box; }
+        
+        /* Layout Superior */
+        .header-flex { display: flex; gap: 10px; height: 220px; margin-bottom: 15px; flex-shrink: 0; }
+        #map-container { flex: 1.2; border: 1px solid var(--p); position: relative; overflow: hidden; background: #111; }
+        #preview-map { width: 100%; height: 100%; transition: filter 0.5s; }
+        #mission-cover-frame { flex: 0.8; border: 1px solid #333; overflow: hidden; background: #000; display: none; }
+        #mission-cover-img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.5s; }
+
+        /* Overlay de Espera */
+        #map-wait-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); z-index: 1000; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; pointer-events: none; }
+        .map-blurred { filter: blur(10px) grayscale(1); }
+
+        /* Información */
+        .info-scroll { flex-grow: 1; overflow-y: auto; }
+        .block { margin-bottom: 15px; padding: 10px; border-left: 2px solid var(--p); background: rgba(0,255,0,0.03); }
+        .label { color:var(--gold); font-size:10px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+        .content { font-size:13px; color:#ccc; line-height: 1.4; }
+        
+        .op-tag { display: inline-block; padding: 3px 8px; border: 1px solid var(--p); margin: 2px; font-size: 10px; color: #000; background: var(--p); font-weight: bold; }
+
+        button { font-family: inherit; cursor: pointer; text-transform: uppercase; width: 100%; border: none; font-weight: bold; }
+        .btn-main { background: var(--p); color: #000; padding: 18px; font-size: 14px; }
+        .btn-sec { background: transparent; border: 1px solid var(--p); color: var(--p); padding: 12px; margin-top: 10px; }
+
+        /* Inserción Final */
+        #lock-screen { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; border: 4px solid var(--p); }
+        .blink { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div id="lock-screen">
+        <h1 class="blink" style="letter-spacing: 5px;">INSERCIÓN TÁCTICA</h1>
+        <p>RE-ENVIANDO DATOS AL EQUIPO: <span id="team-name">---</span></p>
+    </div>
+
+    <div class="screen">
+        <h2 id="m-name" style="margin:0 0 10px 0; font-size: 1.1rem; color: var(--gold); text-align: center;">CARGANDO...</h2>
+        
+        <div class="header-flex">
+            <div id="map-container">
+                <div id="preview-map"></div>
+                <div id="map-wait-overlay">
+                    <div class="blink" style="color: var(--gold); font-weight: bold;">[ EN ESPERA ]</div>
+                    <div style="font-size: 9px; color: #888;">AGUARDANDO BANDO DE HQ</div>
+                </div>
+            </div>
+            <div id="mission-cover-frame"><img id="mission-cover-img" src=""></div>
+        </div>
+
+        <div class="info-scroll">
+            <div class="block">
+                <div class="label">[ BRIEFING ]</div>
+                <div id="m-briefing" class="content">...</div>
+            </div>
+            <div class="block">
+                <div class="label">[ OBJETIVOS ]</div>
+                <div id="m-objectives" class="content">...</div>
+            </div>
+            <div class="block">
+                <div class="label">[ OPERADORES ]</div>
+                <div id="m-ops"></div>
+            </div>
+        </div>
+
+        <div id="actions">
+            <button id="btn-enlist" class="btn-main" onclick="enlist()">CONFIRMAR ASISTENCIA</button>
+            <button id="btn-cancel" class="btn-sec" onclick="cancelEnlist()" style="color:var(--red); border-color:var(--red);">CANCELAR</button>
+        </div>
+        <button class="btn-sec" onclick="window.location.href='lobby.html'" style="font-size: 10px; border:none; color:#555;">VOLVER AL LOBBY</button>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const misionId = params.get('mision');
+        
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY", 
+            databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com", 
+            projectId: "atom---sistem" 
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        
+        let previewMap, drawnItems, userCallsign;
+
+        function getCloudinaryUrl(url) {
+            if (!url || url.includes('collection')) return url;
+            return url.replace('/upload/', '/upload/f_auto,q_auto,w_600/');
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (!user || !misionId) { window.location.href = 'lobby.html'; return; }
+            db.ref(`usuarios/${user.uid}`).once('value', s => { 
+                userCallsign = s.val().callsign; 
+                initWarRoom();
+                syncStatus();
+            });
+        });
+
+        function initWarRoom() {
+            // Mapa
+            previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false });
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(previewMap);
+            drawnItems = L.featureGroup().addTo(previewMap);
+
+            // Datos Misión
+            db.ref(`misiones/${misionId}`).on('value', snap => {
+                const m = snap.val();
+                document.getElementById('m-name').innerText = m.nombre.toUpperCase();
+                document.getElementById('m-briefing').innerText = m.historia || "Sin datos.";
+                document.getElementById('m-objectives').innerText = m.objetivos || "Sin objetivos asignados.";
+                
+                const imgFrame = document.getElementById('mission-cover-frame');
+                const img = document.getElementById('mission-cover-img');
+                if(m.imagen) {
+                    img.src = getCloudinaryUrl(m.imagen);
+                    img.onload = () => { img.style.opacity = '1'; imgFrame.style.display = 'block'; };
+                }
+
+                drawnItems.clearLayers();
+                if(m.elementos) {
+                    m.elementos.forEach(el => {
+                        let layer;
+                        const colors = { 'GAME_ZONE': '#0f0', 'SAFE_ZONE': '#ff0', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f' };
+                        const color = colors[el.type] || '#0f0';
+                        
+                        if(el.path) layer = L.polygon(el.path, {color: color, weight: 1, fillOpacity: 0.15});
+                        else if(el.radius) layer = L.circle(el.center, {radius: el.radius, color: color, weight: 1});
+                        else layer = L.marker(el.center);
+                        
+                        if(el.label) layer.bindTooltip(el.label, {permanent: true, direction: 'center', className: 'tactical-label'}).openTooltip();
+                        drawnItems.addLayer(layer);
+                    });
+                    setTimeout(() => { 
+                        previewMap.invalidateSize();
+                        if(drawnItems.getLayers().length > 0) previewMap.fitBounds(drawnItems.getBounds());
+                    }, 500);
+                }
+            });
+
+            // Lista de Operadores
+            db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(misionId).on('value', snap => {
+                const container = document.getElementById('m-ops');
+                const overlay = document.getElementById('map-wait-overlay');
+                const mapDiv = document.getElementById('preview-map');
+                container.innerHTML = '';
+                let enlistado = false;
+
+                snap.forEach(c => {
+                    if(c.val().callsign === userCallsign) enlistado = true;
+                    container.innerHTML += `<span class="op-tag">${c.val().callsign}</span>`;
+                });
+
+                document.getElementById('btn-enlist').style.display = enlistado ? 'none' : 'block';
+                document.getElementById('btn-cancel').style.display = enlistado ? 'block' : 'none';
+                
+                if(enlistado) {
+                    mapDiv.classList.add('map-blurred');
+                    overlay.style.display = 'flex';
+                } else {
+                    mapDiv.classList.remove('map-blurred');
+                    overlay.style.display = 'none';
+                }
+            });
+        }
+
+        function syncStatus() {
+            const uid = auth.currentUser.uid;
+            db.ref(`jugadores_enlistados/${uid}`).on('value', snap => {
+                const data = snap.val();
+                if(data && data.equipo && data.equipo !== 'S/E') {
+                    db.ref('estado_partida').once('value', p => {
+                        if(p.val()?.activo) {
+                            document.getElementById('lock-screen').style.display = 'flex';
+                            document.getElementById('team-name').innerText = data.equipo;
+                            document.getElementById('team-name').style.color = data.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
+                            setTimeout(() => { window.location.href = 'mapa.tactico.html'; }, 2000);
+                        }
+                    });
+                }
+            });
+        }
+
+        function enlist() {
+            db.ref(`jugadores_enlistados/${auth.currentUser.uid}`).set({
+                callsign: userCallsign, equipo: 'S/E', misionId: misionId, timestamp: Date.now()
+            });
+        }
+
+        function cancelEnlist() {
+            db.ref(`jugadores_enlistados/${auth.currentUser.uid}`).remove();
+        }
+    </script>
+</body>
+</html>
