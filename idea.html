@@ -23,6 +23,12 @@
             if (user) { document.documentElement.style.display = 'block'; } 
             else { window.location.href = 'login.html'; }
         });
+
+        function logout() {
+            if(confirm("¿Cerrar sesión de administrador?")) {
+                firebase.auth().signOut().then(() => { window.location.href = 'index.html'; });
+            }
+        }
     </script>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -33,33 +39,80 @@
     <style>
         :root { --p:#00ff00; --f:#050505; --red:#ff3333; --blue:#3333ff; --gold:#ffd700; }
         body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); overflow:hidden; }
-        .wrapper { display: flex; height: 100vh; width: 100vw; position: relative; }
-        #panel { width: 320px; background: rgba(0,0,0,0.95); border-right: 1px solid var(--p); display: flex; flex-direction: column; overflow-y: auto; z-index: 1000; position: absolute; height: 100%; transition: 0.3s; }
-        .panel-hidden { transform: translateX(-100%); }
-        #map { flex:1; width: 100%; height: 100%; background: #111; }
-        .tool-content { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
-        button { width:100%; padding:10px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-weight: bold; font-size: 10px; text-transform: uppercase; }
-        button.active { background: var(--p); color: #000; }
-        input, textarea, select { background: #000; border: 1px solid #333; color: var(--p); padding: 8px; font-family: inherit; }
-        .op-card { background: #111; border: 1px solid #333; padding: 8px; margin-bottom: 5px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
-        .stats-box { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 10px; border: 1px solid #333; }
-        .stat-btn { width: 30px !important; padding: 5px !important; }
         
-        @media (min-width: 1024px) { #panel { position: relative; transform: translateX(0); width: 350px; } #menu-toggle { display: none; } }
+        .wrapper { display: flex; height: 100vh; width: 100vw; position: relative; overflow: hidden; }
+
+        /* PANEL RESPONSIVO */
+        #panel { 
+            width: 300px; 
+            background: rgba(5, 5, 5, 0.98); 
+            border-right: 1px solid var(--p); 
+            display: flex; 
+            flex-direction: column; 
+            overflow-y: auto; 
+            z-index: 2000; 
+            position: absolute; 
+            height: 100%; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+
+        .panel-hidden { transform: translateX(-100%); }
+
+        #map { flex: 1; width: 100%; height: 100%; background: #111; z-index: 1; }
+
+        /* BOTÓN DE MENÚ (MÓVIL) */
+        #menu-toggle { 
+            position: absolute; top: 15px; left: 15px; z-index: 2100; 
+            width: 45px; height: 45px; background: #000; color: var(--p); 
+            border: 1px solid var(--p); cursor: pointer; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
+        }
+
+        /* AJUSTES DE ESCRITORIO */
+        @media (min-width: 1024px) {
+            #panel { position: relative; transform: translateX(0); width: 350px; }
+            #menu-toggle { display: none; }
+            .panel-hidden { transform: translateX(0); }
+        }
+
+        .tool-content { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        summary { padding:12px; cursor:pointer; color:var(--gold); border-bottom: 1px solid #111; font-weight: bold; background: #0a0a0a; outline: none; }
+        
+        button { 
+            width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); 
+            cursor:pointer; font-weight: bold; font-size: 11px; text-transform: uppercase; 
+        }
+        button.active { background: var(--p); color: #000; }
+        
+        input, textarea, select { 
+            background: #000; border: 1px solid #333; color: var(--p); 
+            padding: 10px; font-family: inherit; font-size: 13px; width: 100%; box-sizing: border-box;
+        }
+
+        .op-card { 
+            background: #111; border: 1px solid #333; padding: 10px; margin-bottom: 5px; 
+            font-size: 12px; display: flex; justify-content: space-between; align-items: center; 
+        }
+        
+        .stats-box { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 10px; border: 1px solid #333; }
+        .stat-btn { width: 40px !important; height: 40px; padding: 0 !important; font-size: 20px; }
+
+        .logout-btn { border-color: var(--red); color: var(--red); margin-top: 10px; }
+        .logout-btn:hover { background: var(--red); color: white; }
     </style>
 </head>
 <body>
 
-<button id="menu-toggle" onclick="togglePanel()" style="position:absolute; top:10px; left:10px; z-index:1100; padding:10px; background:#000; color:var(--p); border:1px solid var(--p);">☰</button>
+<button id="menu-toggle" onclick="togglePanel()">☰</button>
 
 <div class="wrapper">
     <div id="panel" class="panel-hidden">
         <div style="padding:15px; background:#111; border-bottom:1px solid var(--p); text-align:center;">
-            <h3 style="margin:0;">A.T.O.M COMMAND CENTER</h3>
+            <h3 style="margin:0; font-size: 14px; letter-spacing: 1px;">A.T.O.M COMMAND CENTER</h3>
         </div>
 
         <details>
-            <summary style="padding:10px; cursor:pointer; color:var(--gold)">🗺️ CAPAS DE MAPA</summary>
+            <summary>🗺️ CAPAS DE MAPA</summary>
             <div class="tool-content">
                 <button id="btn-sat" class="active" onclick="changeBaseLayer('sat')">🛰️ SATELITAL (ESRI)</button>
                 <button id="btn-osm" onclick="changeBaseLayer('osm')">🏙️ CALLEJERO (OSM)</button>
@@ -67,61 +120,64 @@
         </details>
 
         <details open>
-            <summary style="padding:10px; cursor:pointer; color:var(--gold)">📂 CONFIGURACIÓN MISIÓN</summary>
+            <summary>📂 CONFIGURACIÓN MISIÓN</summary>
             <div class="tool-content">
                 <select id="mission-selector" onchange="loadMissionToEdit(this.value)">
                     <option value="">-- NUEVA MISIÓN --</option>
                 </select>
                 <input id="mission-name" placeholder="Nombre Operación...">
-                <textarea id="mission-history" placeholder="Briefing..."></textarea>
-                <textarea id="mission-objectives" placeholder="Objetivos..."></textarea>
-                <input id="mission-image-url" placeholder="URL Imagen...">
+                <textarea id="mission-history" placeholder="Briefing..." rows="2"></textarea>
+                <textarea id="mission-objectives" placeholder="Objetivos..." rows="2"></textarea>
+                <input id="mission-image-url" placeholder="URL Imagen (Drive)...">
                 <button class="active" onclick="saveMission()" style="background:var(--gold); color:#000; border:none;">💾 GUARDAR Y PUBLICAR</button>
             </div>
         </details>
 
         <details>
-            <summary style="padding:10px; cursor:pointer; color:var(--gold)">👥 OPERADORES</summary>
+            <summary>👥 OPERADORES</summary>
             <div class="tool-content" id="enlisted-list">
-                <p style="font-size:10px; color:#666; text-align:center;">Selecciona misión...</p>
+                <p style="font-size:10px; color:#666; text-align:center;">Selecciona una misión activa...</p>
             </div>
         </details>
 
         <details>
-            <summary style="padding:10px; cursor:pointer; color:var(--gold)">⏱️ CONTROL TÁCTICO</summary>
+            <summary>⏱️ CONTROL TÁCTICO</summary>
             <div class="tool-content">
                 <div class="stats-box">
                     <span>BAJAS ROJO: <b id="val-red">0</b></span>
-                    <div>
+                    <div style="display:flex; gap:5px;">
                         <button class="stat-btn" onclick="adjustStat('bajasRed', -1)">-</button>
                         <button class="stat-btn" onclick="adjustStat('bajasRed', 1)">+</button>
                     </div>
                 </div>
-                <div class="stats-box">
+                <div class="stats-box" style="margin-top:5px;">
                     <span>BAJAS AZUL: <b id="val-blue">0</b></span>
-                    <div>
+                    <div style="display:flex; gap:5px;">
                         <button class="stat-btn" onclick="adjustStat('bajasBlue', -1)">-</button>
                         <button class="stat-btn" onclick="adjustStat('bajasBlue', 1)">+</button>
                     </div>
                 </div>
-                <label style="font-size:10px;">DURACIÓN (MIN):</label>
+                <label style="font-size:10px; margin-top:10px;">DURACIÓN (MIN):</label>
                 <input id="mission-duration" type="number" value="60">
-                <button id="btn-state-toggle" style="background:var(--red); color:#fff; border:none;" onclick="toggleMissionState()">🚀 LANZAR OPERACIÓN</button>
+                <button id="btn-state-toggle" style="background:var(--red); color:#fff; border:none; margin-top:5px;" onclick="toggleMissionState()">🚀 LANZAR OPERACIÓN</button>
             </div>
         </details>
 
         <details>
-            <summary style="padding:10px; cursor:pointer; color:var(--gold)">🛠️ DIBUJO DE MAPA</summary>
+            <summary>🛠️ DIBUJO DE MAPA</summary>
             <div class="tool-content">
                 <button onclick="startDraw('polygon', 'GAME_ZONE', this)">🟢 LÍMITE JUEGO</button>
                 <button onclick="startDraw('circle', 'RESPAWN_RED', this)">🔴 SPAWN ROJO</button>
                 <button onclick="startDraw('circle', 'RESPAWN_BLUE', this)">🔵 SPAWN AZUL</button>
                 <button onclick="startDraw('marker', 'OBJ_POINT', this)">⚪ OBJETIVO</button>
-                <button onclick="clearMap()" style="color:var(--red); border-color:var(--red);">LIMPIAR MAPA</button>
+                <button onclick="clearMap()" style="color:var(--red); border-color:var(--red); margin-top:5px;">LIMPIAR MAPA</button>
             </div>
         </details>
 
-        <button onclick="window.location.href='idea.html'" style="margin-top:auto; border-color:#444; color:#666;">⬅ VOLVER AL MENÚ</button>
+        <div class="tool-content" style="margin-top:auto; padding-bottom: 20px;">
+            <button onclick="window.location.href='index.html'" style="border-color:#444; color:#666;">⬅ VOLVER AL MENÚ</button>
+            <button class="logout-btn" onclick="logout()">✖ CERRAR SESIÓN</button>
+        </div>
     </div>
     <div id="map"></div>
 </div>
@@ -130,7 +186,6 @@
 const db = firebase.database();
 let map, drawnItems, currentMissionId = null, currentAtomType = '', isMisionActiva = false;
 
-// Definición de Capas
 const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
 const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' });
 
@@ -144,6 +199,7 @@ function initMap() {
         const colors = { 'GAME_ZONE': '#0f0', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
         if(layer.setStyle) layer.setStyle({ color: colors[currentAtomType], fillColor: colors[currentAtomType], fillOpacity: 0.3 });
         drawnItems.addLayer(layer);
+        if(window.innerWidth < 1024) togglePanel();
     });
 
     loadMissionList();
@@ -151,13 +207,11 @@ function initMap() {
 
 function changeBaseLayer(type) {
     if (type === 'osm') {
-        map.removeLayer(satLayer);
-        map.addLayer(osmLayer);
+        map.removeLayer(satLayer); map.addLayer(osmLayer);
         document.getElementById('btn-osm').classList.add('active');
         document.getElementById('btn-sat').classList.remove('active');
     } else {
-        map.removeLayer(osmLayer);
-        map.addLayer(satLayer);
+        map.removeLayer(osmLayer); map.addLayer(satLayer);
         document.getElementById('btn-sat').classList.add('active');
         document.getElementById('btn-osm').classList.remove('active');
     }
@@ -194,9 +248,6 @@ function loadMissionToEdit(id) {
         const m = snap.val();
         if(!m) return;
         document.getElementById('mission-name').value = m.nombre;
-        document.getElementById('mission-history').value = m.historia || '';
-        document.getElementById('mission-objectives').value = m.objetivos || '';
-        document.getElementById('mission-image-url').value = m.imagen || '';
         document.getElementById('val-red').innerText = m.bajasRed || 0;
         document.getElementById('val-blue').innerText = m.bajasBlue || 0;
         isMisionActiva = m.estado === 'activa';
@@ -215,7 +266,7 @@ function loadMissionToEdit(id) {
                 layer.atomType = el.type;
                 drawnItems.addLayer(layer);
             });
-            if (drawnItems.getLayers().length > 0) map.fitBounds(drawnItems.getBounds(), { padding: [30, 30] });
+            if (drawnItems.getLayers().length > 0) map.fitBounds(drawnItems.getBounds());
         }
     });
 }
@@ -226,7 +277,15 @@ function syncOperatives(missionId) {
         container.innerHTML = '';
         snap.forEach(child => {
             const op = child.val();
-            container.innerHTML += `<div class="op-card"><span>${op.callsign} [${op.equipo}]</span><div><button style="width:30px;color:var(--red)" onclick="assignTeam('${child.key}', 'ROJO')">R</button><button style="width:30px;color:var(--blue)" onclick="assignTeam('${child.key}', 'AZUL')">A</button><button style="width:30px;" onclick="removeOp('${child.key}')">X</button></div></div>`;
+            container.innerHTML += `
+                <div class="op-card">
+                    <span>${op.callsign} [${op.equipo}]</span>
+                    <div style="display:flex; gap:3px;">
+                        <button style="width:30px;color:var(--red)" onclick="assignTeam('${child.key}', 'ROJO')">R</button>
+                        <button style="width:30px;color:var(--blue)" onclick="assignTeam('${child.key}', 'AZUL')">A</button>
+                        <button style="width:30px;" onclick="removeOp('${child.key}')">X</button>
+                    </div>
+                </div>`;
         });
     });
 }
@@ -241,7 +300,7 @@ function toggleMissionState() {
 function adjustStat(field, amount) { if (!currentMissionId) return; db.ref(`misiones/${currentMissionId}/${field}`).transaction(c => (c || 0) + amount); }
 function loadMissionList() { db.ref('misiones').on('value', snap => { const sel = document.getElementById('mission-selector'); const current = sel.value; sel.innerHTML = '<option value="">-- NUEVA MISIÓN --</option>'; snap.forEach(c => { sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`; }); sel.value = current; }); }
 function startDraw(type, atomType, btn) { document.querySelectorAll('button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentAtomType = atomType; let drawer = (type === 'polygon') ? new L.Draw.Polygon(map) : (type === 'circle') ? new L.Draw.Circle(map) : new L.Draw.Marker(map); drawer.enable(); }
-function clearMap() { drawnItems.clearLayers(); }
+function clearMap() { if(confirm("¿Limpiar dibujo?")) drawnItems.clearLayers(); }
 function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
 window.onload = initMap;
 </script>
