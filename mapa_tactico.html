@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - MAPA TACTICO</title>
+    <title>A.T.O.M - MAPA TACTICO </title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -42,24 +42,21 @@
         .label { color: var(--gold); font-size: 11px; text-transform: uppercase; display: block; margin-bottom: 5px; }
         .content { font-family: sans-serif; color: #fff; font-size: 14px; line-height: 1.4; }
 
-        /* Etiquetas Tácticas (Iguales a idea.html) */
+        /* Etiquetas Tácticas */
         .tactical-label {
             background: rgba(0,0,0,0.8); border: 1px solid var(--p); color: var(--p);
             padding: 2px 6px; font-size: 10px; font-weight: bold; border-radius: 3px;
             white-space: nowrap; text-transform: uppercase;
         }
 
-        /* Botones */
         .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
         .btn { padding: 15px; border: 1px solid var(--p); background: transparent; color: var(--p); font-weight: bold; cursor: pointer; text-transform: uppercase; font-family: monospace; }
         .btn-ready { background: var(--p); color: #000; font-size: 16px; }
         .btn-abort { border-color: var(--red); color: var(--red); }
 
-        /* Animaciones */
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
 
-        /* Pantalla de Despliegue (Lock) */
         #deployment-screen {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: #000; z-index: 9999; display: none;
@@ -122,7 +119,6 @@ const myCallsign = localStorage.getItem('callsign') || "INVITADO";
 
 let previewMap, drawnItems, missionId;
 
-// Iniciar al cargar
 window.onload = () => {
     initPreviewMap();
     listenActiveMission();
@@ -135,13 +131,13 @@ function initPreviewMap() {
 }
 
 function listenActiveMission() {
-    // 1. Ver qué misión está lanzada por el Admin
+    // 1. Detectar ID de misión activa
     db.ref('operacion_activa/control/missionId').on('value', snap => {
         missionId = snap.val();
         if(missionId) loadMissionIntel(missionId);
     });
 
-    // 2. Ver mi estado y el de otros operadores
+    // 2. Monitorear operadores
     db.ref('jugadores_enlistados').on('value', snap => {
         const opsContainer = document.getElementById('m-operators');
         opsContainer.innerHTML = '';
@@ -170,30 +166,35 @@ function loadMissionIntel(id) {
         document.getElementById('m-objectives').innerText = m.objetivos || "Sin objetivos definidos.";
 
         drawnItems.clearLayers();
+        
         if(m.elementos) {
             m.elementos.forEach(el => {
                 let layer;
-                const style = { color: '#0f0', weight: 2, fillOpacity: 0.1 }; // Estilo genérico intel
+                // ESTILO RADAR: Verde neón, línea punteada
+                const style = { color: '#0f0', weight: 2, fillOpacity: 0.15, dashArray: '5, 5' };
                 
                 if(el.path) layer = L.polygon(el.path, style);
                 else if(el.radius) layer = L.circle(el.center, {radius: el.radius, ...style});
                 
-                // Etiqueta
-                const labelPos = el.center || getPolygonCenter(el.path);
-                L.marker(labelPos, {
-                    icon: L.divIcon({
-                        className: 'tactical-label',
-                        html: el.type.replace('_', ' '),
-                        iconAnchor: [30, 0]
-                    }),
-                    interactive: false
-                }).addTo(drawnItems);
+                if(layer) {
+                    // Generar etiqueta táctica
+                    const labelPos = el.center || getPolygonCenter(el.path);
+                    L.marker(labelPos, {
+                        icon: L.divIcon({
+                            className: 'tactical-label',
+                            html: el.type ? el.type.replace('_', ' ') : 'ZONA',
+                            iconAnchor: [30, 0]
+                        }),
+                        interactive: false
+                    }).addTo(drawnItems);
 
-                drawnItems.addLayer(layer);
+                    drawnItems.addLayer(layer);
+                }
             });
 
+            // CORAZÓN DEL CENTRADO AUTOMÁTICO
             if(drawnItems.getLayers().length > 0) {
-                previewMap.fitBounds(drawnItems.getBounds(), { padding: [20, 20] });
+                previewMap.fitBounds(drawnItems.getBounds(), { padding: [30, 30] });
             }
         }
     });
@@ -216,11 +217,11 @@ function toggleUI(enlisted) {
         btnJoin.style.display = 'block';
         btnLeave.style.display = 'none';
     }
-    previewMap.invalidateSize();
+    // Forzar actualización de tamaño del mapa al desbloquear
+    setTimeout(() => previewMap.invalidateSize(), 200);
 }
 
 function checkAutoDeploy(myData) {
-    // Si ya tengo equipo asignado y la partida está activa, saltamos al mapa
     if(myData.equipo && myData.equipo !== 'S/E') {
         db.ref('operacion_activa/control/gameActive').once('value', snap => {
             if(snap.val() === true) {
@@ -230,7 +231,7 @@ function checkAutoDeploy(myData) {
                 lock.style.display = 'flex';
                 
                 setTimeout(() => {
-                    location.href = 'mapa.tactico.html'; // Tu archivo de mapa real
+                    location.href = 'mapa_tactico.html';
                 }, 3000);
             }
         });
@@ -253,6 +254,7 @@ function unregisterOp() {
 }
 
 function getPolygonCenter(path) {
+    if(!path || path.length === 0) return [0,0];
     const lats = path.map(p => p.lat);
     const lngs = path.map(p => p.lng);
     return [(Math.min(...lats) + Math.max(...lats)) / 2, (Math.min(...lngs) + Math.max(...lngs)) / 2];
