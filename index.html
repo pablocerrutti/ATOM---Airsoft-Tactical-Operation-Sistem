@@ -33,35 +33,35 @@
         }
         
         .logo-container { 
-            width: 150px; height: 150px; border: 2px solid var(--p); border-radius: 50%; 
+            width: 140px; height: 140px; border: 2px solid var(--p); border-radius: 50%; 
             display: flex; align-items: center; justify-content: center; 
             animation: pulse 2s infinite; background: rgba(0, 255, 0, 0.05);
         }
-        .logo-img { width: 85%; height: auto; filter: drop-shadow(0 0 5px var(--p)); }
+        .logo-img { width: 80%; height: auto; filter: drop-shadow(0 0 5px var(--p)); }
         
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(0, 255, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); } }
 
-        .container { width: 100%; max-width: 500px; margin: 0 auto; padding: 20px; flex: 1; display: none; }
-        #status-bar { font-size: 10px; padding: 10px; border-bottom: 1px solid var(--gray); display: flex; justify-content: space-between; }
-        .blink { animation: blinker 1s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
-
-        .auth-card { background: #111; padding: 20px; border: 1px solid var(--gray); margin-top: 20px; }
+        .container { width: 100%; max-width: 450px; margin: 0 auto; padding: 20px; flex: 1; display: none; }
+        #status-bar { font-size: 10px; padding: 10px; border-bottom: 1px solid var(--gray); display: flex; justify-content: space-between; opacity: 0.6; }
+        
+        .auth-card { background: #111; padding: 25px; border: 1px solid var(--gray); margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         input { 
-            width: 100%; padding: 15px; margin-bottom: 10px; 
+            width: 100%; padding: 15px; margin-bottom: 12px; 
             background: #000; border: 1px solid var(--p); color: var(--p);
             font-family: inherit; font-size: 16px; outline: none;
         }
-        .btn-primary { width: 100%; padding: 15px; background: var(--p); color: #000; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
-        .btn-outline { width: 100%; padding: 10px; background: transparent; color: var(--p); border: 1px solid var(--p); margin-top: 10px; cursor: pointer; }
+        input::placeholder { color: rgba(0, 255, 0, 0.3); }
 
-        #admin-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; align-items: center; justify-content: center; }
-        .admin-box { width: 90%; max-width: 400px; border: 2px solid var(--red); padding: 30px; background: #000; text-align: center; }
+        .btn-primary { width: 100%; padding: 16px; background: var(--p); color: #000; border: none; font-weight: bold; cursor: pointer; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-outline { width: 100%; padding: 10px; background: transparent; color: var(--p); border: 1px solid var(--p); margin-top: 10px; cursor: pointer; font-family: inherit; }
+
+        #admin-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 5000; align-items: center; justify-content: center; }
+        .admin-box { width: 90%; max-width: 380px; border: 2px solid var(--red); padding: 30px; background: #000; text-align: center; }
         .admin-input { border-color: var(--red) !important; color: var(--red) !important; }
-        .btn-admin { background: var(--red); color: #fff; width: 100%; padding: 15px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-admin { background: var(--red); color: #fff; width: 100%; padding: 16px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; }
 
-        footer { padding: 20px; text-align: center; border-top: 1px solid var(--gray); }
-        .btn-restricted { color: #444; text-decoration: none; font-size: 10px; border: 1px solid #222; padding: 5px 10px; background: none; cursor: pointer; }
+        footer { padding: 20px; text-align: center; }
+        .btn-restricted { color: #333; text-decoration: none; font-size: 10px; border: 1px solid #1a1a1a; padding: 6px 12px; background: none; cursor: pointer; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -70,29 +70,32 @@
 
 <div id="admin-overlay">
     <div class="admin-box">
-        <h2 class="blink" style="color: var(--red);">SISTEMA RESTRINGIDO</h2>
-        <p style="color: var(--red); font-size: 11px; margin-bottom: 20px;">VALIDACIÓN NIVEL COMANDO</p>
+        <h2 style="color: var(--red); letter-spacing: 2px;">ACCESO RESTRINGIDO</h2>
+        <p style="color: var(--red); font-size: 10px; margin-bottom: 20px; opacity: 0.8;">IDENTIFICACIÓN DE MANDO NIVEL 5</p>
         <input type="email" id="admin-email" class="admin-input" placeholder="EMAIL DE COMANDO">
         <input type="password" id="admin-pass" class="admin-input" placeholder="CONTRASEÑA">
-        <button class="btn-admin" onclick="validateAdmin()">AUTENTICAR ACCESO</button>
-        <p onclick="closeAdmin()" style="margin-top: 15px; font-size: 10px; color: #555; cursor: pointer;">CANCELAR</p>
+        <button class="btn-admin" onclick="validateAdmin()">VALIDAR CREDENCIALES</button>
+        <p onclick="closeAdmin()" style="margin-top: 20px; font-size: 11px; color: #444; cursor: pointer;">CANCELAR ACCESO</p>
     </div>
 </div>
 
 <div id="splash-screen">
-    <div class="logo-container"><img src="logo_atom.png" alt="ATOM" class="logo-img"></div>
-    <p id="boot-text" style="margin-top: 20px; letter-spacing: 2px;">INICIALIZANDO...</p>
+    <div class="logo-container">
+        <img src="logo_atom.png" alt="ATOM" class="logo-img">
+    </div>
+    <p id="boot-text" style="margin-top: 20px; letter-spacing: 3px; font-size: 12px; opacity: 0.7;">CARGANDO ENCRIPTACIÓN...</p>
 </div>
 
 <div id="status-bar">
-    <span>SISTEMA: <span id="net-status" class="blink">COMPROBANDO...</span></span>
-    <span>FLORIDA, UY</span>
+    <span>NODO: FLORIDA_UY</span>
+    <span>SISTEMA: ONLINE</span>
 </div>
 
 <div class="container" id="main-app">
-    <header style="text-align: center; margin-bottom: 20px;">
-        <h2 style="margin-bottom:0;">IDENTIFICACIÓN</h2>
-        <p style="font-size: 11px; color: var(--gold); margin-top:5px;">SISTEMA TÁCTICO A.T.O.M.</p>
+    <header style="text-align: center; margin-bottom: 25px;">
+        <h2 style="margin: 0; letter-spacing: 4px;">IDENTIFICACIÓN</h2>
+        <div style="width: 50px; height: 2px; background: var(--p); margin: 10px auto;"></div>
+        <p style="font-size: 11px; color: var(--gold); margin: 0;">AIRSOFT TACTICAL OPERATION MAPS</p>
     </header>
 
     <div class="auth-card">
@@ -104,20 +107,21 @@
         </div>
 
         <div id="register-form" style="display:none;">
-            <input type="text" id="reg-callsign" placeholder="CALLSIGN (EJ: COBRA)">
+            <input type="text" id="reg-callsign" placeholder="CALLSIGN (EJ: LOBO)">
             <input type="email" id="reg-email" placeholder="EMAIL">
             <input type="password" id="reg-pass" placeholder="CONTRASEÑA">
-            <button class="btn-primary" onclick="register()">CREAR PERFIL</button>
-            <button class="btn-outline" onclick="toggleForm('log')">VOLVER</button>
+            <button class="btn-primary" onclick="register()">CREAR PERFIL TÁCTICO</button>
+            <button class="btn-outline" onclick="toggleForm('log')">VOLVER AL ACCESO</button>
         </div>
     </div>
 </div>
 
 <footer>
-    <button class="btn-restricted" onclick="openAdmin()">⚙️ ZONA RESTRINGIDA</button>
+    <button class="btn-restricted" onclick="openAdmin()">SISTEMA DE GESTIÓN</button>
 </footer>
 
 <script>
+    // CONFIGURACIÓN CENTRAL
     const firebaseConfig = {
       apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
       authDomain: "atom---sistem.firebaseapp.com",
@@ -132,97 +136,95 @@
     const db = firebase.database();
     const auth = firebase.auth();
 
+    // FLUJO DE INICIO
     window.onload = () => {
         setTimeout(() => {
-            document.getElementById('boot-text').innerText = "SISTEMA LISTO";
-            setTimeout(() => {
-                document.getElementById('splash-screen').style.display = 'none';
-                document.getElementById('main-app').style.display = 'block';
-                document.getElementById('net-status').innerText = "ONLINE";
-                document.getElementById('net-status').classList.remove('blink');
-            }, 600);
-        }, 1000);
+            document.getElementById('splash-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+        }, 1200);
     };
 
-    function toggleForm(type) {
-        document.getElementById('login-form').style.display = type === 'reg' ? 'none' : 'block';
-        document.getElementById('register-form').style.display = type === 'reg' ? 'block' : 'none';
-    }
-
-    // ACCESO JUGADOR
-    async function login() {
+    // 1. LOGIN DE OPERADORES (LOBBY)
+    function login() {
         const email = document.getElementById('log-email').value.trim();
         const pass = document.getElementById('log-pass').value.trim();
         
-        if(!email || !pass) return alert("Ingrese datos");
+        if(!email || !pass) return alert("DATOS INCOMPLETOS");
 
-        try {
-            // Limpieza de sesión previa para evitar conflictos
-            if(auth.currentUser) await auth.signOut();
-
-            const userCredential = await auth.signInWithEmailAndPassword(email, pass);
-            const snap = await db.ref(`usuarios/${userCredential.user.uid}`).once('value');
-            
-            if(snap.exists()){
-                const data = snap.val();
-                localStorage.setItem('callsign', data.callsign);
-                localStorage.setItem('userRole', data.rol || 'PLAYER');
-                location.href = "lobby.html";
-            } else {
-                alert("Error: Usuario no registrado en la base de datos.");
-            }
-        } catch(e) { alert("ACCESO DENEGADO: Verifique correo y contraseña"); }
+        auth.signInWithEmailAndPassword(email, pass)
+            .then((u) => {
+                return db.ref(`usuarios/${u.user.uid}`).once('value');
+            })
+            .then((snap) => {
+                if (snap.exists()) {
+                    const d = snap.val();
+                    localStorage.setItem('callsign', d.callsign || "OPERADOR");
+                    localStorage.setItem('userRole', d.rol || "PLAYER");
+                    // Redirección directa
+                    window.location.replace("lobby.html");
+                } else {
+                    alert("ERROR: EL PERFIL NO EXISTE EN LA BASE DE DATOS");
+                }
+            })
+            .catch((e) => alert("FALLO DE AUTENTICACIÓN: REVISE SUS DATOS"));
     }
 
-    // ACCESO ADMINISTRADOR
-    async function validateAdmin() {
+    // 2. VALIDACIÓN DE MANDO (IDEA.HTML)
+    function validateAdmin() {
         const email = document.getElementById('admin-email').value.trim();
         const pass = document.getElementById('admin-pass').value.trim();
         
-        if(!email || !pass) return alert("Credenciales incompletas");
+        if(!email || !pass) return alert("INGRESE CREDENCIALES DE MANDO");
 
-        try {
-            // Forzar cierre de cualquier sesión activa
-            await auth.signOut();
-
-            const userCredential = await auth.signInWithEmailAndPassword(email, pass);
-            const snap = await db.ref(`usuarios/${userCredential.user.uid}`).once('value');
-            const data = snap.val();
-            
-            if (data && (data.rol === "ADMIN" || data.rol === "EDITOR")) {
-                localStorage.setItem('callsign', data.callsign);
-                localStorage.setItem('userRole', data.rol);
-                location.href = "idea.html";
-            } else {
-                alert("RANGO INSUFICIENTE: Se requiere nivel ADMIN o EDITOR");
-                await auth.signOut();
-            }
-        } catch (error) { alert("FALLO DE SEGURIDAD: Credenciales de mando inválidas"); }
+        auth.signInWithEmailAndPassword(email, pass)
+            .then((u) => {
+                return db.ref(`usuarios/${u.user.uid}`).once('value');
+            })
+            .then((snap) => {
+                const d = snap.val();
+                if (d && (d.rol === "ADMIN" || d.rol === "EDITOR")) {
+                    localStorage.setItem('callsign', d.callsign);
+                    localStorage.setItem('userRole', d.rol);
+                    // Redirección directa a zona restringida
+                    window.location.replace("idea.html");
+                } else {
+                    alert("ACCESO RECHAZADO: RANGO INSUFICIENTE");
+                    auth.signOut();
+                }
+            })
+            .catch((e) => alert("ALERTA: CREDENCIALES DE MANDO INVÁLIDAS"));
     }
 
-    // REGISTRO
-    async function register() {
+    // 3. REGISTRO DE NUEVOS
+    function register() {
         const email = document.getElementById('reg-email').value.trim();
         const pass = document.getElementById('reg-pass').value.trim();
         const call = document.getElementById('reg-callsign').value.toUpperCase().trim();
         
-        if(!call || !email || !pass) return alert("Complete todos los campos");
+        if(!call || !email || !pass) return alert("COMPLETE TODOS LOS CAMPOS");
         
-        try {
-            const res = await auth.createUserWithEmailAndPassword(email, pass);
-            const userData = { callsign: call, email: email, rol: 'PLAYER', uid: res.user.uid };
-            
-            await db.ref(`usuarios/${res.user.uid}`).set(userData);
-            localStorage.setItem('callsign', call);
-            localStorage.setItem('userRole', 'PLAYER');
-            
-            alert("REGISTRO EXITOSO");
-            location.href = "lobby.html";
-        } catch(e) { alert("ERROR: " + e.message); }
+        auth.createUserWithEmailAndPassword(email, pass)
+            .then((res) => {
+                const userData = { callsign: call, email: email, rol: 'PLAYER', uid: res.user.uid };
+                return db.ref(`usuarios/${res.user.uid}`).set(userData);
+            })
+            .then(() => {
+                localStorage.setItem('callsign', call);
+                localStorage.setItem('userRole', 'PLAYER');
+                alert("OPERADOR REGISTRADO CON ÉXITO");
+                window.location.replace("lobby.html");
+            })
+            .catch((e) => alert("ERROR EN REGISTRO: " + e.message));
     }
 
+    // INTERFAZ
+    function toggleForm(type) {
+        document.getElementById('login-form').style.display = type === 'reg' ? 'none' : 'block';
+        document.getElementById('register-form').style.display = type === 'reg' ? 'block' : 'none';
+    }
     function openAdmin() { document.getElementById('admin-overlay').style.display = 'flex'; }
     function closeAdmin() { document.getElementById('admin-overlay').style.display = 'none'; }
 </script>
+
 </body>
 </html>
