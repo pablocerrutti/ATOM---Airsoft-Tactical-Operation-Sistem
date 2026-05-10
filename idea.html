@@ -11,26 +11,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-            databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-            projectId: "atom---sistem",
-        };
-        firebase.initializeApp(firebaseConfig);
-
-        firebase.auth().onAuthStateChanged(user => {
-            if (user) { document.documentElement.style.display = 'block'; } 
-            else { window.location.href = 'login.html'; }
-        });
-
-        function logout() {
-            if(confirm("¿Cerrar sesión de administrador?")) {
-                firebase.auth().signOut().then(() => { window.location.href = 'index.html'; });
-            }
-        }
-    </script>
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
@@ -42,6 +22,7 @@
         
         .wrapper { display: flex; height: 100vh; width: 100vw; position: relative; overflow: hidden; }
 
+        /* PANEL LATERAL */
         #panel { 
             width: 300px; 
             background: rgba(5, 5, 5, 0.98); 
@@ -111,7 +92,7 @@
         <details open>
             <summary>📂 GESTIÓN DE OPERACIÓN</summary>
             <div class="tool-content">
-                <label style="font-size: 10px;">SELECCIONAR O EDITAR:</label>
+                <label style="font-size: 10px;">SELECCIONAR MISIÓN:</label>
                 <div style="display:flex; gap:5px;">
                     <select id="mission-selector" onchange="loadMissionToEdit(this.value)">
                         <option value="">-- NUEVA MISIÓN --</option>
@@ -185,13 +166,33 @@
 </div>
 
 <script>
+// CONFIGURACIÓN FIREBASE
+const firebaseConfig = {
+    apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+    databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+    projectId: "atom---sistem",
+};
+firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const auth = firebase.auth();
+
+// ESTADO GLOBAL
 let map, drawnItems, currentMissionId = null, currentAtomType = '', isMisionActiva = false;
 
+// CAPAS DE MAPA
 const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
 const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' });
 
+// SEGURIDAD
+auth.onAuthStateChanged(user => {
+    if (user) { 
+        document.documentElement.style.display = 'block'; 
+        initMap();
+    } else { window.location.href = 'login.html'; }
+});
+
 function initMap() {
+    if (map) return;
     map = L.map('map', { zoomControl: false, layers: [satLayer] }).setView([-34.34, -56.71], 15);
     drawnItems = new L.FeatureGroup().addTo(map);
 
@@ -276,14 +277,18 @@ function loadMissionToEdit(id) {
                 layer.atomType = el.type;
                 drawnItems.addLayer(layer);
             });
-            if (drawnItems.getLayers().length > 0) map.fitBounds(drawnItems.getBounds());
+
+            // LÓGICA DE ZOOM CENTRAL: Encuadrar zona de juego
+            if (drawnItems.getLayers().length > 0) {
+                map.fitBounds(drawnItems.getBounds(), { padding: [40, 40] });
+            }
         }
     });
 }
 
 function deleteMission() {
     if(!currentMissionId) return alert("Selecciona una misión primero");
-    if(confirm("¿ESTÁS SEGURO? Se borrarán todos los datos de esta misión permanentemente.")) {
+    if(confirm("¿ELIMINAR MISIÓN? Esta acción es irreversible.")) {
         db.ref(`misiones/${currentMissionId}`).remove().then(() => {
             alert("MISIÓN ELIMINADA");
             location.reload();
@@ -311,7 +316,7 @@ function syncOperatives(missionId) {
 }
 
 function assignTeam(key, team) { db.ref(`jugadores_enlistados/${key}`).update({ equipo: team }); }
-function removeOp(key) { if(confirm("¿Eliminar operador de la misión?")) db.ref(`jugadores_enlistados/${key}`).remove(); }
+function removeOp(key) { if(confirm("¿Eliminar operador?")) db.ref(`jugadores_enlistados/${key}`).remove(); }
 
 function toggleMissionState() {
     if (!currentMissionId) return alert("Guarda la misión antes de lanzarla");
@@ -321,8 +326,7 @@ function toggleMissionState() {
         estado: nuevoEstado, 
         startTime: isMisionActiva ? Date.now() : null, 
         duration: document.getElementById('mission-duration').value || 60,
-        bajasRed: 0, 
-        bajasBlue: 0 
+        bajasRed: 0, bajasBlue: 0 
     });
     updateToggleBtn();
 }
@@ -333,7 +337,10 @@ function updateToggleBtn() {
     btn.style.background = isMisionActiva ? "var(--blue)" : "var(--red)";
 }
 
-function adjustStat(field, amount) { if (!currentMissionId) return; db.ref(`misiones/${currentMissionId}/${field}`).transaction(c => (c || 0) + amount); }
+function adjustStat(field, amount) { 
+    if (!currentMissionId) return; 
+    db.ref(`misiones/${currentMissionId}/${field}`).transaction(c => (c || 0) + amount); 
+}
 
 function loadMissionList() { 
     db.ref('misiones').on('value', snap => { 
@@ -349,13 +356,16 @@ function startDraw(type, atomType, btn) {
     document.querySelectorAll('button').forEach(b => b.classList.remove('active')); 
     btn.classList.add('active'); 
     currentAtomType = atomType; 
-    let drawer = (type === 'polygon') ? new L.Draw.Polygon(map) : (type === 'circle') ? new L.Draw.Circle(map) : new L.Draw.Marker(map); 
+    let drawer;
+    if(type === 'polygon') drawer = new L.Draw.Polygon(map);
+    else if(type === 'circle') drawer = new L.Draw.Circle(map);
+    else drawer = new L.Draw.Marker(map);
     drawer.enable(); 
 }
 
-function clearMap() { if(confirm("¿Limpiar dibujo del mapa?")) drawnItems.clearLayers(); }
+function clearMap() { if(confirm("¿Limpiar dibujo?")) drawnItems.clearLayers(); }
 function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
-window.onload = initMap;
+function logout() { if(confirm("¿Cerrar sesión?")) auth.signOut().then(()=> window.location.href='index.html'); }
 </script>
 </body>
 </html>
