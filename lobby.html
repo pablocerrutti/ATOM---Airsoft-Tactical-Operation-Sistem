@@ -3,57 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - LOBBY</title>
+    <title>A.T.O.M - SELECCIÓN DE OPERACIONES</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
     <style>
-        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; --red:#ff3333; }
-        body { margin:0; font-family: 'Courier New', monospace; background:var(--f); color:var(--p); display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .panel { width: 90%; max-width: 400px; border: 1px solid var(--p); padding: 20px; background: rgba(0,20,0,0.9); box-shadow: 0 0 20px rgba(0,255,0,0.2); }
-        h1 { text-align: center; font-size: 22px; letter-spacing: 3px; color: var(--gold); margin-top: 0; }
+        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; --shadow: rgba(0, 255, 0, 0.3); }
         
-        .block { margin-bottom: 20px; }
-        .label { font-size: 10px; text-transform: uppercase; margin-bottom: 8px; display: block; color: var(--p); opacity: 0.8; }
+        body { 
+            margin:0; font-family: 'Courier New', monospace; background: var(--f); color: var(--p); 
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+        }
+
+        /* Cabecera dinámica */
+        .mission-header {
+            width: 100%; height: 260px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3), var(--f)), url('https://i.imgur.com/84uXmYt.jpeg');
+            background-size: cover; background-position: center;
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid var(--p); transition: 0.5s;
+        }
+
+        .op-title {
+            background: rgba(0,0,0,0.8); width: 100%; text-align: center; padding: 15px 0;
+            font-size: 1.2rem; font-weight: bold; letter-spacing: 4px; border-bottom: 1px solid var(--p);
+            text-shadow: 0 0 10px var(--p);
+        }
+
+        .atom-logo-overlay {
+            width: 90px; height: 90px; margin-bottom: -45px; z-index: 10;
+            filter: drop-shadow(0 0 15px var(--p));
+        }
+
+        .panel { 
+            width: 90%; max-width: 400px; border: 1px solid var(--p); padding: 50px 20px 20px 20px; 
+            background: rgba(0,15,0,0.95); box-shadow: 0 0 30px var(--shadow); margin-top: 50px;
+        }
+
+        .sitrep-box {
+            font-size: 11px; background: rgba(0,40,0,0.4); padding: 12px;
+            border-left: 3px solid var(--gold); margin-bottom: 20px; min-height: 60px;
+            color: #eee; line-height: 1.4;
+        }
+
+        .label { font-size: 10px; text-transform: uppercase; margin-bottom: 8px; display: block; opacity: 0.8; }
         
         select, input { 
             width: 100%; padding: 12px; background: #000; border: 1px solid var(--p); 
-            color: var(--p); font-family: monospace; box-sizing: border-box; outline: none;
+            color: var(--p); font-family: monospace; margin-bottom: 20px; outline: none;
         }
 
         .btn { 
             width: 100%; padding: 15px; border: 1px solid var(--p); background: transparent; 
-            color: var(--p); font-weight: bold; cursor: pointer; text-transform: uppercase; 
-            margin-top: 10px; transition: 0.3s;
+            color: var(--p); font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.3s;
         }
-        .btn-ready { background: var(--p); color: #000; }
-        .btn-ready:hover { box-shadow: 0 0 15px var(--p); }
+        
+        .btn-ready { background: var(--p); color: #000; border: none; font-size: 16px; }
+        .btn-ready:disabled { background: #222; color: #444; border: 1px solid #333; }
 
-        .footer-note { font-size: 9px; text-align: center; margin-top: 15px; color: #444; }
+        .footer-note { font-size: 9px; text-align: center; margin-top: 20px; color: #444; }
     </style>
 </head>
 <body>
 
+    <div class="mission-header" id="header-bg">
+        <div class="op-title" id="display-op-name">ESPERANDO SELECCIÓN...</div>
+        <img src="https://i.ibb.co/v4mRLmY/atom-logo.png" alt="ATOM LOGO" class="atom-logo-overlay"> 
+    </div>
+
     <div class="panel">
-        <h1>A.T.O.M LOBBY</h1>
-        
-        <div class="block">
-            <span class="label">Identificación de Operador</span>
-            <input type="text" id="callsign-input" placeholder="INGRESE CALLSIGN..." readonly>
+        <div class="sitrep-box" id="display-sitrep">
+            Seleccione una operación disponible en la red para recibir el briefing táctico oficial.
         </div>
 
         <div class="block">
-            <span class="label">Seleccionar Operación Disponible</span>
-            <select id="mission-selector">
-                <option value="">-- BUSCANDO MISIONES... --</option>
+            <span class="label">Operador Detectado</span>
+            <input type="text" id="callsign-input" readonly>
+        </div>
+
+        <div class="block">
+            <span class="label">Listado de Misiones Disponibles</span>
+            <select id="mission-selector" onchange="updateMissionBriefing()">
+                <option value="">-- CONECTANDO CON EL MANDO... --</option>
             </select>
         </div>
 
-        <button class="btn btn-ready" onclick="confirmMission()">INGRESAR A SALA DE GUERRA</button>
-        <button class="btn" onclick="location.href='index.html'" style="font-size: 10px; border-color: #333;">DESCONECTAR</button>
+        <button class="btn btn-ready" id="btn-join" onclick="confirmMission()" disabled>INICIAR DESPLIEGUE</button>
+        <button class="btn" onclick="location.href='index.html'" style="font-size: 10px; border-color: #333; margin-top: 15px;">DESCONECTAR</button>
 
-        <div class="footer-note">SISTEMA TÁCTICO DE OPERACIONES AEROTRANSPORTADAS</div>
+        <div class="footer-note">A.T.O.M. TACTICAL NETWORK v2.0</div>
     </div>
 
 <script>
@@ -66,37 +105,72 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Recuperar Callsign guardado
-const myCallsign = localStorage.getItem('callsign') || "DESCONOCIDO";
-document.getElementById('callsign-input').value = myCallsign;
+let localMissions = {}; // Almacenamos las misiones localmente para cambio rápido
 
-window.onload = () => {
-    loadMissions();
-};
+const myCallsign = localStorage.getItem('callsign') || "UNNAMED_OP";
+document.getElementById('callsign-input').value = myCallsign.toUpperCase();
+
+window.onload = loadMissions;
 
 function loadMissions() {
     db.ref('misiones').on('value', snap => {
         const selector = document.getElementById('mission-selector');
-        selector.innerHTML = '<option value="">-- SELECCIONE MISIÓN --</option>';
+        selector.innerHTML = '<option value="">-- SELECCIONE OPERACIÓN --</option>';
         
+        if (!snap.exists()) {
+            selector.innerHTML = '<option value="">-- NO HAY MISIONES --</option>';
+            return;
+        }
+
+        localMissions = snap.val(); // Guardamos el objeto completo de Firebase
+
         snap.forEach(child => {
             const m = child.val();
-            if(m.nombre) {
-                const option = document.createElement('option');
-                option.value = child.key;
-                option.innerText = m.nombre.toUpperCase();
-                selector.appendChild(option);
-            }
+            const option = document.createElement('option');
+            option.value = child.key;
+            option.innerText = (m.nombre || "OP. DESCONOCIDA").toUpperCase();
+            selector.appendChild(option);
         });
     });
 }
 
+function updateMissionBriefing() {
+    const mId = document.getElementById('mission-selector').value;
+    const sitrepDisplay = document.getElementById('display-sitrep');
+    const nameDisplay = document.getElementById('display-op-name');
+    const headerBg = document.getElementById('header-bg');
+    const btnJoin = document.getElementById('btn-join');
+
+    if (mId && localMissions[mId]) {
+        const m = localMissions[mId];
+        nameDisplay.innerText = "OP. " + m.nombre.toUpperCase();
+        sitrepDisplay.innerHTML = `<strong>SITREP:</strong> ${m.historia || "Sin descripción de inteligencia."}`;
+        
+        // Si tienes una URL de imagen en Firebase la usa, sino usa una genérica
+        if(m.imagen_url) {
+            headerBg.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.3), var(--f)), url('${m.imagen_url}')`;
+        }
+        
+        btnJoin.disabled = false;
+    } else {
+        nameDisplay.innerText = "ESPERANDO SELECCIÓN...";
+        sitrepDisplay.innerText = "Seleccione una operación disponible en la red para recibir el briefing táctico oficial.";
+        btnJoin.disabled = true;
+    }
+}
+
 function confirmMission() {
     const mId = document.getElementById('mission-selector').value;
-    if(!mId) return alert("ERROR: SELECCIONE UNA OPERACIÓN");
+    if(!mId) return;
 
-    // Sincronizar missionId activo para el sistema
-    db.ref('operacion_activa/control/missionId').set(mId).then(() => {
+    localStorage.setItem('activeMissionId', mId);
+    
+    db.ref('operacion_activa/control').update({
+        missionId: mId,
+        operator: myCallsign,
+        status: "DEPLOYING",
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
         location.href = 'sala_de_guerra.html';
     });
 }
