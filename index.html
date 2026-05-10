@@ -12,7 +12,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <style>
-        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --blue: #3333ff; --gold: #ffd700; --gray: #222; }
+        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --gold: #ffd700; --gray: #222; }
         * { box-sizing: border-box; }
         body { 
             margin: 0; background: var(--f); color: var(--p); 
@@ -33,18 +33,15 @@
         }
         
         .logo-container { 
-            width: 150px; height: 150px; 
-            border: 2px solid var(--p); border-radius: 50%; 
+            width: 150px; height: 150px; border: 2px solid var(--p); border-radius: 50%; 
             display: flex; align-items: center; justify-content: center; 
-            animation: pulse 2s infinite; overflow: hidden;
-            background: rgba(0, 255, 0, 0.05);
+            animation: pulse 2s infinite; background: rgba(0, 255, 0, 0.05);
         }
         .logo-img { width: 85%; height: auto; filter: drop-shadow(0 0 5px var(--p)); }
         
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(0, 255, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); } }
 
         .container { width: 100%; max-width: 500px; margin: 0 auto; padding: 20px; flex: 1; display: none; }
-        
         #status-bar { font-size: 10px; padding: 10px; border-bottom: 1px solid var(--gray); display: flex; justify-content: space-between; }
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
@@ -55,24 +52,11 @@
             background: #000; border: 1px solid var(--p); color: var(--p);
             font-family: inherit; font-size: 16px; outline: none;
         }
-        .btn-primary { 
-            width: 100%; padding: 15px; background: var(--p); color: #000; 
-            border: none; font-weight: bold; cursor: pointer; font-size: 16px;
-        }
-        .btn-outline { 
-            width: 100%; padding: 10px; background: transparent; color: var(--p); 
-            border: 1px solid var(--p); margin-top: 10px; cursor: pointer;
-        }
+        .btn-primary { width: 100%; padding: 15px; background: var(--p); color: #000; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .btn-outline { width: 100%; padding: 10px; background: transparent; color: var(--p); border: 1px solid var(--p); margin-top: 10px; cursor: pointer; }
 
-        #admin-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 5000; align-items: center; justify-content: center;
-        }
-        .admin-box {
-            width: 90%; max-width: 400px; border: 2px solid var(--red); padding: 30px;
-            background: #000; text-align: center;
-        }
-        .admin-box h2 { color: var(--red); margin: 0 0 20px 0; }
+        #admin-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; align-items: center; justify-content: center; }
+        .admin-box { width: 90%; max-width: 400px; border: 2px solid var(--red); padding: 30px; background: #000; text-align: center; }
         .admin-input { border-color: var(--red) !important; color: var(--red) !important; }
         .btn-admin { background: var(--red); color: #fff; width: 100%; padding: 15px; border: none; font-weight: bold; cursor: pointer; }
 
@@ -86,8 +70,8 @@
 
 <div id="admin-overlay">
     <div class="admin-box">
-        <h2 class="blink">SISTEMA RESTRINGIDO</h2>
-        <p style="color: var(--red); font-size: 11px; margin-bottom: 20px;">VALIDACIÓN DE CREDENCIALES NIVEL COMANDO</p>
+        <h2 class="blink" style="color: var(--red);">SISTEMA RESTRINGIDO</h2>
+        <p style="color: var(--red); font-size: 11px; margin-bottom: 20px;">VALIDACIÓN NIVEL COMANDO</p>
         <input type="email" id="admin-email" class="admin-input" placeholder="EMAIL DE COMANDO">
         <input type="password" id="admin-pass" class="admin-input" placeholder="CONTRASEÑA">
         <button class="btn-admin" onclick="validateAdmin()">AUTENTICAR ACCESO</button>
@@ -96,22 +80,19 @@
 </div>
 
 <div id="splash-screen">
-    <div class="logo-container">
-        <img src="logo_atom.png" alt="ATOM LOGO" class="logo-img">
-    </div>
-    <p id="boot-text" style="margin-top: 20px; letter-spacing: 2px;">INICIALIZANDO SISTEMA...</p>
+    <div class="logo-container"><img src="logo_atom.png" alt="ATOM" class="logo-img"></div>
+    <p id="boot-text" style="margin-top: 20px; letter-spacing: 2px;">INICIALIZANDO...</p>
 </div>
 
 <div id="status-bar">
-    <span>CONEXIÓN: <span id="net-status" class="blink">COMPROBANDO...</span></span>
-    <span>DATOS: ENCRIPTADO AES-256</span>
+    <span>SISTEMA: <span id="net-status" class="blink">COMPROBANDO...</span></span>
+    <span>FLORIDA, UY</span>
 </div>
 
 <div class="container" id="main-app">
-    <header style="text-align: center; margin-bottom: 30px;">
-        <h2>IDENTIFICACIÓN</h2>
-        <p style="font-size: 12px; color: var(--gold);">A.T.O.M. - Airsoft Tactical Operation Maps</p>
-        <p style="font-size: 12px; color: #666;">Florida, Uruguay</p>
+    <header style="text-align: center; margin-bottom: 20px;">
+        <h2 style="margin-bottom:0;">IDENTIFICACIÓN</h2>
+        <p style="font-size: 11px; color: var(--gold); margin-top:5px;">SISTEMA TÁCTICO A.T.O.M.</p>
     </header>
 
     <div class="auth-card">
@@ -123,10 +104,10 @@
         </div>
 
         <div id="register-form" style="display:none;">
-            <input type="text" id="reg-callsign" placeholder="CALLSIGN (EJ: ALFA)">
+            <input type="text" id="reg-callsign" placeholder="CALLSIGN (EJ: COBRA)">
             <input type="email" id="reg-email" placeholder="EMAIL">
             <input type="password" id="reg-pass" placeholder="CONTRASEÑA">
-            <button class="btn-primary" onclick="register()">CREAR PERFIL ÚNICO</button>
+            <button class="btn-primary" onclick="register()">CREAR PERFIL</button>
             <button class="btn-outline" onclick="toggleForm('log')">VOLVER</button>
         </div>
     </div>
@@ -153,14 +134,14 @@
 
     window.onload = () => {
         setTimeout(() => {
-            document.getElementById('boot-text').innerText = "CONEXIÓN ESTABLECIDA";
+            document.getElementById('boot-text').innerText = "SISTEMA LISTO";
             setTimeout(() => {
                 document.getElementById('splash-screen').style.display = 'none';
                 document.getElementById('main-app').style.display = 'block';
                 document.getElementById('net-status').innerText = "ONLINE";
                 document.getElementById('net-status').classList.remove('blink');
-            }, 800);
-        }, 1200);
+            }, 600);
+        }, 1000);
     };
 
     function toggleForm(type) {
@@ -168,67 +149,44 @@
         document.getElementById('register-form').style.display = type === 'reg' ? 'block' : 'none';
     }
 
-    // REGISTRO MEJORADO: Guarda datos esenciales localmente
-    async function register() {
-        const email = document.getElementById('reg-email').value;
-        const pass = document.getElementById('reg-pass').value;
-        const call = document.getElementById('reg-callsign').value.toUpperCase().trim();
-        
-        if(!call || !email || !pass) return alert("Completa todos los campos tácticos");
-        
-        try {
-            const res = await auth.createUserWithEmailAndPassword(email, pass);
-            const userData = { callsign: call, email: email, rol: 'PLAYER', uid: res.user.uid };
-            
-            await db.ref(`usuarios/${res.user.uid}`).set(userData);
-            await db.ref(`comunidad_publica/${res.user.uid}`).set({ callsign: call });
-            
-            localStorage.setItem('callsign', call);
-            localStorage.setItem('userRole', 'PLAYER');
-            
-            alert("PERFIL CREADO. BIENVENIDO AL SISTEMA A.T.O.M");
-            location.href = "lobby.html";
-        } catch(e) { alert("ERROR AL REGISTRAR: " + e.message); }
-    }
-
-    // LOGIN CORREGIDO: Recupera el callsign antes de saltar al lobby
+    // ACCESO JUGADOR
     async function login() {
-        const email = document.getElementById('log-email').value;
-        const pass = document.getElementById('log-pass').value;
+        const email = document.getElementById('log-email').value.trim();
+        const pass = document.getElementById('log-pass').value.trim();
         
-        if(!email || !pass) return alert("Ingrese credenciales");
+        if(!email || !pass) return alert("Ingrese datos");
 
         try {
-            const userCredential = await auth.signInWithEmailAndPassword(email, pass);
-            const user = userCredential.user;
+            // Limpieza de sesión previa para evitar conflictos
+            if(auth.currentUser) await auth.signOut();
 
-            // Buscamos el callsign en la DB
-            const snap = await db.ref(`usuarios/${user.uid}`).once('value');
+            const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+            const snap = await db.ref(`usuarios/${userCredential.user.uid}`).once('value');
+            
             if(snap.exists()){
                 const data = snap.val();
                 localStorage.setItem('callsign', data.callsign);
                 localStorage.setItem('userRole', data.rol || 'PLAYER');
                 location.href = "lobby.html";
             } else {
-                alert("Perfil no encontrado en base de datos.");
+                alert("Error: Usuario no registrado en la base de datos.");
             }
-        } catch(e) { 
-            alert("ERROR DE ACCESO: VERIFICA CREDENCIALES"); 
-        }
+        } catch(e) { alert("ACCESO DENEGADO: Verifique correo y contraseña"); }
     }
 
-    function openAdmin() { document.getElementById('admin-overlay').style.display = 'flex'; }
-    function closeAdmin() { document.getElementById('admin-overlay').style.display = 'none'; }
-
-    // VALIDACIÓN ADMIN CORREGIDA
+    // ACCESO ADMINISTRADOR
     async function validateAdmin() {
-        const email = document.getElementById('admin-email').value;
-        const pass = document.getElementById('admin-pass').value;
+        const email = document.getElementById('admin-email').value.trim();
+        const pass = document.getElementById('admin-pass').value.trim();
         
+        if(!email || !pass) return alert("Credenciales incompletas");
+
         try {
+            // Forzar cierre de cualquier sesión activa
+            await auth.signOut();
+
             const userCredential = await auth.signInWithEmailAndPassword(email, pass);
-            const user = userCredential.user;
-            const snap = await db.ref(`usuarios/${user.uid}`).once('value');
+            const snap = await db.ref(`usuarios/${userCredential.user.uid}`).once('value');
             const data = snap.val();
             
             if (data && (data.rol === "ADMIN" || data.rol === "EDITOR")) {
@@ -236,13 +194,35 @@
                 localStorage.setItem('userRole', data.rol);
                 location.href = "idea.html";
             } else {
-                alert("⚠️ ACCESO RECHAZADO: RANGO INSUFICIENTE");
-                auth.signOut(); // Cierra sesión si no es admin para evitar conflictos
+                alert("RANGO INSUFICIENTE: Se requiere nivel ADMIN o EDITOR");
+                await auth.signOut();
             }
-        } catch (error) { 
-            alert("⚠️ ALERTA: CREDENCIALES INVÁLIDAS"); 
-        }
+        } catch (error) { alert("FALLO DE SEGURIDAD: Credenciales de mando inválidas"); }
     }
+
+    // REGISTRO
+    async function register() {
+        const email = document.getElementById('reg-email').value.trim();
+        const pass = document.getElementById('reg-pass').value.trim();
+        const call = document.getElementById('reg-callsign').value.toUpperCase().trim();
+        
+        if(!call || !email || !pass) return alert("Complete todos los campos");
+        
+        try {
+            const res = await auth.createUserWithEmailAndPassword(email, pass);
+            const userData = { callsign: call, email: email, rol: 'PLAYER', uid: res.user.uid };
+            
+            await db.ref(`usuarios/${res.user.uid}`).set(userData);
+            localStorage.setItem('callsign', call);
+            localStorage.setItem('userRole', 'PLAYER');
+            
+            alert("REGISTRO EXITOSO");
+            location.href = "lobby.html";
+        } catch(e) { alert("ERROR: " + e.message); }
+    }
+
+    function openAdmin() { document.getElementById('admin-overlay').style.display = 'flex'; }
+    function closeAdmin() { document.getElementById('admin-overlay').style.display = 'none'; }
 </script>
 </body>
 </html>
