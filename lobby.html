@@ -37,6 +37,10 @@
         .btn-action { background: var(--p); color: #000; border: none; padding: 18px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 14px; }
         .btn-abort { background: var(--red); color: #fff; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 12px; margin-top: 10px; display: none; }
         
+        /* Estilo Botón Cerrar Sesión */
+        .btn-logout { background: transparent; color: var(--red); border: 1px solid var(--red); padding: 10px; width: 100%; font-family: inherit; cursor: pointer; margin-top: 10px; text-transform: uppercase; font-weight: bold; font-size: 11px; }
+        .btn-logout:hover { background: var(--red); color: white; }
+
         .op-tag { display: inline-block; padding: 3px 8px; border: 1px solid var(--p); margin: 2px; font-size: 10px; font-weight: bold; color: #000; background: var(--p); }
         select { width:100%; padding:14px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px; font-family: inherit; }
         
@@ -55,13 +59,17 @@
     </div>
 
     <div id="screen-welcome" class="screen active" style="justify-content: center; align-items: center;">
-        <div style="border: 1px solid var(--p); padding: 30px; text-align: center; width: 100%; max-width: 400px;">
+        <div style="border: 1px solid var(--p); padding: 30px; text-align: center; width: 100%; max-width: 400px; background: rgba(0,0,0,0.8);">
             <h2 style="color:var(--gold); margin-top: 0;">SISTEMA A.T.O.M</h2>
             <p id="welcome-callsign" style="font-size: 12px; margin-bottom: 25px;">IDENTIFICANDO...</p>
+            
             <select id="mission-dropdown" onchange="viewMission(this.value)">
                 <option value="">-- SELECCIONAR OPERACIÓN --</option>
             </select>
-            <button onclick="window.location.href='operadores.html'" style="background:transparent; color:var(--p); border:1px solid var(--p); padding:10px; width:100%; font-family:inherit; cursor:pointer;">📡 VER OPERADORES</button>
+            
+            <button onclick="window.location.href='operadores.html'" style="background:transparent; color:var(--p); border:1px solid var(--p); padding:10px; width:100%; font-family:inherit; cursor:pointer; text-transform: uppercase; font-weight: bold;">📡 VER OPERADORES</button>
+            
+            <button class="btn-logout" onclick="logout()">✖ CERRAR SESIÓN</button>
         </div>
     </div>
 
@@ -119,6 +127,15 @@
                 });
             } else { window.location.href = 'index.html'; }
         });
+
+        // Función de Cierre de Sesión
+        function logout() {
+            if(confirm("¿Cerrar sesión del sistema A.T.O.M?")) {
+                auth.signOut().then(() => {
+                    window.location.href = 'index.html';
+                });
+            }
+        }
 
         function syncTacticalStatus() {
             const uid = auth.currentUser.uid;
@@ -205,12 +222,12 @@
                     btnEnlist.innerText = "✓ ASISTENCIA CONFIRMADA";
                     btnEnlist.disabled = true;
                     btnEnlist.style.opacity = "0.5";
-                    btnAbandon.style.display = "block"; // Mostrar botón de abandonar
+                    btnAbandon.style.display = "block";
                 } else {
                     btnEnlist.innerText = "📝 CONFIRMAR ASISTENCIA";
                     btnEnlist.disabled = false;
                     btnEnlist.style.opacity = "1";
-                    btnAbandon.style.display = "none"; // Ocultar si no está enlistado
+                    btnAbandon.style.display = "none";
                 }
             });
         }
@@ -222,18 +239,13 @@
             });
         }
 
-        // --- NUEVA FUNCIÓN: ABANDONAR MISIÓN ---
         function abandonMission() {
             if(!confirm("¿Deseas retirar tu asistencia de esta misión?")) return;
-            
             db.ref(`jugadores_enlistados/${auth.currentUser.uid}`).remove()
             .then(() => {
                 showScreen('screen-welcome');
                 document.getElementById('mission-dropdown').value = "";
-                alert("Asistencia retirada. Volviendo al lobby.");
-            })
-            .catch(error => {
-                alert("Error al retirar asistencia: " + error.message);
+                alert("Asistencia retirada.");
             });
         }
 
