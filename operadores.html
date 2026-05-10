@@ -6,6 +6,7 @@
     <title>A.T.O.M - Operadores Registrados</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
     <style>
@@ -19,7 +20,6 @@
         .header { text-align: center; border-bottom: 1px solid var(--p); margin-bottom: 20px; padding-bottom: 10px; flex-shrink: 0; }
         .header p { margin: 5px 0; font-size: 10px; color: var(--p); opacity: 0.8; text-transform: uppercase; }
         
-        /* Lista con Scroll Táctico */
         #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; padding-right: 5px; }
         #operator-list::-webkit-scrollbar { width: 4px; }
         #operator-list::-webkit-scrollbar-thumb { background: var(--p); }
@@ -33,11 +33,8 @@
             justify-content: space-between;
             align-items: center;
             border-left: 3px solid var(--p);
-            transition: all 0.3s ease;
         }
         
-        .operator-card:hover { background: rgba(0, 255, 0, 0.1); border-color: var(--p); }
-
         .callsign { font-size: 18px; font-weight: bold; color: var(--p); text-transform: uppercase; letter-spacing: 1px; }
         .stats { font-size: 11px; color: var(--gold); text-align: right; line-height: 1.4; }
         .mision-count { font-size: 16px; color: #fff; font-weight: bold; }
@@ -49,7 +46,6 @@
             text-transform: uppercase; flex-shrink: 0; transition: 0.3s;
         }
         .btn-back:hover { background: var(--p); color: #000; }
-        
         .loading { text-align: center; font-style: italic; opacity: 0.6; padding: 20px; font-size: 12px; }
     </style>
 </head>
@@ -61,64 +57,71 @@
 </div>
 
 <div id="operator-list">
-    <p class="loading">ESTABLECIENDO CONEXIÓN CON EL NODO CENTRAL...</p>
+    <p class="loading">AUTENTICANDO CREDENCIALES...</p>
 </div>
 
 <button class="btn-back" onclick="location.href='lobby.html'">⬅ VOLVER AL LOBBY</button>
 
 <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-      databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-      projectId: "atom---sistem"
+        apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+        databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+        projectId: "atom---sistem"
     };
 
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const auth = firebase.auth();
     const listContainer = document.getElementById('operator-list');
 
     let conteoMisiones = {};
 
+    // 1. Verificar Autenticación antes de pedir datos (Vital por las Reglas)
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            loadOperators();
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+
     function loadOperators() {
-        // Escuchar cambios en jugadores enlistados (Conteo de misiones)
+        // 2. Escuchar participaciones en misiones
         db.ref('jugadores_enlistados').on('value', (snapE) => {
             conteoMisiones = {};
             if(snapE.exists()) {
-                Object.values(snapE.val()).forEach(reg => {
+                snapE.forEach(child => {
+                    const reg = child.val();
                     if(reg.callsign) {
                         conteoMisiones[reg.callsign] = (conteoMisiones[reg.callsign] || 0) + 1;
                     }
                 });
             }
+            // Actualizar solo los números si las cards ya existen
             actualizarNumeros();
         });
 
-        // Escuchar lista completa de usuarios registrados
+        // 3. Escuchar lista de usuarios registrados
         db.ref('usuarios').on('value', (snapU) => {
             if (!snapU.exists()) {
-                listContainer.innerHTML = '<p class="loading">SISTEMA VACÍO: NO HAY REGISTROS</p>';
+                listContainer.innerHTML = '<p class="loading">SIN REGISTROS EN BASE DE DATOS</p>';
                 return;
             }
 
             listContainer.innerHTML = ''; 
-            
-            // Convertimos a array para poder ordenar alfabéticamente
             let usuariosArr = [];
+            
             snapU.forEach((child) => {
                 let u = child.val();
-                u.id = child.key;
+                u.uid = child.key;
                 usuariosArr.push(u);
             });
 
-            // Ordenar por callsign
-            usuariosArr.sort((a, b) => {
-                const nameA = (a.callsign || "").toUpperCase();
-                const nameB = (b.callsign || "").toUpperCase();
-                return nameA < nameB ? -1 : nameA > nameB ? 1 : 0;
-            });
+            // Ordenar alfabéticamente
+            usuariosArr.sort((a, b) => (a.callsign || "").localeCompare(b.callsign || ""));
 
             usuariosArr.forEach((user) => {
-                const callsign = user.callsign || user.nombre || "OP-" + user.id.substring(0, 5);
+                const callsign = user.callsign || "SIN CALLSIGN";
                 const misiones = conteoMisiones[callsign] || 0;
 
                 const card = document.createElement('div');
@@ -134,7 +137,8 @@
                 listContainer.appendChild(card);
             });
         }, (error) => {
-            listContainer.innerHTML = `<p class="loading" style="color:var(--red)">FALLO DE ACCESO: ${error.message}</p>`;
+            console.error(error);
+            listContainer.innerHTML = `<p class="loading" style="color:var(--red)">ERROR DE ACCESO: VERIFICAR REGLAS</p>`;
         });
     }
 
@@ -146,8 +150,6 @@
             if(span) span.innerText = conteoMisiones[cs] || 0;
         });
     }
-
-    loadOperators();
 </script>
 
 </body>
