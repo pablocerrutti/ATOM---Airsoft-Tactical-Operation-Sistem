@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>A.T.O.M - Sala de Guerra</title>
+    <title>A.T.O.M - SALA DE GUERRA</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -20,22 +20,16 @@
         .screen { display: flex; flex-direction: column; height: 100vh; padding: 10px; box-sizing: border-box; }
         
         /* Panel Superior: Mapa + Imagen */
-        .intel-header { 
-            display: flex; gap: 10px; height: 180px; margin-bottom: 15px; flex-shrink: 0;
-        }
+        .intel-header { display: flex; gap: 10px; height: 180px; margin-bottom: 15px; flex-shrink: 0; }
         
-        #intel-map-frame { 
-            flex: 1.2; border: 1px solid var(--p); position: relative; background: #000; overflow: hidden;
-        }
+        #intel-map-frame { flex: 1.2; border: 1px solid var(--p); position: relative; background: #000; overflow: hidden; }
         #preview-map { width: 100%; height: 100%; transition: filter 0.5s; }
 
-        #mission-cover-frame {
-            flex: 0.8; border: 1px solid #333; background: #111; position: relative; overflow: hidden;
-        }
-        #mission-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; }
+        #mission-cover-frame { flex: 0.8; border: 1px solid #333; background: #111; position: relative; overflow: hidden; }
+        #mission-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; transition: opacity 0.5s; }
         .img-label { position: absolute; bottom: 5px; right: 5px; font-size: 9px; color: #666; }
 
-        /* Estilos de Bloqueo de Mapa */
+        /* Estilos de Bloqueo */
         .locked-intel { filter: blur(8px) grayscale(1) brightness(0.3); }
         #map-overlay {
             position: absolute; top:0; left:0; width:100%; height:100%;
@@ -44,20 +38,15 @@
             pointer-events: none; text-align: center; padding: 10px;
         }
 
-        /* Información Legible */
+        /* Información */
         .info-panel { flex: 1; overflow-y: auto; }
-        .block { 
-            background: var(--bg-card); border: 1px solid #222; 
-            border-left: 4px solid var(--p); padding: 15px; margin-bottom: 12px; 
-        }
+        .block { background: var(--bg-card); border: 1px solid #222; border-left: 4px solid var(--p); padding: 15px; margin-bottom: 12px; }
         .label { color: var(--gold); font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; display: block; }
-        .content { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #eee; font-size: 15px; line-height: 1.5; }
+        .content { font-family: sans-serif; color: #eee; font-size: 15px; line-height: 1.5; }
 
-        /* Operadores */
         .op-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
         .op-badge { background: var(--p); color: #000; padding: 3px 8px; font-size: 11px; font-weight: bold; border-radius: 2px; }
 
-        /* Botones */
         .actions { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; }
         .btn { padding: 16px; border: 1px solid var(--p); background: transparent; color: var(--p); font-weight: bold; cursor: pointer; text-transform: uppercase; font-family: monospace; font-size: 14px; }
         .btn-ready { background: var(--p); color: #000; font-size: 16px; box-shadow: 0 0 15px rgba(0,255,0,0.3); }
@@ -66,7 +55,6 @@
         .blink { animation: blinker 1.5s linear infinite; }
         @keyframes blinker { 50% { opacity: 0.2; } }
 
-        /* Inserción */
         #deployment-screen {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: #000; z-index: 9999; display: none;
@@ -80,7 +68,7 @@
     <div id="deployment-screen">
         <h1 class="blink">INSERCIÓN INICIADA</h1>
         <p id="deploy-team" style="font-size: 24px; letter-spacing: 5px; font-weight: bold;"></p>
-        <p style="color: #666; font-size: 12px;">TRANSFIRIENDO COORDENADAS AL NÚCLEO...</p>
+        <p style="color: #666; font-size: 12px;">ESTABLECIENDO ENLACE TÁCTICO...</p>
     </div>
 
     <div class="screen">
@@ -91,29 +79,27 @@
                 <div id="preview-map" class="locked-intel"></div>
                 <div id="map-overlay">
                     <div id="overlay-msg" class="blink" style="font-weight: bold; color: var(--gold);">[ RECONOCIMIENTO REQUERIDO ]</div>
-                    <div style="font-size: 10px; color: #888; margin-top: 5px;">HQ REQUIERE CONFIRMACIÓN DE OPERATIVO</div>
+                    <div style="font-size: 10px; color: #888; margin-top: 5px;">CONFIRMA PARA DESBLOQUEAR INTEL</div>
                 </div>
             </div>
             
             <div id="mission-cover-frame">
-                <img id="mission-img" src="https://via.placeholder.com/400x300?text=SIN+DATOS" alt="Misión">
-                <div class="img-label">DRONE_VIEW_01</div>
+                <img id="mission-img" src="https://via.placeholder.com/400x300?text=CARGANDO..." alt="Misión">
+                <div class="img-label">SATELLITE_FEED</div>
             </div>
         </div>
 
         <div class="info-panel">
             <div class="block">
                 <span class="label">Briefing de la Operación</span>
-                <div id="m-briefing" class="content">Sincronizando con el servidor central...</div>
+                <div id="m-briefing" class="content">Sincronizando...</div>
             </div>
-            
             <div class="block">
                 <span class="label">Objetivos Tácticos</span>
-                <div id="m-objectives" class="content">Analizando prioridades de zona...</div>
+                <div id="m-objectives" class="content">Analizando...</div>
             </div>
-
             <div class="block">
-                <span class="label">Fuerzas Especiales en Zona</span>
+                <span class="label">Operativos en Zona</span>
                 <div id="m-operators" class="op-list"></div>
             </div>
         </div>
@@ -121,7 +107,7 @@
         <div class="actions">
             <button id="btn-join" class="btn btn-ready" onclick="registerOp()">CONFIRMAR ASISTENCIA</button>
             <button id="btn-leave" class="btn btn-abort" onclick="unregisterOp()" style="display:none;">ABORTAR DESPLIEGUE</button>
-            <button class="btn" onclick="location.href='lobby.html'" style="border-color: #444; color: #888;">CANCELAR</button>
+            <button class="btn" onclick="location.href='lobby.html'" style="border-color: #444; color: #888;">VOLVER</button>
         </div>
     </div>
 
@@ -144,19 +130,17 @@ window.onload = () => {
 };
 
 function initPreviewMap() {
-    previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false }).setView([0,0], 15);
+    previewMap = L.map('preview-map', { zoomControl: false, attributionControl: false });
     L.gridLayer.googleMutant({ type: 'hybrid' }).addTo(previewMap);
     drawnItems = L.featureGroup().addTo(previewMap);
 }
 
 function listenActiveMission() {
-    // 1. Obtener Misión Activa desde el Panel de Control
     db.ref('operacion_activa/control/missionId').on('value', snap => {
         missionId = snap.val();
         if(missionId) loadMissionData(missionId);
     });
 
-    // 2. Monitorear lista de operadores y mi propio estado
     db.ref('jugadores_enlistados').on('value', snap => {
         const opsContainer = document.getElementById('m-operators');
         opsContainer.innerHTML = '';
@@ -164,13 +148,9 @@ function listenActiveMission() {
 
         snap.forEach(child => {
             const d = child.val();
-            if(d.callsign === myCallsign) {
-                imEnlisted = true;
-                checkAutoDeploy(d);
-            }
+            if(d.callsign === myCallsign) imEnlisted = true;
             opsContainer.innerHTML += `<span class="op-badge">${d.callsign}</span>`;
         });
-
         toggleUI(imEnlisted);
     });
 }
@@ -180,33 +160,28 @@ function loadMissionData(id) {
         const m = snap.val();
         if(!m) return;
 
-        // Actualizar Textos
         document.getElementById('mission-title').innerText = m.nombre.toUpperCase();
-        document.getElementById('m-briefing').innerText = m.historia || "Sin descripción de inteligencia.";
-        document.getElementById('m-objectives').innerText = m.objetivos || "Sin objetivos primarios.";
+        document.getElementById('m-briefing').innerText = m.historia || "Sin descripción.";
+        document.getElementById('m-objectives').innerText = m.objetivos || "Sin objetivos.";
 
-        // Sincronizar Imagen de Portada
         if(m.imagen) {
             const imgEl = document.getElementById('mission-img');
             imgEl.src = m.imagen;
             imgEl.style.opacity = "1";
         }
 
-        // Renderizar Elementos del Mapa
         drawnItems.clearLayers();
         if(m.elementos) {
             m.elementos.forEach(el => {
                 let layer;
                 const style = { color: '#0f0', weight: 2, fillOpacity: 0.15, dashArray: '5, 5' };
-                
                 if(el.path) layer = L.polygon(el.path, style);
                 else if(el.radius) layer = L.circle(el.center, {radius: el.radius, ...style});
-                
                 drawnItems.addLayer(layer);
             });
 
             if(drawnItems.getLayers().length > 0) {
-                previewMap.fitBounds(drawnItems.getBounds(), { padding: [10, 10] });
+                previewMap.fitBounds(drawnItems.getBounds(), { padding: [15, 15] });
             }
         }
     });
@@ -229,37 +204,22 @@ function toggleUI(enlisted) {
         btnJoin.style.display = 'block';
         btnLeave.style.display = 'none';
     }
-}
-
-function checkAutoDeploy(myData) {
-    // Si el Admin nos asignó bando y la partida ya está corriendo (o es inminente)
-    if(myData.equipo && myData.equipo !== 'S/E') {
-        db.ref('operacion_activa/control/gameActive').on('value', snap => {
-            if(snap.val() === true) {
-                const lock = document.getElementById('deployment-screen');
-                const teamTxt = document.getElementById('deploy-team');
-                
-                teamTxt.innerText = `BANDO: ${myData.equipo}`;
-                teamTxt.style.color = myData.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
-                
-                lock.style.display = 'flex';
-                
-                setTimeout(() => {
-                    location.href = 'mapa_tactico.html';
-                }, 2000);
-            }
-        });
-    }
+    setTimeout(() => previewMap.invalidateSize(), 200);
 }
 
 function registerOp() {
-    if(!missionId) return alert("NO HAY MISIÓN ACTIVA EN HQ");
+    if(!missionId) return alert("HQ AÚN NO HA DESIGNADO UNA MISIÓN");
+    
+    // Guardar en Firebase
     db.ref(`jugadores_enlistados/${myCallsign}`).set({
         callsign: myCallsign,
         equipo: 'S/E',
         misionId: missionId,
         lat: 0, lng: 0,
         lastSeen: Date.now()
+    }).then(() => {
+        // Redirección inmediata tras confirmar
+        location.href = 'mapa_tactico.html';
     });
 }
 
