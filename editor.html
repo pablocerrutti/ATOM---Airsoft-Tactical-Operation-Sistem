@@ -42,7 +42,11 @@
         button { width:100%; padding:10px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-weight: bold; font-size: 10px; text-transform: uppercase; }
         button.active { background: var(--p); color: #000; }
         input, textarea, select { background: #000; border: 1px solid #333; color: var(--p); padding: 8px; font-family: inherit; font-size: 12px; }
+        
+        /* Estilos de la lista de operadores */
         .op-card { background: #111; border: 1px solid #333; padding: 8px; margin-bottom: 5px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
+        .op-callsign { font-weight: bold; transition: color 0.3s ease; }
+        
         .stats-box { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 10px; border: 1px solid #333; margin-bottom: 5px; }
         .stat-btn { width: 35px !important; padding: 5px !important; font-size: 16px; }
         #menu-toggle { position:absolute; top:10px; left:10px; z-index:1100; padding:10px; background:#000; color:var(--p); border:1px solid var(--p); cursor: pointer; }
@@ -70,11 +74,12 @@
                 <textarea id="mission-objectives" placeholder="Objetivos..." rows="2"></textarea>
                 <input id="mission-image-url" placeholder="URL Imagen...">
                 <button onclick="saveMission()" style="background:var(--gold); color:#000; border:none; margin-top:5px;">💾 GUARDAR MISIÓN</button>
+                <button onclick="deleteMission()" style="background:var(--red); color:#fff; border:none; margin-top:2px;">🗑️ ELIMINAR MISIÓN</button>
             </div>
         </details>
 
         <details>
-            <summary>👥 OPERADORES</summary>
+            <summary>👥 OPERADORES EN LISTA</summary>
             <div class="tool-content" id="enlisted-list"></div>
         </details>
 
@@ -113,7 +118,7 @@
             </div>
         </details>
 
-        <button onclick="window.location.href='idea.html'" style="margin-top:auto; background:#111; border:none; color:#555;">⬅ SALIR</button>
+        <button onclick="window.location.href='lobby.html'" style="margin-top:auto; background:#111; border:none; color:#555;">⬅ SALIR AL LOBBY</button>
     </div>
     <div id="map"></div>
 </div>
@@ -122,10 +127,9 @@
 const db = firebase.database();
 let map, drawnItems, currentMissionId = null, currentAtomType = '', isMisionActiva = false;
 
-// Diccionario de colores centralizado
 const ATOM_COLORS = { 
     'GAME_ZONE': '#0f0', 
-    'SAFE_ZONE': '#ffd700', // Amarillo Gold
+    'SAFE_ZONE': '#ffd700', 
     'RESPAWN_RED': '#f33', 
     'RESPAWN_BLUE': '#33f', 
     'OBJ_POINT': '#fff' 
@@ -160,6 +164,13 @@ function saveMission() {
     const mId = currentMissionId || db.ref('misiones').push().key;
     db.ref(`misiones/${mId}`).update({ id: mId, nombre: name, historia: document.getElementById('mission-history').value, objetivos: document.getElementById('mission-objectives').value, imagen: document.getElementById('mission-image-url').value, elementos: elementos });
     alert("MISIÓN GUARDADA");
+}
+
+function deleteMission() {
+    if (!currentMissionId) return alert("Selecciona una misión");
+    if (confirm("¿ELIMINAR MISIÓN permanentemente?")) {
+        db.ref(`misiones/${currentMissionId}`).remove().then(() => { alert("ELIMINADA"); location.reload(); });
+    }
 }
 
 function loadMissionToEdit(id) {
@@ -198,7 +209,21 @@ function syncOperatives(mId) {
         container.innerHTML = '';
         snap.forEach(child => {
             const op = child.val();
-            container.innerHTML += `<div class="op-card"><span>${op.callsign}</span><div><button onclick="assignTeam('${child.key}','RED')">R</button><button onclick="assignTeam('${child.key}','BLUE')">A</button><button onclick="removeOp('${child.key}')">X</button></div></div>`;
+            
+            // Lógica de color dinámica según equipo asignado
+            let callsignColor = '#ffffff'; // Blanco por defecto (negrita en CSS)
+            if (op.equipo === 'RED') callsignColor = 'var(--red)';
+            else if (op.equipo === 'BLUE') callsignColor = 'var(--blue)';
+
+            container.innerHTML += `
+                <div class="op-card">
+                    <span class="op-callsign" style="color: ${callsignColor}">${op.callsign}</span>
+                    <div>
+                        <button onclick="assignTeam('${child.key}','RED')" style="width:25px; border-color:var(--red); color:var(--red)">R</button>
+                        <button onclick="assignTeam('${child.key}','BLUE')" style="width:25px; border-color:var(--blue); color:var(--blue)">A</button>
+                        <button onclick="removeOp('${child.key}')" style="width:25px;">X</button>
+                    </div>
+                </div>`;
         });
     });
 }
