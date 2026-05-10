@@ -2,11 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>A.T.O.M - Operadores Registrados</title>
-     <p>Airsoft Tactical Operations Maps</p>
     
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
@@ -15,11 +13,15 @@
         body { 
             margin: 0; background: var(--f); color: var(--p); 
             font-family: 'Courier New', monospace; padding: 20px;
+            display: flex; flex-direction: column; height: 100vh; box-sizing: border-box;
         }
-        .header { text-align: center; border-bottom: 1px solid var(--p); margin-bottom: 20px; padding-bottom: 10px; }
+        .header { text-align: center; border-bottom: 1px solid var(--p); margin-bottom: 20px; padding-bottom: 10px; flex-shrink: 0; }
+        .header p { margin: 5px 0; font-size: 10px; color: var(--p); opacity: 0.8; }
         
+        #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; }
+
         .operator-card {
-            background: #111;
+            background: rgba(0, 255, 0, 0.03);
             border: 1px solid var(--gray);
             padding: 15px;
             margin-bottom: 10px;
@@ -27,40 +29,39 @@
             justify-content: space-between;
             align-items: center;
         }
-        .callsign { font-size: 18px; font-weight: bold; color: var(--p); }
-        .stats { font-size: 12px; color: var(--gold); text-align: right; }
+        .callsign { font-size: 18px; font-weight: bold; color: var(--p); text-transform: uppercase; }
+        .stats { font-size: 11px; color: var(--gold); text-align: right; line-height: 1.4; }
+        .mision-count { font-size: 16px; color: #fff; font-weight: bold; }
         
         .btn-back {
             width: 100%; padding: 15px; background: transparent; 
             border: 1px solid var(--p); color: var(--p); 
-            cursor: pointer; font-family: inherit; margin-top: 20px;
+            cursor: pointer; font-family: inherit; font-weight: bold;
+            text-transform: uppercase; flex-shrink: 0;
         }
-        .loading { text-align: center; font-style: italic; opacity: 0.6; }
+        .btn-back:active { background: var(--p); color: #000; }
+        .loading { text-align: center; font-style: italic; opacity: 0.6; padding: 20px; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h2>OPERADORES ACTIVOS EN EL SISTEMA </h2>
-    <p style="font-size: 10px;">REGISTRO CENTRAL DE FUERZAS</p>
+    <h2 style="margin:0; font-size: 1.2rem;">OPERADORES ACTIVOS</h2>
+    <p>A.T.O.M. - REGISTRO CENTRAL DE FUERZAS</p>
 </div>
 
 <div id="operator-list">
-    <p class="loading">SINCRONIZANDO CON DB...</p>
+    <p class="loading">SINCRONIZANDO CON RED TÁCTICA...</p>
 </div>
 
-<button class="btn-back" onclick="location.href='lobby.html'">VOLVER AL LOBBY</button>
+<button class="btn-back" onclick="location.href='lobby.html'">⬅ VOLVER AL LOBBY</button>
 
 <script>
-    // Configuración de Firebase (Misma que usas en el index)
+    // Configuración de Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-      authDomain: "atom---sistem.firebaseapp.com",
       databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-      projectId: "atom---sistem",
-      storageBucket: "atom---sistem.firebasestorage.app",
-      messagingSenderId: "151110156876",
-      appId: "1:151110156876:web:89c5506f9279fc3b5d2ae9"
+      projectId: "atom---sistem"
     };
 
     firebase.initializeApp(firebaseConfig);
@@ -68,29 +69,40 @@
 
     const listContainer = document.getElementById('operator-list');
 
-    // Función para obtener y mostrar operadores
-    function loadOperators() {
-        db.ref('usuarios').on('value', (snapshot) => {
-            listContainer.innerHTML = ''; // Limpiar contenedor
-            
-            if (!snapshot.exists()) {
-                listContainer.innerHTML = '<p class="loading">NO HAY OPERADORES REGISTRADOS</p>';
+    async function loadOperators() {
+        // Obtenemos los usuarios y las misiones de forma paralela
+        db.ref('usuarios').on('value', async (snapUsuarios) => {
+            if (!snapUsuarios.exists()) {
+                listContainer.innerHTML = '<p class="loading">NO HAY REGISTROS EN LA BASE</p>';
                 return;
             }
 
-            snapshot.forEach((childSnapshot) => {
-                const data = childSnapshot.val();
-                
-                // Si el usuario no tiene misiones registradas aún, ponemos 0 por defecto
-                const misiones = data.misiones_participadas || 0;
+            // Consultamos la tabla de alistados para contar participaciones reales
+            const snapElistados = await db.ref('jugadores_enlistados').once('value');
+            const enlistadosData = snapElistados.val() || {};
+            
+            // Procesar conteo
+            const conteoMisiones = {};
+            Object.values(enlistadosData).forEach(reg => {
+                if(reg.callsign) {
+                    conteoMisiones[reg.callsign] = (conteoMisiones[reg.callsign] || 0) + 1;
+                }
+            });
+
+            listContainer.innerHTML = ''; // Limpiar contenedor
+
+            snapUsuarios.forEach((child) => {
+                const user = child.val();
+                const callsign = user.callsign || "DESCONOCIDO";
+                const totalMisiones = conteoMisiones[callsign] || 0;
 
                 const card = document.createElement('div');
                 card.className = 'operator-card';
                 card.innerHTML = `
-                    <div class="callsign">ID: ${data.callsign}</div>
+                    <div class="callsign">${callsign}</div>
                     <div class="stats">
-                        MISIONES: ${misiones}<br>
-                        ESTADO: ACTIVO
+                        MISIONES: <span class="mision-count">${totalMisiones}</span><br>
+                        SITUACIÓN: <span style="color:#0f0">DISPONIBLE</span>
                     </div>
                 `;
                 listContainer.appendChild(card);
@@ -98,7 +110,7 @@
         });
     }
 
-    // Ejecutar carga al iniciar
+    // Iniciar carga
     loadOperators();
 </script>
 
