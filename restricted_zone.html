@@ -2,85 +2,260 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A.T.O.M - COMANDO TÁCTICO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.T.O.M - Dashboard de Comando</title>
     
-    <style>html { display: none; }</style>
-
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
-            databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
-            projectId: "atom---sistem",
-        };
-        firebase.initializeApp(firebaseConfig);
-
-        firebase.auth().onAuthStateChanged(user => {
-            if (user) {
-                document.documentElement.style.display = 'block';
-            } else {
-                window.location.href = 'login.html';
-            }
-        });
-
-        function logoutAndExit() {
-            firebase.auth().signOut().then(() => {
-                window.location.href = 'index.html';
-            }).catch((error) => {
-                console.error("Error al cerrar sesión:", error);
-                window.location.href = 'index.html';
-            });
-        }
-    </script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
     <style>
-        :root { --p:#00ff00; --f:#050505; --gold:#ffd700; --red:#ff3333; --gray:#444; }
-        body { 
-            margin:0; font-family: 'Courier New', monospace; 
-            background:var(--f); color:var(--p); 
-            display: flex; align-items: center; justify-content: center; 
-            height: 100vh; overflow: hidden;
-        }
-        .menu-box { 
-            border: 1px solid var(--p); padding: 30px; 
-            background: rgba(0,20,0,0.5); text-align: center; 
-            width: 90%; max-width: 400px; box-shadow: 0 0 20px rgba(0,255,0,0.2);
-        }
-        h1 { color: var(--gold); font-size: 1.4rem; margin-bottom: 25px; letter-spacing: 2px; }
-        .btn-group { display: flex; flex-direction: column; gap: 12px; }
+        :root { --p: #00ff00; --f: #050505; --red: #ff3333; --gold: #ffd700; --gray: #1a1a1a; }
         
-        button { 
-            padding: 15px; background: transparent; border: 1px solid var(--p); 
-            color: var(--p); font-weight: bold; cursor: pointer; 
-            text-transform: uppercase; font-family: inherit; transition: 0.3s;
+        body { 
+            margin: 0; 
+            font-family: 'Courier New', monospace; 
+            background: var(--f); 
+            color: var(--p); 
+            display: none; /* Se activa tras auth */
         }
-        button:hover { background: var(--p); color: #000; box-shadow: 0 0 10px var(--p); }
 
-        /* Estilo específico para volver al inicio sin cerrar sesión */
-        .exit { border-color: #888; color: #888; margin-top: 10px; }
-        .exit:hover { border-color: #fff; color: #fff; background: transparent; box-shadow: 0 0 10px #fff; }
+        .dashboard-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
 
-        .logout { border-color: var(--red); color: var(--red); }
-        .logout:hover { background: var(--red); color: #fff; box-shadow: 0 0 10px var(--red); }
+        header {
+            text-align: center;
+            border-bottom: 1px solid var(--p);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        /* BOTONES DE NAVEGACIÓN PRINCIPAL */
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        .nav-card {
+            background: var(--gray);
+            border: 1px solid var(--p);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .nav-card:hover { background: var(--p); color: #000; }
+        .nav-card.mission { border-color: var(--gold); color: var(--gold); }
+        .nav-card.mission:hover { background: var(--gold); color: #000; }
+
+        /* SECCIÓN GESTIÓN DE USUARIOS */
+        .admin-section {
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid var(--p);
+            padding: 20px;
+            border-radius: 4px;
+        }
+
+        .search-bar {
+            width: 100%;
+            padding: 12px;
+            background: #000;
+            border: 1px solid var(--p);
+            color: var(--p);
+            margin-bottom: 20px;
+            font-family: inherit;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th { border-bottom: 1px solid var(--p); padding: 10px; text-align: left; color: var(--gold); }
+        td { padding: 10px; border-bottom: 1px solid #222; }
+
+        select {
+            background: #000;
+            color: var(--p);
+            border: 1px solid var(--p);
+            padding: 5px;
+            font-family: inherit;
+        }
+
+        .btn-del {
+            color: var(--red);
+            border: 1px solid var(--red);
+            background: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .btn-del:hover { background: var(--red); color: #fff; }
+
+        .footer-nav {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        button.standard {
+            background: none;
+            border: 1px solid var(--p);
+            color: var(--p);
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        button.standard:hover { background: var(--p); color: #000; }
     </style>
 </head>
 <body>
 
-    <div class="menu-box">
-        <h1>COMANDO TÁCTICO</h1>
-        <div class="btn-group">
-            <button onclick="window.location.href='editor.html'">🛠️ EDITOR DE MISIONES</button>
-            <button onclick="window.location.href='lobby.html'">📡 VISTA DE LOBBY</button>
-            
-            <hr style="border: 0; border-top: 1px solid #222; margin: 10px 0;">
+<div class="dashboard-container">
+    <header>
+        <h1>A.T.O.M COMMAND DASHBOARD</h1>
+        <p id="admin-info">Cargando privilegios de comando...</p>
+    </header>
 
-            <button class="exit" onclick="window.location.href='index.html'">⬅ VOLVER AL INICIO</button>
-            <button class="logout" onclick="logoutAndExit()">✖ CERRAR SESIÓN</button>
+    <div class="nav-grid">
+        <div class="nav-card mission" onclick="window.location.href='idea.html'">
+            🗺️ GESTIÓN DE MISIONES
+        </div>
+        <div class="nav-card" onclick="document.getElementById('users-section').scrollIntoView({behavior: 'smooth'})">
+            👥 OPERADORES REGISTRADOS
         </div>
     </div>
+
+    <div id="users-section" class="admin-section">
+        <h3>BASE DE DATOS DE OPERADORES</h3>
+        <input type="text" id="userSearch" class="search-bar" placeholder="🔍 Buscar por CALLSIGN..." onkeyup="filterUsers()">
+        
+        <div style="overflow-x: auto;">
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>CALLSIGN</th>
+                        <th>EMAIL</th>
+                        <th>RANGO / PRIVILEGIOS</th>
+                        <th>ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody id="usersList">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer-nav">
+        <button class="standard" onclick="window.location.href='index.html'">⬅ VOLVER AL INICIO</button>
+        <button class="standard" style="border-color: var(--red); color: var(--red);" onclick="logout()">✖ CERRAR SESIÓN</button>
+    </div>
+</div>
+
+<script>
+    // CONFIGURACIÓN FIREBASE
+    const firebaseConfig = {
+        apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
+        databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
+        projectId: "atom---sistem",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    // PROTECCIÓN DE RUTA Y CARGA DE DATOS
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            checkPrivileges(user.uid);
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+
+    function checkPrivileges(uid) {
+        db.ref(`usuarios/${uid}`).once('value', snap => {
+            const userData = snap.val();
+            if (userData && (userData.rango === 'admin' || userData.rango === 'editor')) {
+                document.getElementById('admin-info').innerText = `OPERADOR: ${userData.callsign} | RANGO: ${userData.rango.toUpperCase()}`;
+                document.body.style.display = 'block';
+                loadUsersRealtime();
+            } else {
+                alert("ACCESO DENEGADO: No tienes rango de mando.");
+                window.location.href = 'index.html';
+            }
+        });
+    }
+
+    // CARGAR USUARIOS EN TIEMPO REAL
+    function loadUsersRealtime() {
+        db.ref('usuarios').on('value', snap => {
+            const list = document.getElementById('usersList');
+            list.innerHTML = '';
+            
+            snap.forEach(child => {
+                const u = child.val();
+                const key = child.key;
+
+                const row = `
+                    <tr data-callsign="${u.callsign.toLowerCase()}">
+                        <td style="font-weight:bold; color:var(--p)">${u.callsign}</td>
+                        <td>${u.email || 'N/A'}</td>
+                        <td>
+                            <select onchange="updateRank('${key}', this.value)">
+                                <option value="jugador" ${u.rango === 'jugador' ? 'selected' : ''}>JUGADOR</option>
+                                <option value="editor" ${u.rango === 'editor' ? 'selected' : ''}>EDITOR</option>
+                                <option value="admin" ${u.rango === 'admin' ? 'selected' : ''}>ADMINISTRADOR</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button class="btn-del" onclick="deleteUser('${key}', '${u.callsign}')">ELIMINAR</button>
+                        </td>
+                    </tr>
+                `;
+                list.innerHTML += row;
+            });
+        });
+    }
+
+    // ACTUALIZAR RANGO
+    function updateRank(uid, newRank) {
+        db.ref(`usuarios/${uid}`).update({ rango: newRank })
+          .then(() => alert("RANGO ACTUALIZADO EN LA DB"));
+    }
+
+    // ELIMINAR USUARIO
+    function deleteUser(uid, callsign) {
+        if (confirm(`¿EXPULSAR DEFINITIVAMENTE A [${callsign}] DE LA BASE DE DATOS?`)) {
+            db.ref(`usuarios/${uid}`).remove();
+        }
+    }
+
+    // FILTRO DE BÚSQUEDA
+    function filterUsers() {
+        const input = document.getElementById('userSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('#usersList tr');
+        
+        rows.forEach(row => {
+            const callsign = row.getAttribute('data-callsign');
+            row.style.display = callsign.includes(input) ? '' : 'none';
+        });
+    }
+
+    function logout() {
+        auth.signOut().then(() => window.location.href = 'index.html');
+    }
+</script>
 
 </body>
 </html>
