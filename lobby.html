@@ -17,7 +17,6 @@
         .screen { position: fixed; top:0; left:0; width:100%; height:100%; display:none; flex-direction: column; background: var(--f); padding: 15px; box-sizing: border-box; }
         .active { display: flex !important; }
         
-        /* Bloqueo de Pantalla (Espera de Escuadrón) */
         #lock-screen {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: rgba(0,0,0,0.9); z-index: 9999;
@@ -36,11 +35,11 @@
         .content { font-size:13px; color:#ccc; line-height: 1.4; }
 
         .btn-action { background: var(--p); color: #000; border: none; padding: 18px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 14px; }
-        .op-tag { display: inline-block; padding: 3px 8px; border: 1px solid var(--p); margin: 2px; font-size: 10px; font-weight: bold; color: #000; background: var(--p); }
+        .btn-abort { background: var(--red); color: #fff; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 12px; margin-top: 10px; display: none; }
         
+        .op-tag { display: inline-block; padding: 3px 8px; border: 1px solid var(--p); margin: 2px; font-size: 10px; font-weight: bold; color: #000; background: var(--p); }
         select { width:100%; padding:14px; background:#000; color:var(--p); border:1px solid var(--p); margin-bottom: 20px; font-family: inherit; }
         
-        /* Animación de parpadeo para el mensaje de espera */
         .blink { animation: blinker 1.5s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
     </style>
@@ -49,11 +48,10 @@
 
     <div id="lock-screen">
         <h1 class="blink" style="color:var(--gold); letter-spacing: 5px;">EN ESPERA DE ESCUADRÓN</h1>
-        <p style="font-size: 14px;">EL COMANDO ESTÁ PROCESANDO TU INSERCIÓN...</p>
+        <p>EL COMANDO ESTÁ PROCESANDO TU INSERCIÓN...</p>
         <div id="team-reveal" style="margin-top: 30px; font-size: 20px; font-weight: bold; display: none;">
             EQUIPO ASIGNADO: <span id="team-name">---</span>
         </div>
-        <p style="margin-top: 50px; font-size: 10px; opacity: 0.5;">SISTEMA A.T.O.M V.2.0 - CRANEOS.UY</p>
     </div>
 
     <div id="screen-welcome" class="screen active" style="justify-content: center; align-items: center;">
@@ -63,7 +61,7 @@
             <select id="mission-dropdown" onchange="viewMission(this.value)">
                 <option value="">-- SELECCIONAR OPERACIÓN --</option>
             </select>
-            <button class="btn-secondary" onclick="window.location.href='operadores.html'" style="background:transparent; color:var(--p); border:1px solid var(--p); padding:10px; width:100%; font-family:inherit; cursor:pointer;">📡 VER OPERADORES</button>
+            <button onclick="window.location.href='operadores.html'" style="background:transparent; color:var(--p); border:1px solid var(--p); padding:10px; width:100%; font-family:inherit; cursor:pointer;">📡 VER OPERADORES</button>
         </div>
     </div>
 
@@ -82,7 +80,8 @@
         </div>
 
         <button id="btn-enlist" class="btn-action" onclick="enlistOperative()">📝 CONFIRMAR ASISTENCIA</button>
-        <button onclick="showScreen('screen-welcome')" style="background:none; color:#555; border:none; padding:12px; cursor:pointer; font-family: inherit;">⬅ VOLVER</button>
+        <button id="btn-abandon" class="btn-abort" onclick="abandonMission()">❌ ABANDONAR MISIÓN</button>
+        <button onclick="showScreen('screen-welcome')" style="background:none; color:#555; border:none; padding:12px; cursor:pointer; font-family: inherit;">⬅ VOLVER AL LOBBY</button>
     </div>
 
     <script>
@@ -115,46 +114,28 @@
                         userCallsign = snap.val().callsign;
                         document.getElementById('welcome-callsign').innerText = `OPERADOR: ${userCallsign}`;
                         initLobbySync();
-                        syncTacticalStatus(); // Inicia monitoreo de misión y equipo
+                        syncTacticalStatus();
                     }
                 });
             } else { window.location.href = 'index.html'; }
         });
 
-        // --- LÓGICA DE LANZAMIENTO Y EQUIPO ---
         function syncTacticalStatus() {
             const uid = auth.currentUser.uid;
-            const lockScreen = document.getElementById('lock-screen');
-            const teamReveal = document.getElementById('team-reveal');
-            const teamName = document.getElementById('team-name');
-
-            // 1. Escuchar si la misión se ha lanzado
             db.ref('estado_partida').on('value', snapPartida => {
                 const partida = snapPartida.val() || {};
-                
                 if (partida.activo === true) {
-                    // Si la misión está lanzada, bloqueamos y esperamos equipo
-                    lockScreen.style.display = 'flex';
-
-                    // 2. Escuchar la asignación de equipo del jugador
+                    document.getElementById('lock-screen').style.display = 'flex';
                     db.ref(`jugadores_enlistados/${uid}`).on('value', snapUser => {
                         const userData = snapUser.val();
-                        
                         if (userData && userData.equipo && userData.equipo !== 'S/E') {
-                            // Mostrar color de equipo
-                            teamReveal.style.display = 'block';
-                            teamName.innerText = userData.equipo;
-                            teamName.style.color = userData.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
-
-                            // Redirigir tras 2 segundos de mostrar el equipo
-                            setTimeout(() => {
-                                window.location.href = 'mapa.tactico.html';
-                            }, 2500);
+                            document.getElementById('team-reveal').style.display = 'block';
+                            document.getElementById('team-name').innerText = userData.equipo;
+                            document.getElementById('team-name').style.color = userData.equipo === 'RED' ? 'var(--red)' : 'var(--blue)';
+                            setTimeout(() => { window.location.href = 'mapa.tactico.html'; }, 2500);
                         }
                     });
-                } else {
-                    lockScreen.style.display = 'none';
-                }
+                } else { document.getElementById('lock-screen').style.display = 'none'; }
             });
         }
 
@@ -163,9 +144,7 @@
                 const dd = document.getElementById('mission-dropdown');
                 const current = dd.value;
                 dd.innerHTML = '<option value="">-- SELECCIONAR OPERACIÓN --</option>';
-                snap.forEach(child => {
-                    dd.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`;
-                });
+                snap.forEach(child => { dd.innerHTML += `<option value="${child.key}">${child.val().nombre}</option>`; });
                 dd.value = current;
             });
         }
@@ -189,8 +168,7 @@
                 document.getElementById('mission-objectives-text').innerText = m.objetivos || "Sin objetivos.";
                 
                 const frame = document.getElementById('mission-cover-frame');
-                const img = document.getElementById('mission-cover-img');
-                if(m.imagen) { frame.style.display = 'block'; img.src = formatDriveUrl(m.imagen); }
+                if(m.imagen) { frame.style.display = 'block'; document.getElementById('mission-cover-img').src = formatDriveUrl(m.imagen); }
                 else { frame.style.display = 'none'; }
 
                 drawnItems.clearLayers();
@@ -219,18 +197,43 @@
                     if(child.val().callsign === userCallsign) yaEnlistado = true;
                     container.innerHTML += `<span class="op-tag">${child.val().callsign}</span>`;
                 });
-                const btn = document.getElementById('btn-enlist');
-                btn.innerText = yaEnlistado ? "✓ ASISTENCIA CONFIRMADA" : "📝 CONFIRMAR ASISTENCIA";
-                btn.disabled = yaEnlistado;
-                btn.style.opacity = yaEnlistado ? "0.5" : "1";
+                
+                const btnEnlist = document.getElementById('btn-enlist');
+                const btnAbandon = document.getElementById('btn-abandon');
+                
+                if(yaEnlistado) {
+                    btnEnlist.innerText = "✓ ASISTENCIA CONFIRMADA";
+                    btnEnlist.disabled = true;
+                    btnEnlist.style.opacity = "0.5";
+                    btnAbandon.style.display = "block"; // Mostrar botón de abandonar
+                } else {
+                    btnEnlist.innerText = "📝 CONFIRMAR ASISTENCIA";
+                    btnEnlist.disabled = false;
+                    btnEnlist.style.opacity = "1";
+                    btnAbandon.style.display = "none"; // Ocultar si no está enlistado
+                }
             });
         }
 
         function enlistOperative() {
             if(!selectedMissionId) return;
-            // El equipo inicial es 'S/E' (Sin Equipo)
             db.ref(`jugadores_enlistados/${auth.currentUser.uid}`).set({
                 callsign: userCallsign, equipo: 'S/E', misionId: selectedMissionId, timestamp: Date.now()
+            });
+        }
+
+        // --- NUEVA FUNCIÓN: ABANDONAR MISIÓN ---
+        function abandonMission() {
+            if(!confirm("¿Deseas retirar tu asistencia de esta misión?")) return;
+            
+            db.ref(`jugadores_enlistados/${auth.currentUser.uid}`).remove()
+            .then(() => {
+                showScreen('screen-welcome');
+                document.getElementById('mission-dropdown').value = "";
+                alert("Asistencia retirada. Volviendo al lobby.");
+            })
+            .catch(error => {
+                alert("Error al retirar asistencia: " + error.message);
             });
         }
 
