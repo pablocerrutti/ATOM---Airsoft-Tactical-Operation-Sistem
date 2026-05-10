@@ -16,7 +16,7 @@
             display: flex; flex-direction: column; height: 100vh; box-sizing: border-box;
         }
         .header { text-align: center; border-bottom: 1px solid var(--p); margin-bottom: 20px; padding-bottom: 10px; flex-shrink: 0; }
-        .header p { margin: 5px 0; font-size: 10px; color: var(--p); opacity: 0.8; }
+        .header p { margin: 5px 0; font-size: 10px; color: var(--p); opacity: 0.8; text-transform: uppercase; }
         
         #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; }
 
@@ -28,8 +28,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-left: 3px solid var(--p);
         }
-        .callsign { font-size: 18px; font-weight: bold; color: var(--p); text-transform: uppercase; }
+        .callsign { font-size: 18px; font-weight: bold; color: var(--p); text-transform: uppercase; letter-spacing: 1px; }
         .stats { font-size: 11px; color: var(--gold); text-align: right; line-height: 1.4; }
         .mision-count { font-size: 16px; color: #fff; font-weight: bold; }
         
@@ -38,26 +39,26 @@
             border: 1px solid var(--p); color: var(--p); 
             cursor: pointer; font-family: inherit; font-weight: bold;
             text-transform: uppercase; flex-shrink: 0;
+            transition: 0.3s;
         }
         .btn-back:active { background: var(--p); color: #000; }
-        .loading { text-align: center; font-style: italic; opacity: 0.6; padding: 20px; }
+        .loading { text-align: center; font-style: italic; opacity: 0.6; padding: 20px; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h2 style="margin:0; font-size: 1.2rem;">OPERADORES ACTIVOS</h2>
-    <p>A.T.O.M. - REGISTRO CENTRAL DE FUERZAS</p>
+    <h2 style="margin:0; font-size: 1.2rem; letter-spacing: 2px;">OPERADORES A.T.O.M.</h2>
+    <p>Base de Datos de Personal Registrado</p>
 </div>
 
 <div id="operator-list">
-    <p class="loading">SINCRONIZANDO CON RED TÁCTICA...</p>
+    <p class="loading">ESTABLECIENDO CONEXIÓN CON EL NODO CENTRAL...</p>
 </div>
 
 <button class="btn-back" onclick="location.href='lobby.html'">⬅ VOLVER AL LOBBY</button>
 
 <script>
-    // Configuración de Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
       databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
@@ -66,22 +67,21 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
     const listContainer = document.getElementById('operator-list');
 
-    async function loadOperators() {
-        // Obtenemos los usuarios y las misiones de forma paralela
+    function loadOperators() {
+        // Escucha en tiempo real de la rama /usuarios
         db.ref('usuarios').on('value', async (snapUsuarios) => {
             if (!snapUsuarios.exists()) {
-                listContainer.innerHTML = '<p class="loading">NO HAY REGISTROS EN LA BASE</p>';
+                listContainer.innerHTML = '<p class="loading">ERROR: NO SE ENCONTRARON REGISTROS</p>';
                 return;
             }
 
-            // Consultamos la tabla de alistados para contar participaciones reales
+            // Obtenemos historial de misiones para el resumen
             const snapElistados = await db.ref('jugadores_enlistados').once('value');
             const enlistadosData = snapElistados.val() || {};
             
-            // Procesar conteo
+            // Procesar conteo por callsign
             const conteoMisiones = {};
             Object.values(enlistadosData).forEach(reg => {
                 if(reg.callsign) {
@@ -89,11 +89,12 @@
                 }
             });
 
-            listContainer.innerHTML = ''; // Limpiar contenedor
+            listContainer.innerHTML = ''; 
 
             snapUsuarios.forEach((child) => {
                 const user = child.val();
-                const callsign = user.callsign || "DESCONOCIDO";
+                // Verificamos si existe el callsign, sino usamos el ID del nodo
+                const callsign = user.callsign || "OP-" + child.key.substring(0, 5);
                 const totalMisiones = conteoMisiones[callsign] || 0;
 
                 const card = document.createElement('div');
@@ -101,8 +102,8 @@
                 card.innerHTML = `
                     <div class="callsign">${callsign}</div>
                     <div class="stats">
-                        MISIONES: <span class="mision-count">${totalMisiones}</span><br>
-                        SITUACIÓN: <span style="color:#0f0">DISPONIBLE</span>
+                        PARTICIPACIONES: <span class="mision-count">${totalMisiones}</span><br>
+                        ESTADO: <span style="color:#0f0">ACTIVO</span>
                     </div>
                 `;
                 listContainer.appendChild(card);
@@ -110,7 +111,6 @@
         });
     }
 
-    // Iniciar carga
     loadOperators();
 </script>
 
