@@ -177,7 +177,7 @@
             const res = await auth.createUserWithEmailAndPassword(email, pass);
             await db.ref(`usuarios/${res.user.uid}`).set({ callsign: call, email: email, rol: 'PLAYER', uid: res.user.uid });
             await db.ref(`comunidad_publica/${res.user.uid}`).set({ callsign: call });
-            alert("PERFIL CREADO. BIENVENIDO A A.T.O.M");
+            alert("PERFIL CREADO. BIENVENIDO AL SISTEMA A.T.O.M");
             location.reload();
         } catch(e) { alert(e.message); }
     }
