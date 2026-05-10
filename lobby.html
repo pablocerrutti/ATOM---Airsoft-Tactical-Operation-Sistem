@@ -16,7 +16,6 @@
             display: flex; flex-direction: column; align-items: center; min-height: 100vh;
         }
 
-        /* Cabecera con imagen dinámica vinculada a 'mission-image-url' */
         .mission-header {
             width: 100%; height: 280px;
             background: linear-gradient(to bottom, rgba(0,0,0,0.2), var(--f)), 
@@ -43,7 +42,6 @@
             background: rgba(0,10,0,0.98); box-shadow: 0 0 40px var(--shadow); margin-top: 40px;
         }
 
-        /* Bloques de información obtenidos de Firebase */
         .info-box {
             font-size: 12px; background: rgba(0,30,0,0.6); padding: 15px;
             border-left: 4px solid var(--gold); margin-bottom: 15px;
@@ -81,7 +79,7 @@
     <div class="panel">
         <div class="label">Briefing de Inteligencia</div>
         <div class="info-box" id="display-mission-history">
-            Seleccione una operación para recibir el informe SITREP.
+            Seleccione una misión del directorio para recibir el informe SITREP.
         </div>
 
         <div class="label">Objetivos Operativos</div>
@@ -90,9 +88,9 @@
         </div>
 
         <div class="block">
-            <span class="label">Operaciones Activas en Red</span>
-            <select id="mission-selector" onchange="updateUI()">
-                <option value="">-- CONECTANDO... --</option>
+            <span class="label">Misiones en el Directorio</span>
+            <select id="mission-selector" onchange="updateMissionUI()">
+                <option value="">-- ESTABLECIENDO CONEXIÓN... --</option>
             </select>
         </div>
 
@@ -114,11 +112,15 @@ const db = firebase.database();
 let missionsData = {}; 
 
 window.onload = () => {
+    // Escucha directa en la rama 'misiones' según tu estructura
     db.ref('misiones').on('value', snap => {
         const selector = document.getElementById('mission-selector');
         selector.innerHTML = '<option value="">-- SELECCIONE MISIÓN --</option>';
         
-        if (!snap.exists()) return;
+        if (!snap.exists()) {
+            selector.innerHTML = '<option value="">-- SIN MISIONES EN DB --</option>';
+            return;
+        }
 
         missionsData = snap.val(); 
 
@@ -126,18 +128,17 @@ window.onload = () => {
             const m = child.val();
             const option = document.createElement('option');
             option.value = child.key;
-            // Usa el campo 'nombre' guardado desde el input 'mission-name'
-            option.innerText = (m.nombre || "OPERACIÓN S/N").toUpperCase();
+            // El texto de la lista sale del campo 'nombre' guardado en Firebase
+            option.innerText = (m.nombre || "OP. DESCONOCIDA").toUpperCase();
             selector.appendChild(option);
         });
     });
 };
 
-function updateUI() {
+function updateMissionUI() {
     const id = document.getElementById('mission-selector').value;
     const btn = document.getElementById('btn-join');
     
-    // Referencias a los elementos visuales
     const uiName = document.getElementById('display-mission-name');
     const uiHistory = document.getElementById('display-mission-history');
     const uiObjectives = document.getElementById('display-mission-objectives');
@@ -146,20 +147,22 @@ function updateUI() {
     if (id && missionsData[id]) {
         const m = missionsData[id];
         
-        // Seteo de datos desde Firebase (usando tus placeholders)
-        uiName.innerText = "OP. " + (m.nombre || "DESCONOCIDA").toUpperCase();
-        uiHistory.innerHTML = `<strong>SITREP:</strong> ${m.historia || "Sin datos."}`;
-        uiObjectives.innerHTML = `<strong>PRIMARIO:</strong> ${m.objetivos || "Limpia de zona."}`;
+        // Mapeo de campos basado en tu estructura de Firebase
+        uiName.innerText = "OP. " + (m.nombre || "S/N").toUpperCase();
+        uiHistory.innerHTML = `<strong>SITREP:</strong> ${m.historia || "Sin informe disponible."}`;
+        uiObjectives.innerHTML = `<strong>PRIMARIO:</strong> ${m.objetivos || "Limpia de zona / Eliminación hostil."}`;
         
-        // Actualizar imagen desde 'mission-image-url'
-        if(m.imagen_url) {
+        // Carga la imagen guardada en 'imagen_url'
+        if(m.imagen_url && m.imagen_url !== "") {
             uiHeader.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.2), var(--f)), url('${m.imagen_url}')`;
+        } else {
+            uiHeader.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.2), var(--f)), url('https://images.unsplash.com/photo-1590502142455-89594008902c?q=80&w=1000')`;
         }
         
         btn.disabled = false;
     } else {
         uiName.innerText = "ESPERANDO BRIEFING...";
-        uiHistory.innerText = "Seleccione una operación para recibir el informe SITREP.";
+        uiHistory.innerText = "Seleccione una misión del directorio para recibir el informe SITREP.";
         uiObjectives.innerText = "-- No hay objetivos asignados --";
         btn.disabled = true;
     }
@@ -171,6 +174,7 @@ function confirmMission() {
 
     localStorage.setItem('activeMissionId', mId);
     
+    // Actualiza la rama 'operacion_activa' para informar que hay un despliegue
     db.ref('operacion_activa/control').update({
         missionId: mId,
         timestamp: firebase.database.ServerValue.TIMESTAMP
