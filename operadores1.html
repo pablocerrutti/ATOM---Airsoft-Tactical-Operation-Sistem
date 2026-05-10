@@ -6,7 +6,6 @@
     <title>A.T.O.M - Gestión de Personal</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
     <style>
@@ -15,9 +14,10 @@
             margin: 0; background: var(--f); color: var(--p); 
             font-family: 'Courier New', monospace; padding: 20px;
             display: flex; flex-direction: column; height: 100vh; box-sizing: border-box;
+            overflow: hidden;
         }
         
-        /* PANTALLA DE BLOQUEO */
+        /* BLOQUEO TOTAL */
         #lock-screen {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: var(--f); z-index: 9999; display: flex;
@@ -27,12 +27,13 @@
         .header { text-align: center; border-bottom: 1px solid var(--p); margin-bottom: 20px; padding-bottom: 10px; flex-shrink: 0; }
         .header p { margin: 5px 0; font-size: 10px; color: var(--p); opacity: 0.8; text-transform: uppercase; }
         
-        #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; }
+        #operator-list { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; padding-right: 5px; }
 
         .operator-card {
             background: rgba(255, 255, 255, 0.02); border: 1px solid var(--gray);
             padding: 15px; margin-bottom: 10px; display: flex;
             justify-content: space-between; align-items: center;
+            border-left: 3px solid var(--p);
         }
         
         .role-tag { font-size: 9px; padding: 2px 5px; border-radius: 3px; margin-left: 10px; font-weight: bold; }
@@ -42,43 +43,43 @@
 
         .stats { font-size: 11px; color: var(--gold); text-align: right; }
         
-        /* BOTONES */
         .btn-action { 
             background: transparent; border: 1px solid var(--blue); color: var(--blue);
-            padding: 5px 10px; font-size: 10px; cursor: pointer; font-family: inherit;
-            margin-top: 10px; text-transform: uppercase;
+            padding: 8px; font-size: 10px; cursor: pointer; font-family: inherit;
+            margin-top: 10px; text-transform: uppercase; font-weight: bold;
         }
         .btn-action:hover { background: var(--blue); color: #fff; }
 
         .btn-back {
             width: 100%; padding: 15px; background: transparent; 
             border: 1px solid var(--p); color: var(--p); 
-            cursor: pointer; font-weight: bold; text-transform: uppercase;
+            cursor: pointer; font-weight: bold; text-transform: uppercase; font-family: inherit;
         }
 
         input { 
             background: #000; border: 1px solid var(--p); color: var(--p); 
-            padding: 15px; text-align: center; font-size: 1.2rem; letter-spacing: 5px;
-            width: 250px; margin-bottom: 20px; outline: none;
+            padding: 15px; text-align: center; font-size: 1.5rem; letter-spacing: 10px;
+            width: 280px; margin-bottom: 20px; outline: none; border-radius: 0;
         }
     </style>
 </head>
 <body>
 
 <div id="lock-screen">
-    <h3 style="letter-spacing: 3px;">ACCESO NIVEL 4</h3>
-    <p style="font-size: 10px; color: var(--red);">INGRESE CLAVE DE AUTORIZACIÓN</p>
-    <input type="password" id="access-key" placeholder="****">
-    <button class="btn-back" style="width: 250px;" onclick="verifyAccess()">VALIDAR CREDENCIALES</button>
-    <button onclick="location.href='lobby.html'" style="background:none; border:none; color:#444; margin-top:20px; cursor:pointer;">ABORTAR</button>
+    <h3 style="letter-spacing: 5px; margin-bottom: 5px;">A.T.O.M SECURE</h3>
+    <p style="font-size: 10px; color: var(--red); margin-bottom: 20px;">SISTEMA RESTRINGIDO - INGRESE CREDENCIAL</p>
+    <input type="password" id="access-key" placeholder="****" inputmode="numeric">
+    <button class="btn-back" style="width: 280px; background: rgba(0,255,0,0.1);" onclick="verifyAccess()">AUTENTICAR</button>
+    <button onclick="location.href='lobby.html'" style="background:none; border:none; color:#444; margin-top:30px; cursor:pointer; font-family: inherit;">[ ABORTAR CONEXIÓN ]</button>
 </div>
 
 <div class="header">
     <h2 style="margin:0; letter-spacing: 2px;">GESTIÓN DE OPERADORES</h2>
-    <p id="access-level-text">Nivel de Acceso: ---</p>
+    <p id="access-level-text">Nivel de Acceso: RESTRINGIDO</p>
 </div>
 
-<div id="operator-list"></div>
+<div id="operator-list">
+    </div>
 
 <button class="btn-back" onclick="location.href='lobby.html'">⬅ VOLVER AL LOBBY</button>
 
@@ -89,77 +90,103 @@
         projectId: "atom---sistem"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
     const db = firebase.database();
     
-    // CONFIGURACIÓN DE CLAVES (Idealmente en Firebase, aquí para el ejemplo funcional)
-    const MASTER_KEY = "2024"; // Admin: Puede ascender rangos
-    const EDITOR_KEY = "1010"; // Editor: Solo lectura del listado
+    // CLAVES DE ACCESO TÁCTICO
+    const MASTER_KEY = "2024"; 
+    const EDITOR_KEY = "1010"; 
 
-    let currentRole = "guest";
+    let currentRole = null; 
     let conteoMisiones = {};
 
     function verifyAccess() {
-        const key = document.getElementById('access-key').value;
-        if(key === MASTER_KEY) {
+        const keyInput = document.getElementById('access-key').value.trim();
+        
+        if (keyInput === MASTER_KEY) {
             currentRole = "admin";
-            unlock();
-        } else if (key === EDITOR_KEY) {
+            initSystem();
+        } else if (keyInput === EDITOR_KEY) {
             currentRole = "editor";
-            unlock();
+            initSystem();
         } else {
-            alert("CLAVE ERRÓNEA. ACCESO DENEGADO.");
+            alert("⚠️ CREDENCIAL INVÁLIDA. INCIDENTE REPORTADO.");
+            document.getElementById('access-key').value = "";
         }
     }
 
-    function unlock() {
+    function initSystem() {
+        // 1. Limpiar pantalla de bloqueo
         document.getElementById('lock-screen').style.display = 'none';
-        document.getElementById('access-level-text').innerText = `Nivel de Acceso: ${currentRole.toUpperCase()}`;
-        loadOperators();
+        document.getElementById('access-level-text').innerText = `NIVEL DE ACCESO: ${currentRole.toUpperCase()}`;
+        document.getElementById('access-level-text').style.color = currentRole === 'admin' ? 'var(--gold)' : 'var(--blue)';
+
+        // 2. Iniciar escuchas de datos (Solo después de validar)
+        loadData();
     }
 
-    function loadOperators() {
-        // Cargar conteo de misiones
+    function loadData() {
+        // Escuchar misiones para el conteo
         db.ref('jugadores_enlistados').on('value', snap => {
             conteoMisiones = {};
             snap.forEach(c => {
                 const call = c.val().callsign;
                 if(call) conteoMisiones[call] = (conteoMisiones[call] || 0) + 1;
             });
-            renderList();
+            refreshUI(); // Refrescar cuando cambien las misiones
         });
 
-        // Escuchar cambios en usuarios
+        // Escuchar lista de usuarios
         db.ref('usuarios').on('value', snap => {
-            renderList(snap);
+            refreshUI(snap);
         });
     }
 
-    function renderList(snap) {
+    function refreshUI() {
         const listContainer = document.getElementById('operator-list');
         listContainer.innerHTML = '';
         
         db.ref('usuarios').once('value', (snap) => {
+            if(!snap.exists()) {
+                listContainer.innerHTML = '<p style="text-align:center; opacity:0.5;">NO HAY OPERADORES REGISTRADOS</p>';
+                return;
+            }
+
+            let dataArr = [];
             snap.forEach(child => {
-                const u = child.val();
-                const uid = child.key;
-                const callsign = u.callsign || "SIN IDENTIFICAR";
+                let u = child.val();
+                u.uid = child.key;
+                dataArr.push(u);
+            });
+
+            // Ordenar por Callsign
+            dataArr.sort((a, b) => (a.callsign || "").localeCompare(b.callsign || ""));
+
+            dataArr.forEach(u => {
+                const callsign = u.callsign || "ID_PENDIENTE";
                 const role = u.role || "jugador";
                 const misiones = conteoMisiones[callsign] || 0;
 
                 const card = document.createElement('div');
                 card.className = 'operator-card';
+                
+                // Lógica de botones: Solo el ADMIN ve el botón y solo en usuarios que son JUGADORES
+                const showPromoteBtn = (currentRole === 'admin' && role === 'jugador');
+
                 card.innerHTML = `
                     <div>
-                        <span class="callsign">${callsign}</span>
+                        <span style="font-weight:bold; font-size:1.1rem;">${callsign.toUpperCase()}</span>
                         <span class="role-tag role-${role}">${role.toUpperCase()}</span>
                         <br>
-                        ${(currentRole === 'admin' && role === 'jugador') ? 
-                            `<button class="btn-action" onclick="promote('${uid}')">⬆ ASCENDER A EDITOR</button>` : ''}
+                        ${showPromoteBtn ? 
+                            `<button class="btn-action" onclick="promoteUser('${u.uid}', '${callsign}')">⬆ ASCENDER A EDITOR</button>` : 
+                            `<div style="height:10px"></div>`}
                     </div>
                     <div class="stats">
                         MISIONES: <span style="color:#fff">${misiones}</span><br>
-                        STATUS: <span style="color:var(--p)">ONLINE</span>
+                        ESTADO: <span style="color:var(--p)">OPERATIVO</span>
                     </div>
                 `;
                 listContainer.appendChild(card);
@@ -167,13 +194,24 @@
         });
     }
 
-    function promote(uid) {
+    function promoteUser(uid, name) {
         if(currentRole !== 'admin') return;
-        if(confirm("¿Confirmar ascenso de rango a EDITOR? El usuario tendrá permisos de creación de misiones.")) {
-            db.ref(`usuarios/${uid}`).update({ role: 'editor' })
-            .then(() => alert("RANGO ACTUALIZADO"));
+
+        if(confirm(`¿CONFIRMAR ASCENSO PARA ${name}?\n\nPermitirá crear misiones y acceder al Command Center.`)) {
+            db.ref(`usuarios/${uid}`).update({ 
+                role: 'editor' 
+            }).then(() => {
+                alert("ACTUALIZACIÓN DE RANGO EXITOSA");
+            }).catch(err => {
+                alert("ERROR EN BASE DE DATOS: " + err.message);
+            });
         }
     }
+
+    // Permitir "Enter" en el input
+    document.getElementById('access-key').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') verifyAccess();
+    });
 </script>
 
 </body>
