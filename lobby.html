@@ -19,29 +19,29 @@
             display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-x: hidden;
         }
 
+        /* NAVEGACIÓN */
         .view-layer { display: none; width: 100%; flex-direction: column; align-items: center; padding: 20px 0; animation: fadeIn 0.4s ease; }
         .active-view { display: flex; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        #lobby-main { justify-content: center; height: 100vh; gap: 20px; }
-
+        /* CABECERA DINÁMICA */
         .mission-header {
-            width: 100%; height: 200px; background-size: cover; background-position: center;
+            width: 100%; height: 220px; background-size: cover; background-position: center;
             border-bottom: 2px solid var(--p); position: relative; display: flex; align-items: flex-end;
             transition: 0.5s; background-color: #111;
         }
         .op-title-banner {
-            background: rgba(0,0,0,0.85); width: 100%; padding: 12px 0;
+            background: rgba(0,0,0,0.85); width: 100%; padding: 15px 0;
             text-align: center; font-weight: bold; border-top: 1px solid var(--p);
-            letter-spacing: 3px; text-shadow: 0 0 10px var(--p);
+            letter-spacing: 3px; text-shadow: 0 0 10px var(--p); font-size: 1.2rem;
         }
 
+        /* CONTENEDORES */
         .panel { width: 92%; max-width: 450px; background: rgba(0,10,0,0.95); border: 1px solid var(--p); padding: 15px; margin-top: 15px; box-sizing: border-box; }
-        .info-box { font-size: 12px; background: rgba(0,30,0,0.5); padding: 12px; border-left: 3px solid var(--gold); margin-bottom: 12px; color: #fff; line-height: 1.4; white-space: pre-wrap; }
-        
-        /* Aseguramos dimensiones mínimas para el mapa */
-        #mini-map { width: 100%; height: 200px; border: 1px solid #333; margin: 10px 0; background: #000; z-index: 5; }
+        .info-box { font-size: 12px; background: rgba(0,30,0,0.5); padding: 12px; border-left: 3px solid var(--gold); margin-bottom: 12px; color: #fff; line-height: 1.5; white-space: pre-wrap; }
+        #mini-map { width: 100%; height: 250px; border: 1px solid #333; margin: 10px 0; background: #000; z-index: 5; }
 
+        /* BOTONES */
         .btn { 
             width: 85%; max-width: 320px; padding: 18px; border: 1px solid var(--p); 
             background: rgba(0,20,0,0.5); color: var(--p); font-weight: bold; 
@@ -50,7 +50,7 @@
         }
         .btn:hover { background: var(--p); color: #000; box-shadow: 0 0 15px var(--p); }
         
-        .btn-enlist { background: var(--red); color: #fff; border: none; font-size: 18px; animation: pulse-red 2s infinite; margin-top: 15px; }
+        .btn-enlist { background: var(--red); color: #fff; border: none; font-size: 1.1rem; animation: pulse-red 2s infinite; margin-top: 15px; }
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(255,51,51,0.7); } 70% { box-shadow: 0 0 0 15px rgba(255,51,51,0); } 100% { box-shadow: 0 0 0 0 rgba(255,51,51,0); } }
 
         .gps-container { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-bottom: 15px; }
@@ -58,16 +58,16 @@
         .btn-google { border-color: #4285F4; color: #4285F4; }
         .btn-waze { border-color: #3366ff; color: #3366ff; }
 
-        select { width: 100%; padding: 15px; background: #000; border: 1px solid var(--p); color: var(--p); margin-bottom: 15px; font-family: inherit; outline: none; }
+        select { width: 100%; padding: 15px; background: #000; border: 1px solid var(--p); color: var(--p); margin-bottom: 15px; font-family: inherit; outline: none; font-size: 1rem; }
         .label-tag { font-size: 9px; color: var(--p); opacity: 0.7; text-transform: uppercase; margin-bottom: 4px; display: block; letter-spacing: 1px; }
     </style>
 </head>
 <body>
 
-    <div id="lobby-main" class="view-layer active-view">
+    <div id="lobby-main" class="view-layer active-view" style="justify-content: center; height: 100vh;">
         <h1 style="letter-spacing: 5px; text-align: center;">A.T.O.M<br><span style="font-size: 14px; opacity: 0.6;">SISTEMA DE DESPLIEGUE</span></h1>
         <button class="btn" onclick="showView('selector-screen')">DIRECTORIO DE MISIONES</button>
-        <button class="btn" onclick="window.location.href='operadores.html'">OPERADORES REGISTRADOS</button>
+        <button class="btn" onclick="window.location.href='operadores.html'">GESTIÓN DE PERSONAL</button>
         <button class="btn" style="border-color:#444; color:#666;" onclick="logout()">DESCONECTAR</button>
     </div>
 
@@ -76,7 +76,7 @@
         <div class="panel">
             <span class="label-tag">Enlace satelital activo</span>
             <select id="mission-selector">
-                <option value="">-- CARGANDO MISIONES --</option>
+                <option value="">-- CONECTANDO... --</option>
             </select>
             <button class="btn" style="width:100%;" onclick="loadMissionDetail()">DESCARGAR INTELIGENCIA</button>
             <button class="btn" style="width:100%; border:none; color:var(--red); font-size: 10px;" onclick="showView('lobby-main')">VOLVER AL MENÚ</button>
@@ -97,10 +97,10 @@
                 <button class="btn-gps btn-waze" onclick="openGPS('waze')">WAZE</button>
             </div>
             
-            <span class="label-tag" style="color: var(--gold);">Briefing / Historia</span>
+            <span class="label-tag" style="color: var(--gold);">Briefing de Operación</span>
             <div class="info-box" id="det-hist">---</div>
 
-            <span class="label-tag">Objetivos Tácticos</span>
+            <span class="label-tag">Objetivos Prioritarios</span>
             <div class="info-box" style="border-color: var(--p);" id="det-obj">---</div>
 
             <button class="btn btn-enlist" onclick="confirmEnlistment()">CONFIRMAR ALISTAMIENTO</button>
@@ -109,6 +109,7 @@
     </div>
 
 <script>
+// 1. CONFIGURACIÓN FIREBASE
 const firebaseConfig = {
     apiKey: "AIzaSyDWHHeMFVxznRER-j0fNZHnQJAnw_JL0DY",
     databaseURL: "https://atom---sistem-default-rtdb.firebaseio.com",
@@ -125,17 +126,30 @@ let gpsCoords = null;
 
 const ATOM_COLORS = { 'GAME_ZONE': '#0f0', 'SAFE_ZONE': '#ffd700', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
 
+// 2. UTILIDAD: CONVERTIR GOOGLE DRIVE A IMAGEN DIRECTA
+function getDirectDriveUrl(url) {
+    if (!url || !url.includes('drive.google.com')) return url;
+    try {
+        const fileId = url.includes('/d/') 
+            ? url.split('/d/')[1].split('/')[0] 
+            : url.split('id=')[1].split('&')[0];
+        return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    } catch (e) { return url; }
+}
+
+// 3. CARGA DE MISIONES
 window.onload = () => {
     db.ref('misiones').on('value', snap => {
         const selector = document.getElementById('mission-selector');
         selector.innerHTML = '<option value="">-- SELECCIONE MISIÓN --</option>';
-        if (!snap.exists()) return;
+        if (!snap.exists()) return selector.innerHTML = '<option value="">SIN MISIONES ACTIVAS</option>';
+        
         missionsData = snap.val();
         snap.forEach(child => {
             const m = child.val();
             const opt = document.createElement('option');
             opt.value = child.key;
-            opt.innerText = (m.nombre || "OP. ANONIMA").toUpperCase();
+            opt.innerText = (m.nombre || "OP. DESCONOCIDA").toUpperCase();
             selector.appendChild(opt);
         });
     });
@@ -146,6 +160,7 @@ function showView(viewId) {
     document.getElementById(viewId).classList.add('active-view');
 }
 
+// 4. DETALLE DE MISIÓN
 function loadMissionDetail() {
     const id = document.getElementById('mission-selector').value;
     if(!id) return alert("Seleccione una misión.");
@@ -153,29 +168,32 @@ function loadMissionDetail() {
     selectedMissionId = id;
     const m = missionsData[id];
 
-    // CARGA DE TEXTOS
+    // Cargar Textos
     document.getElementById('det-name').innerText = "OPERACIÓN: " + m.nombre.toUpperCase();
-    document.getElementById('det-hist').innerText = m.historia || "No hay briefing disponible.";
-    document.getElementById('det-obj').innerText = m.objetivos || "Sin objetivos.";
+    document.getElementById('det-hist').innerText = m.historia || "Briefing no disponible.";
+    document.getElementById('det-obj').innerText = m.objetivos || "Objetivos no asignados.";
     
-    // CORRECCIÓN IMAGEN: Usar comillas simples para la URL y asegurar fallback
-    const bgUrl = m.imagen_url || "https://images.unsplash.com/photo-1505673539011-d709079c67bb?q=80&w=1000";
-    document.getElementById('det-img').style.backgroundImage = `linear-gradient(to bottom, transparent, var(--f)), url('${bgUrl}')`;
+    // Cargar Imagen (con fix de Drive)
+    const imgUrl = getDirectDriveUrl(m.imagen_url || m.imagen);
+    document.getElementById('det-img').style.backgroundImage = `linear-gradient(to bottom, transparent, var(--f)), url('${imgUrl}')`;
 
     showView('mission-detail');
     
-    // CORRECCIÓN MAPA: Forzar renderizado después de que el div sea visible
-    setTimeout(() => { 
-        renderTacticalMap(m.elementos); 
-    }, 400); // 400ms para asegurar que la animación fadeIn terminó
+    // Convertir elementos a Array por si vienen como Objeto de Firebase
+    let elementosArray = [];
+    if (m.elementos) {
+        elementosArray = Array.isArray(m.elementos) ? m.elementos : Object.values(m.elementos);
+    }
+
+    // Renderizar Mapa tras un delay para asegurar visibilidad del DIV
+    setTimeout(() => { renderTacticalMap(elementosArray); }, 400);
 }
 
+// 5. MOTOR DE MAPA
 function renderTacticalMap(elementos) {
     if (miniMap) { miniMap.remove(); }
     
-    // Inicializar mapa
     miniMap = L.map('mini-map', { zoomControl: false, attributionControl: false });
-    
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(miniMap);
     
     const layers = L.featureGroup().addTo(miniMap);
@@ -184,44 +202,45 @@ function renderTacticalMap(elementos) {
     if(elementos && elementos.length > 0) {
         elementos.forEach(el => {
             const color = ATOM_COLORS[el.type] || '#0f0';
-            let layer;
             if(el.path) {
-                layer = L.polygon(el.path, {color: color, weight: 2, fillOpacity: 0.3}).addTo(layers);
+                L.polygon(el.path, {color: color, weight: 2, fillOpacity: 0.3}).addTo(layers);
                 if(!gpsCoords) gpsCoords = el.path[0];
             } else if(el.radius) {
-                layer = L.circle(el.center, {radius: el.radius, color: color, fillOpacity: 0.3}).addTo(layers);
+                L.circle(el.center, {radius: el.radius, color: color, fillOpacity: 0.3}).addTo(layers);
                 if(!gpsCoords) gpsCoords = el.center;
             } else if(el.center) {
-                layer = L.marker(el.center).addTo(layers);
+                L.marker(el.center).addTo(layers);
                 if(!gpsCoords) gpsCoords = el.center;
             }
         });
-        
-        // Ajustar vista a los elementos
-        miniMap.fitBounds(layers.getBounds(), { padding: [20, 20] });
+        miniMap.fitBounds(layers.getBounds(), { padding: [30, 30] });
     } else {
         miniMap.setView([-34.34, -56.71], 15);
     }
 
-    // El truco maestro: Forzar a Leaflet a recalcular su tamaño una vez visible
-    setTimeout(() => {
-        miniMap.invalidateSize();
-    }, 100);
+    // Fix final de Leaflet para refrescar tamaño
+    setTimeout(() => { miniMap.invalidateSize(); }, 200);
 }
 
+// 6. GPS Y NAVEGACIÓN
 function openGPS(type) {
-    if(!gpsCoords) return alert("No hay coordenadas.");
-    const lat = gpsCoords.lat;
-    const lng = gpsCoords.lng;
+    if(!gpsCoords) return alert("Ubicación no detectada.");
+    const lat = gpsCoords.lat || gpsCoords[0];
+    const lng = gpsCoords.lng || gpsCoords[1];
+    
     const url = (type === 'google') 
         ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` 
         : `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
     window.open(url, '_blank');
 }
 
+// 7. ALISTAMIENTO
 function confirmEnlistment() {
     const myCallsign = localStorage.getItem('callsign');
-    if(!myCallsign) return window.location.href = 'index.html';
+    if(!myCallsign) {
+        alert("ERROR: Callsign no detectado. Re-identifíquese.");
+        return window.location.href = 'index.html';
+    }
 
     db.ref(`jugadores_enlistados/${myCallsign}`).update({
         callsign: myCallsign,
