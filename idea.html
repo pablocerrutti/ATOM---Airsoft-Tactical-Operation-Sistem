@@ -38,7 +38,7 @@
         #panel { 
             width: 300px; background: rgba(5, 5, 5, 0.98); border-right: 1px solid var(--p); 
             display: flex; flex-direction: column; overflow-y: auto; z-index: 2000; 
-            position: absolute; height: 100%; transition: transform 0.3s ease;
+            position: absolute; height: 100%; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .panel-hidden { transform: translateX(-100%); }
         #map { flex: 1; width: 100%; height: 100%; background: #111; z-index: 1; }
@@ -57,12 +57,14 @@
         .tool-content { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
         summary { padding:12px; cursor:pointer; color:var(--gold); border-bottom: 1px solid #111; font-weight: bold; background: #0a0a0a; }
         
-        button { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-weight: bold; font-size: 11px; text-transform: uppercase; }
+        button { width:100%; padding:12px; background:#000; color:var(--p); border:1px solid var(--p); cursor:pointer; font-weight: bold; font-size: 11px; text-transform: uppercase; transition: 0.2s; }
+        button:hover { background: #111; box-shadow: inset 0 0 10px var(--p); }
         button.active { background: var(--p); color: #000; }
         
-        input, textarea, select { background: #000; border: 1px solid #333; color: var(--p); padding: 10px; width: 100%; box-sizing: border-box; }
+        input, textarea, select { background: #000; border: 1px solid #333; color: var(--p); padding: 10px; width: 100%; box-sizing: border-box; font-family: monospace; }
+        input:focus { border-color: var(--p); outline: none; }
 
-        .op-card { background: #111; border: 1px solid #333; padding: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .op-card { background: #111; border: 1px solid #333; padding: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
         .stats-box { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 10px; border: 1px solid #333; }
     </style>
 </head>
@@ -83,17 +85,19 @@
                     <option value="">-- NUEVA MISIÓN --</option>
                 </select>
                 <input id="mission-name" placeholder="Nombre Operación...">
-                <textarea id="mission-history" placeholder="Briefing..." rows="2"></textarea>
-                <textarea id="mission-objectives" placeholder="Objetivos..." rows="2"></textarea>
-                <input id="mission-image-url" placeholder="URL Imagen...">
-                <button onclick="saveMission()" style="background:var(--gold); color:#000; border:none; margin-top:5px;">💾 GUARDAR</button>
-                <button onclick="deleteMission()" style="background:var(--red); color:#fff; border:none;">🗑️ ELIMINAR</button>
+                <textarea id="mission-history" placeholder="Briefing / Historia..." rows="2"></textarea>
+                <textarea id="mission-objectives" placeholder="Objetivos Tácticos..." rows="2"></textarea>
+                <input id="mission-image-url" placeholder="URL Imagen Portada...">
+                <button onclick="saveMission()" style="background:var(--gold); color:#000; border:none; margin-top:5px;">💾 GUARDAR CAMBIOS</button>
+                <button onclick="deleteMission()" style="background:var(--red); color:#fff; border:none;">🗑️ ELIMINAR MISIÓN</button>
             </div>
         </details>
 
         <details>
             <summary>👥 OPERADORES EN LISTA</summary>
-            <div class="tool-content" id="enlisted-list"></div>
+            <div class="tool-content" id="enlisted-list">
+                <span style="font-size: 10px; opacity: 0.5;">Seleccione una misión activa...</span>
+            </div>
         </details>
 
         <details open>
@@ -126,11 +130,11 @@
                 <button onclick="startDraw('circle', 'RESPAWN_RED', this)">🔴 SPAWN ROJO</button>
                 <button onclick="startDraw('circle', 'RESPAWN_BLUE', this)">🔵 SPAWN AZUL</button>
                 <button onclick="startDraw('marker', 'OBJ_POINT', this)">⚪ OBJETIVO</button>
-                <button onclick="clearMap()" style="color:var(--red); border-color:var(--red); margin-top:5px;">🗑️ LIMPIAR</button>
+                <button onclick="clearMap()" style="color:var(--red); border-color:var(--red); margin-top:5px;">🗑️ LIMPIAR MAPA</button>
             </div>
         </details>
 
-        <button onclick="window.location.href='index.html'" style="margin-top:auto; background:#111; border:none; color:#555; padding:20px;">⬅ VOLVER</button>
+        <button onclick="window.location.href='lobby.html'" style="margin-top:auto; background:#111; border:none; color:#555; padding:20px;">⬅ VOLVER AL LOBBY</button>
     </div>
     
     <div id="map"></div>
@@ -140,29 +144,46 @@
 const db = firebase.database();
 let map, drawnItems, currentMissionId = null, currentAtomType = '', isMisionActiva = false;
 
-const ATOM_COLORS = { 'GAME_ZONE': '#0f0', 'SAFE_ZONE': '#ffd700', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
+const ATOM_COLORS = { 
+    'GAME_ZONE': '#0f0', 
+    'SAFE_ZONE': '#ffd700', 
+    'RESPAWN_RED': '#f33', 
+    'RESPAWN_BLUE': '#33f', 
+    'OBJ_POINT': '#fff' 
+};
 
 function initMap() {
-    const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' });
-    map = L.map('map', { zoomControl: false, layers: [satellite] }).setView([-34.34, -56.71], 15);
+    const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
+        attribution: 'Esri World Imagery',
+        maxZoom: 19
+    });
+    
+    map = L.map('map', { 
+        zoomControl: false, 
+        layers: [satellite],
+        preferCanvas: true // Acelera el renderizado de muchos polígonos
+    }).setView([-34.34, -56.71], 15);
+
     drawnItems = new L.FeatureGroup().addTo(map);
 
     map.on(L.Draw.Event.CREATED, (e) => {
         const layer = e.layer;
         layer.atomType = currentAtomType;
         const color = ATOM_COLORS[currentAtomType] || '#0f0';
-        if(layer.setStyle) layer.setStyle({ color: color, fillColor: color, fillOpacity: 0.3 });
+        
+        if(layer.setStyle) layer.setStyle({ color: color, fillColor: color, fillOpacity: 0.3, weight: 2 });
         drawnItems.addLayer(layer);
     });
+
     loadMissionList();
 }
 
-// ================================================================
-// PARTE RESALTADA: LÓGICA DE CENTRADO AUTOMÁTICO
-// Aplica este bloque en cualquier código que necesite enfocar la misión
-// ================================================================
 function loadMissionToEdit(id) {
     if(!id) { location.reload(); return; }
+    
+    // Limpieza de escuchas previas para velocidad
+    if (currentMissionId) db.ref(`misiones/${currentMissionId}`).off();
+    
     currentMissionId = id;
     syncOperatives(id);
 
@@ -170,11 +191,11 @@ function loadMissionToEdit(id) {
         const m = snap.val();
         if(!m) return;
         
-        // Sincronizar Inputs
+        // Sincronización de UI
         document.getElementById('mission-name').value = m.nombre || "";
         document.getElementById('mission-history').value = m.historia || "";
         document.getElementById('mission-objectives').value = m.objetivos || "";
-        document.getElementById('mission-image-url').value = m.imagen || "";
+        document.getElementById('mission-image-url').value = m.imagen_url || "";
         document.getElementById('val-red').innerText = m.bajasRed || 0;
         document.getElementById('val-blue').innerText = m.bajasBlue || 0;
 
@@ -183,59 +204,72 @@ function loadMissionToEdit(id) {
         btn.innerText = isMisionActiva ? "🛑 FINALIZAR" : "🚀 LANZAR";
         btn.style.background = isMisionActiva ? "var(--blue)" : "var(--red)";
 
+        // Optimización de renderizado de Mapa
         drawnItems.clearLayers();
-        
         if(m.elementos) {
+            const layersToFit = [];
             m.elementos.forEach(el => {
                 let layer;
                 const col = ATOM_COLORS[el.type] || '#0f0';
-                if(el.path) layer = L.polygon(el.path, {color: col, fillOpacity: 0.3});
-                else if(el.radius) layer = L.circle(el.center, {radius: el.radius, color: col, fillOpacity: 0.3});
+                
+                if(el.path) layer = L.polygon(el.path, {color: col, fillOpacity: 0.3, weight: 2});
+                else if(el.radius) layer = L.circle(el.center, {radius: el.radius, color: col, fillOpacity: 0.3, weight: 2});
                 else if(el.center) layer = L.marker(el.center);
                 
                 if(layer) {
                     layer.atomType = el.type;
                     drawnItems.addLayer(layer);
+                    layersToFit.push(layer);
                 }
             });
 
-            // EL SECRETO DEL CENTRADO:
-            if (drawnItems.getLayers().length > 0) {
-                setTimeout(() => {
-                    map.fitBounds(drawnItems.getBounds(), { padding: [50, 50] });
-                }, 100);
+            // Centrado automático acelerado
+            if (layersToFit.length > 0) {
+                const group = L.featureGroup(layersToFit);
+                map.invalidateSize();
+                map.fitBounds(group.getBounds(), { padding: [40, 40], animate: true, duration: 0.8 });
             }
         }
     });
 }
-// ================================================================
 
 function saveMission() {
     const name = document.getElementById('mission-name').value;
-    if (!name) return alert("Nombre requerido");
-    let elementos = [];
+    if (!name) return alert("Error: Se requiere un nombre para la operación.");
+
+    const elementos = [];
     drawnItems.eachLayer(layer => {
         let item = { type: layer.atomType };
         if (layer instanceof L.Polygon) item.path = layer.getLatLngs()[0];
-        else if (layer instanceof L.Circle) { item.center = layer.getLatLng(); item.radius = layer.getRadius(); }
+        else if (layer instanceof L.Circle) { 
+            item.center = layer.getLatLng(); 
+            item.radius = layer.getRadius(); 
+        }
         else if (layer instanceof L.Marker) item.center = layer.getLatLng();
         elementos.push(item);
     });
+
     const mId = currentMissionId || db.ref('misiones').push().key;
+    
     db.ref(`misiones/${mId}`).update({ 
         id: mId, 
         nombre: name, 
         historia: document.getElementById('mission-history').value, 
         objetivos: document.getElementById('mission-objectives').value, 
-        imagen: document.getElementById('mission-image-url').value, 
-        elementos: elementos 
+        imagen_url: document.getElementById('mission-image-url').value, 
+        elementos: elementos,
+        last_sync: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
+        alert("INTELIGENCIA ACTUALIZADA EXITOSAMENTE");
+        if(!currentMissionId) location.reload();
     });
-    alert("MISIÓN GUARDADA");
 }
 
 function deleteMission() {
-    if (!currentMissionId) return alert("Selecciona misión");
-    if (confirm("¿Eliminar?")) db.ref(`misiones/${currentMissionId}`).remove().then(() => location.reload());
+    if (!currentMissionId) return;
+    if (confirm("¿CONFIRMA ELIMINAR TODA LA DATA DE ESTA OPERACIÓN?")) {
+        db.ref(`misiones/${currentMissionId}`).remove().then(() => location.reload());
+    }
 }
 
 function loadMissionList() {
@@ -243,31 +277,56 @@ function loadMissionList() {
         const sel = document.getElementById('mission-selector');
         const cur = sel.value;
         sel.innerHTML = '<option value="">-- NUEVA MISIÓN --</option>';
-        snap.forEach(c => { sel.innerHTML += `<option value="${c.key}">${c.val().nombre}</option>`; });
+        snap.forEach(c => { 
+            const data = c.val();
+            sel.innerHTML += `<option value="${c.key}">${(data.nombre || 'SIN NOMBRE').toUpperCase()}</option>`; 
+        });
         sel.value = cur;
     });
 }
 
-function togglePanel() { document.getElementById('panel').classList.toggle('panel-hidden'); }
 function startDraw(t, at, b) {
-    document.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tool-content button').forEach(btn => btn.classList.remove('active'));
     b.classList.add('active');
     currentAtomType = at;
-    let dr = (t==='polygon') ? new L.Draw.Polygon(map) : (t==='circle') ? new L.Draw.Circle(map) : new L.Draw.Marker(map);
+    
+    let dr;
+    if(t === 'polygon') dr = new L.Draw.Polygon(map);
+    else if(t === 'circle') dr = new L.Draw.Circle(map);
+    else dr = new L.Draw.Marker(map);
+    
     dr.enable();
 }
-function clearMap() { if(confirm("¿Limpiar?")) drawnItems.clearLayers(); }
-function adjustStat(f, a) { if (currentMissionId) db.ref(`misiones/${currentMissionId}/${f}`).transaction(c => (c || 0) + a); }
+
+function toggleMissionState() {
+    if(!currentMissionId) return;
+    const nuevoEstado = isMisionActiva ? 'inactiva' : 'activa';
+    db.ref(`misiones/${currentMissionId}/estado`).set(nuevoEstado);
+}
+
+function adjustStat(f, a) { 
+    if (currentMissionId) {
+        db.ref(`misiones/${currentMissionId}/${f}`).transaction(c => (c || 0) + a); 
+    }
+}
 
 function syncOperatives(mId) {
     db.ref('jugadores_enlistados').orderByChild('misionId').equalTo(mId).on('value', snap => {
         const container = document.getElementById('enlisted-list');
         container.innerHTML = '';
+        if(!snap.exists()) {
+            container.innerHTML = '<span style="font-size:10px; opacity:0.5;">Sin operadores en zona...</span>';
+            return;
+        }
         snap.forEach(child => {
             const op = child.val();
-            container.innerHTML += `<div class="op-card"><span>${op.callsign}</span><span>${op.equipo || 'S/E'}</span></div>`;
+            container.innerHTML += `<div class="op-card"><span>[${op.callsign}]</span><span style="color:${op.equipo === 'ROJO' ? 'var(--red)' : 'var(--blue)'}">${op.equipo || 'PENDIENTE'}</span></div>`;
         });
     });
+}
+
+function togglePanel() { 
+    document.getElementById('panel').classList.toggle('panel-hidden'); 
 }
 
 window.onload = initMap;
