@@ -56,7 +56,7 @@
     <div id="lobby-main" class="view-layer active-view" style="justify-content: center; height: 100vh;">
         <h1 style="letter-spacing: 5px; text-align: center;">A.T.O.M<br><span style="font-size: 14px; opacity: 0.6;">SISTEMA DE DESPLIEGUE</span></h1>
         <button class="btn" onclick="showView('selector-screen')">DIRECTORIO DE MISIONES</button>
-        <button class="btn" onclick="window.location.href='operadores.html'">OPERADORES EN ACTIVIDAD</button>
+        <button class="btn" onclick="window.location.href='operadores.html'">GESTIÓN DE PERSONAL</button>
         <button class="btn" style="border-color:#444; color:#666;" onclick="logout()">DESCONECTAR</button>
     </div>
 
@@ -105,7 +105,6 @@ let gpsCoords = null;
 
 const ATOM_COLORS = { 'GAME_ZONE': '#0f0', 'SAFE_ZONE': '#ffd700', 'RESPAWN_RED': '#f33', 'RESPAWN_BLUE': '#33f', 'OBJ_POINT': '#fff' };
 
-// Función para limpiar URLs de Google Drive
 function getDirectDriveUrl(url) {
     if (!url || !url.includes('drive.google.com')) return url;
     try {
@@ -139,27 +138,26 @@ function loadMissionDetail() {
     if(!id) return alert("Seleccione misión.");
     selectedMissionId = id;
     const m = missionsData[id];
+    if (!m) return alert("Misión no encontrada.");
 
-    // Carga de Textos
-    document.getElementById('det-name').innerText = "OPERACIÓN: " + m.nombre.toUpperCase();
+    document.getElementById('det-name').innerText = "OPERACIÓN: " + (m.nombre || "SIN NOMBRE").toUpperCase();
     document.getElementById('det-hist').innerText = m.historia || "";
     document.getElementById('det-obj').innerText = m.objetivos || "";
     
-    // CORRECCIÓN PORTADA: Buscar en ambas posibles llaves
-    const rawUrl = m.imagen_url || m.imagen || "";
+    // Imagen
+    let rawUrl = m.imagen_url || m.imagen || m.portada || "";
     const cleanUrl = getDirectDriveUrl(rawUrl);
     document.getElementById('det-img').style.backgroundImage = `linear-gradient(to bottom, transparent, var(--f)), url('${cleanUrl}')`;
 
     showView('mission-detail');
     
-    // CORRECCIÓN ELEMENTOS: Extraer del sub-nodo 'elementos'
+    // Mapa
     let elementosArray = [];
     if (m.elementos) {
-        // Si es un objeto de Firebase (con IDs aleatorios), lo convertimos a Array
-        elementosArray = Object.values(m.elementos);
+        elementosArray = Array.isArray(m.elementos) ? m.elementos : Object.values(m.elementos);
     }
 
-    setTimeout(() => { renderTacticalMap(elementosArray); }, 400);
+    setTimeout(() => { renderTacticalMap(elementosArray); }, 300);
 }
 
 function renderTacticalMap(elementos) {
@@ -171,7 +169,6 @@ function renderTacticalMap(elementos) {
 
     elementos.forEach(el => {
         const color = ATOM_COLORS[el.type] || '#0f0';
-        // Asegurar que las coordenadas existan
         if (el.path) {
             L.polygon(el.path, {color: color, weight: 2, fillOpacity: 0.3}).addTo(layers);
             if(!gpsCoords) gpsCoords = el.path[0];
@@ -195,7 +192,6 @@ function renderTacticalMap(elementos) {
 
 function openGPS(type) {
     if(!gpsCoords) return alert("Sin coordenadas.");
-    // Manejar formato [lat, lng] o {lat, lng}
     const lat = gpsCoords.lat !== undefined ? gpsCoords.lat : gpsCoords[0];
     const lng = gpsCoords.lng !== undefined ? gpsCoords.lng : gpsCoords[1];
     const url = (type === 'google') 
