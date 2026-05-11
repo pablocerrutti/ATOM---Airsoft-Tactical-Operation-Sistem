@@ -144,14 +144,14 @@ function loadMissionDetail() {
     document.getElementById('det-hist').innerText = m.historia || "";
     document.getElementById('det-obj').innerText = m.objetivos || "";
     
-    // Imagen
-    let rawUrl = m.imagen_url || m.imagen || m.portada || "";
+    // Imagen (igual que en command center)
+    let rawUrl = m.imagen_url || m.imagen || "";
     const cleanUrl = getDirectDriveUrl(rawUrl);
     document.getElementById('det-img').style.backgroundImage = `linear-gradient(to bottom, transparent, var(--f)), url('${cleanUrl}')`;
 
     showView('mission-detail');
     
-    // Mapa
+    // Mapa - Versión que funciona en command center
     let elementosArray = [];
     if (m.elementos) {
         elementosArray = Array.isArray(m.elementos) ? m.elementos : Object.values(m.elementos);
@@ -187,7 +187,7 @@ function renderTacticalMap(elementos) {
     } else {
         miniMap.setView([-34.34, -56.71], 15);
     }
-    setTimeout(() => { miniMap.invalidateSize(); }, 200);
+    setTimeout(() => { if(miniMap) miniMap.invalidateSize(); }, 200);
 }
 
 function openGPS(type) {
